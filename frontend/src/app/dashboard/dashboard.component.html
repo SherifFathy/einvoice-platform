@@ -1,0 +1,21 @@
+<h2>Dashboard</h2>
+
+@if (healthData) {
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>{{ healthData.message }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p><strong>Timestamp:</strong> {{ healthData.timestamp | date:'medium' }}</p>
+      <p><strong>Active Profiles:</strong> {{ healthData.profiles.join(', ') || 'none' }}</p>
+    </mat-card-content>
+  </mat-card>
+} @else if (error) {
+  <mat-card>
+    <mat-card-content>
+      <p>{{ error }}</p>
+    </mat-card-content>
+  </mat-card>
+} @else {
+  <p>Loading backend status...</p>
+}
