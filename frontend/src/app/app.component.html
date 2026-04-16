@@ -32,14 +32,11 @@
         <mat-icon matListItemIcon>schedule</mat-icon>
         <span matListItemTitle>Jobs</span>
       </a>
-      <a mat-list-item routerLink="/auth" routerLinkActive="active-link">
-        <mat-icon matListItemIcon>lock</mat-icon>
-        <span matListItemTitle>Auth</span>
-      </a>
     </mat-nav-list>
   </mat-sidenav>
 
   <mat-sidenav-content class="app-content">
+    <app-header />
     <router-outlet />
   </mat-sidenav-content>
 </mat-sidenav-container>

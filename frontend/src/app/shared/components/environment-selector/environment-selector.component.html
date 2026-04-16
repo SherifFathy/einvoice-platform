@@ -1,0 +1,15 @@
+<button mat-button [matMenuTriggerFor]="envMenu" class="env-selector-btn">
+  <mat-icon>public</mat-icon>
+  {{ displayLabel }}
+  <mat-icon>arrow_drop_down</mat-icon>
+</button>
+<mat-menu #envMenu="matMenu">
+  <button
+    *ngFor="let env of permittedEnvironments"
+    mat-menu-item
+    [class.active-env]="env === activeEnvironment"
+    (click)="selectEnvironment(env)"
+  >
+    {{ env }}
+  </button>
+</mat-menu>

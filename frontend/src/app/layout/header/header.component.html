@@ -1,0 +1,35 @@
+<mat-toolbar color="primary">
+  <span class="brand">E-Invoice Platform</span>
+
+  <span class="spacer"></span>
+
+  <ng-container *ngIf="currentUser">
+    <button mat-button [matMenuTriggerFor]="companyMenu">
+      <mat-icon>business</mat-icon>
+      {{ activeCompanyName || 'Select Company' }}
+      <mat-icon>arrow_drop_down</mat-icon>
+    </button>
+    <mat-menu #companyMenu="matMenu">
+      <button
+        *ngFor="let company of currentUser.availableCompanies"
+        mat-menu-item
+        (click)="switchCompany(company.id)"
+      >
+        {{ company.name }}
+      </button>
+    </mat-menu>
+
+    <span *ngIf="permittedEnvironments.length > 0" class="env-selector-wrapper">
+      <app-environment-selector
+        [permittedEnvironments]="permittedEnvironments"
+        (environmentSelected)="onEnvironmentSelected()"
+      ></app-environment-selector>
+    </span>
+
+    <span class="user-name">{{ currentUser.name || currentUser.email }}</span>
+
+    <button mat-icon-button (click)="logout()">
+      <mat-icon>logout</mat-icon>
+    </button>
+  </ng-container>
+</mat-toolbar>

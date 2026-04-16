@@ -1,0 +1,177 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>{{ isEdit ? 'Edit Invoice' : 'New Invoice' }}</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <h4>Header</h4>
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Type *</mat-label>
+          <mat-select formControlName="type">
+            <mat-option value="TAX_INVOICE">Tax Invoice</mat-option>
+            <mat-option value="SIMPLIFIED_TAX_INVOICE">Simplified Tax Invoice</mat-option>
+            <mat-option value="CREDIT_NOTE">Credit Note</mat-option>
+            <mat-option value="DEBIT_NOTE">Debit Note</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Issue Date *</mat-label>
+          <input matInput type="date" formControlName="issueDate">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Currency</mat-label>
+          <input matInput formControlName="currency" placeholder="SAR">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Branch *</mat-label>
+          <input matInput type="number" formControlName="branchId" placeholder="Branch ID">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Authority *</mat-label>
+          <mat-select formControlName="authority">
+            <mat-option value="ZATCA">ZATCA</mat-option>
+            <mat-option value="ETA">ETA</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Buyer (Customer ID)</mat-label>
+          <input matInput type="number" formControlName="buyerId">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Supply Date</mat-label>
+          <input matInput type="date" formControlName="supplyDate">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Supply End Date</mat-label>
+          <input matInput type="date" formControlName="supplyEndDate">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Original Invoice ID</mat-label>
+          <input matInput formControlName="originalInvoiceId" placeholder="For CN/DN">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Payment Means</mat-label>
+          <input matInput formControlName="paymentMeansCode" placeholder="10">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Payment Terms</mat-label>
+          <input matInput formControlName="paymentTerms" placeholder="Net 30">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Notes</mat-label>
+          <textarea matInput formControlName="notes" rows="2"></textarea>
+        </mat-form-field>
+      </div>
+
+      <mat-divider style="margin: 16px 0;"></mat-divider>
+      <h4>Line Items</h4>
+
+      <div class="line-header">
+        <span>Description</span><span>Qty</span><span>Unit</span><span>Price</span><span>Discount</span><span>VAT Cat</span><span>VAT %</span><span></span>
+      </div>
+      @for (lineCtrl of linesArray.controls; track $index; let i = $index) {
+        <div class="line-row" [formGroupName]="i" formArrayName="lines">
+          <mat-form-field appearance="outline" style="width:100%">
+            <input matInput formControlName="descriptionEn" placeholder="Description">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width:100%">
+            <input matInput type="number" formControlName="quantity" (input)="recalcTotals()">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width:100%">
+            <input matInput formControlName="unit" placeholder="EA">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width:100%">
+            <input matInput type="number" formControlName="unitPrice" (input)="recalcTotals()">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width:100%">
+            <input matInput type="number" formControlName="discountAmount" (input)="recalcTotals()">
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width:100%">
+            <mat-select formControlName="vatCategory" (selectionChange)="recalcTotals()">
+              <mat-option value="S">S</mat-option>
+              <mat-option value="Z">Z</mat-option>
+              <mat-option value="E">E</mat-option>
+              <mat-option value="O">O</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="width:100%">
+            <input matInput type="number" formControlName="vatRate" (input)="recalcTotals()">
+          </mat-form-field>
+          <button mat-icon-button type="button" color="warn" (click)="removeLine(i)" [disabled]="linesArray.length <= 1">
+            <mat-icon>remove_circle</mat-icon>
+          </button>
+        </div>
+      }
+
+      <button mat-stroked-button type="button" (click)="addLine()">
+        <mat-icon>add</mat-icon> Add Line
+      </button>
+
+      <mat-divider style="margin: 16px 0;"></mat-divider>
+
+      <div class="form-grid" style="max-width: 600px; margin-left: auto;">
+        <mat-form-field appearance="outline">
+          <mat-label>Total Allowances</mat-label>
+          <input matInput type="number" formControlName="totalAllowances" (input)="recalcTotals()">
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Prepaid Amount</mat-label>
+          <input matInput type="number" formControlName="prepaidAmount" (input)="recalcTotals()">
+        </mat-form-field>
+      </div>
+
+      <div class="totals-grid">
+        <span class="label">Total Line Net:</span>
+        <span class="value">{{ calculatedTotals.totalLineNet | number:'1.2-2' }}</span>
+        <span class="label">Total Allowances:</span>
+        <span class="value">- {{ calculatedTotals.totalAllowances | number:'1.2-2' }}</span>
+        <span class="label">Total Without VAT:</span>
+        <span class="value">{{ calculatedTotals.totalWithoutVat | number:'1.2-2' }}</span>
+        <span class="label">Total VAT:</span>
+        <span class="value">{{ calculatedTotals.totalVat | number:'1.2-2' }}</span>
+        <span class="label" style="font-weight:bold">Total With VAT:</span>
+        <span class="value" style="font-weight:bold">{{ calculatedTotals.totalWithVat | number:'1.2-2' }}</span>
+        <span class="label">Prepaid:</span>
+        <span class="value">- {{ form.get('prepaidAmount')?.value | number:'1.2-2' }}</span>
+        <span class="label" style="font-weight:bold; font-size: 1.1em;">Amount Due:</span>
+        <span class="value" style="font-weight:bold; font-size: 1.1em;">{{ calculatedTotals.amountDue | number:'1.2-2' }}</span>
+      </div>
+
+      @if (vatBreakdown.length > 0) {
+        <div class="vat-section">
+          <h4>VAT Breakdown</h4>
+          <table style="width: auto;">
+            <tr><th>Category</th><th>Rate %</th><th>Taxable</th><th>Tax</th></tr>
+            @for (vd of vatBreakdown; track vd.category + vd.rate) {
+              <tr>
+                <td>{{ vd.category }}</td>
+                <td>{{ vd.rate }}</td>
+                <td style="text-align:right">{{ vd.taxable | number:'1.2-2' }}</td>
+                <td style="text-align:right">{{ vd.tax | number:'1.2-2' }}</td>
+              </tr>
+            }
+          </table>
+        </div>
+      }
+
+      <div class="form-actions">
+        <button mat-button type="button" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+          @if (submitting) { Saving... } @else { {{ isEdit ? 'Update' : 'Create' }} Invoice }
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

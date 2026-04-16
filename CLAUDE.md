@@ -1,8 +1,10 @@
 ﻿# einvoice-platform Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-08
+Auto-generated from all feature plans. Last updated: 2026-04-10
 
 ## Active Technologies
+- Java 17 (backend), TypeScript 5.x (frontend) + Spring Boot 3.4.4, Spring Security, Spring Data JPA, Angular 19, Angular Material, Flyway, BouncyCastle, Apache POI, Lombok, Jackson (002-platform-foundation-tenancy)
+- PostgreSQL 16 (via Docker Compose, already configured in Wave 0) (002-platform-foundation-tenancy)
 
 - Java 17+ (backend), TypeScript 5.x (frontend) + Spring Boot 3.4.x, Angular 19.x, Angular Material, Flyway, PostgreSQL Driver, BouncyCastle, xades4j, Jackson, Apache POI, Lombok (001-project-scaffold)
 
@@ -23,6 +25,7 @@ npm test; npm run lint
 Java 17+ (backend), TypeScript 5.x (frontend): Follow standard conventions
 
 ## Recent Changes
+- 002-platform-foundation-tenancy: Added Java 17 (backend), TypeScript 5.x (frontend) + Spring Boot 3.4.4, Spring Security, Spring Data JPA, Angular 19, Angular Material, Flyway, BouncyCastle, Apache POI, Lombok, Jackson
 
 - 001-project-scaffold: Added Java 17+ (backend), TypeScript 5.x (frontend) + Spring Boot 3.4.x, Angular 19.x, Angular Material, Flyway, PostgreSQL Driver, BouncyCastle, xades4j, Jackson, Apache POI, Lombok
 

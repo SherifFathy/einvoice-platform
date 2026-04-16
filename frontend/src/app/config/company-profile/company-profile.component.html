@@ -1,0 +1,72 @@
+<h2>Company Profile</h2>
+
+@if (loading) {
+  <p>Loading...</p>
+} @else {
+  <mat-card>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="form-grid">
+        <mat-form-field>
+          <mat-label>Name (Arabic)</mat-label>
+          <input matInput formControlName="nameAr" required />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Name (English)</mat-label>
+          <input matInput formControlName="nameEn" required />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>VAT Number</mat-label>
+          <input matInput formControlName="vatNumber" required />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>CR Number</mat-label>
+          <input matInput formControlName="crNumber" />
+        </mat-form-field>
+
+        <mat-form-field class="full-width">
+          <mat-label>Street</mat-label>
+          <input matInput formControlName="street" />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Building Number</mat-label>
+          <input matInput formControlName="buildingNumber" />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>City</mat-label>
+          <input matInput formControlName="city" />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>District</mat-label>
+          <input matInput formControlName="district" />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Postal Code</mat-label>
+          <input matInput formControlName="postalCode" />
+        </mat-form-field>
+
+        <mat-form-field>
+          <mat-label>Country Code</mat-label>
+          <input matInput formControlName="countryCode" />
+        </mat-form-field>
+
+        <mat-form-field class="full-width">
+          <mat-label>Additional ID</mat-label>
+          <input matInput formControlName="additionalId" />
+        </mat-form-field>
+      </div>
+
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+          @if (submitting) { Saving... } @else { Save Changes }
+        </button>
+      </div>
+    </form>
+  </mat-card>
+}

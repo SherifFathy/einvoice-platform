@@ -1,0 +1,46 @@
+<h2>Assign User to Company</h2>
+
+<mat-card class="form-grid">
+  <h3>Assign User</h3>
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <mat-form-field>
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email" required />
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Name (for new users only)</mat-label>
+      <input matInput formControlName="name" />
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Role</mat-label>
+      <mat-select formControlName="role" required>
+        @for (role of roles; track role) {
+          <mat-option [value]="role">{{ role }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <div class="form-actions">
+      <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+        @if (submitting) { Assigning... } @else { Assign User }
+      </button>
+    </div>
+  </form>
+</mat-card>
+
+@if (lastResult) {
+  <mat-card class="result-card">
+    <h3>Assignment Result</h3>
+    <p><strong>User ID:</strong> {{ lastResult.userId }}</p>
+    <p><strong>Company ID:</strong> {{ lastResult.companyId }}</p>
+    <p><strong>Role:</strong> {{ lastResult.role }}</p>
+    <p><strong>New User Created:</strong> {{ lastResult.userCreated ? 'Yes' : 'No' }}</p>
+  </mat-card>
+}
+
+<div class="nav-actions">
+  <button mat-button (click)="goBack()">Back to Branches</button>
+  <button mat-raised-button color="primary" (click)="goToDashboard()">Finish - Go to Dashboard</button>
+</div>

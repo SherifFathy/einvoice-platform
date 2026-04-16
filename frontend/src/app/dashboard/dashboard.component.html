@@ -1,21 +1,64 @@
 <h2>Dashboard</h2>
 
-@if (healthData) {
+@if (isSuperAdmin) {
   <mat-card>
-    <mat-card-header>
-      <mat-card-title>{{ healthData.message }}</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p><strong>Timestamp:</strong> {{ healthData.timestamp | date:'medium' }}</p>
-      <p><strong>Active Profiles:</strong> {{ healthData.profiles.join(', ') || 'none' }}</p>
-    </mat-card-content>
-  </mat-card>
-} @else if (error) {
-  <mat-card>
-    <mat-card-content>
-      <p>{{ error }}</p>
-    </mat-card-content>
+    <div class="dashboard-header">
+      <h3>Companies</h3>
+      <a mat-raised-button color="primary" routerLink="/config/company-create">
+        <mat-icon>add</mat-icon> New Company
+      </a>
+    </div>
+
+    @if (loading) {
+      <p>Loading...</p>
+    } @else {
+      <table mat-table [dataSource]="companies">
+        <ng-container matColumnDef="nameEn">
+          <th mat-header-cell *matHeaderCellDef>Company Name</th>
+          <td mat-cell *matCellDef="let company">{{ company.nameEn }}</td>
+        </ng-container>
+        <ng-container matColumnDef="vatNumber">
+          <th mat-header-cell *matHeaderCellDef>VAT Number</th>
+          <td mat-cell *matCellDef="let company">{{ company.vatNumber }}</td>
+        </ng-container>
+        <ng-container matColumnDef="city">
+          <th mat-header-cell *matHeaderCellDef>City</th>
+          <td mat-cell *matCellDef="let company">{{ company.city }}</td>
+        </ng-container>
+        <ng-container matColumnDef="isActive">
+          <th mat-header-cell *matHeaderCellDef>Active</th>
+          <td mat-cell *matCellDef="let company">
+            <span [class.status-active]="company.isActive" [class.status-inactive]="!company.isActive">
+              {{ company.isActive ? 'Yes' : 'No' }}
+            </span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="createdAt">
+          <th mat-header-cell *matHeaderCellDef>Created</th>
+          <td mat-cell *matCellDef="let company">{{ company.createdAt | date }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let company">
+            <button mat-button color="primary" (click)="toggleCompanyStatus(company)">
+              {{ company.isActive ? 'Deactivate' : 'Activate' }}
+            </button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+      <mat-paginator
+        [length]="totalElements"
+        [pageSize]="pageSize"
+        [pageIndex]="pageIndex"
+        (page)="onPageChange($event)"
+      />
+    }
   </mat-card>
 } @else {
-  <p>Loading backend status...</p>
+  <mat-card>
+    <h3>Welcome</h3>
+    <p>Contact your administrator for company management access.</p>
+  </mat-card>
 }

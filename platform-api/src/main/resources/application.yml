@@ -16,3 +16,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY:15m}
+  refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY:7d}
+
+encryption:
+  master-key: ${ENCRYPTION_MASTER_KEY}

@@ -1,1 +1,17 @@
-<p>items works!</p>
+@if (view === 'list') {
+  <app-item-list
+    (editItem)="showForm($event)"
+    (importItems)="showImport()">
+  </app-item-list>
+} @else if (view === 'form') {
+  <app-item-form
+    [item]="editItem"
+    (saved)="showList()"
+    (cancelled)="showList()">
+  </app-item-form>
+} @else if (view === 'import') {
+  <app-item-import
+    (importComplete)="showList()"
+    (cancelled)="showList()">
+  </app-item-import>
+}

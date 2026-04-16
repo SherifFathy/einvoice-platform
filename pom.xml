@@ -31,12 +31,14 @@
 
     <properties>
         <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <bouncycastle.version>1.80</bouncycastle.version>
         <xades4j.version>2.4.0</xades4j.version>
         <apache-poi.version>5.4.0</apache-poi.version>
+        <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <dependencyManagement>
@@ -97,6 +99,23 @@
                 <artifactId>poi-ooxml</artifactId>
                 <version>${apache-poi.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -131,6 +150,13 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
                         <parameters>true</parameters>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>1.18.36</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
             </plugins>
