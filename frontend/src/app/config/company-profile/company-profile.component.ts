@@ -91,7 +91,7 @@ export class CompanyProfileComponent implements OnInit {
         this.submitting = false;
       },
       error: (err) => {
-        this.toast.error(err.error?.message || 'Failed to update company profile');
+        this.toast.error(err.error?.error || 'Failed to update company profile');
         this.submitting = false;
       },
     });

@@ -3,6 +3,7 @@ package com.einvoice.core.service;
 import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.AuditLog;
 import com.einvoice.core.repository.AuditLogRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.OffsetDateTime;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 public class AuditService {
 
     private final AuditLogRepository auditLogRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AuditService(AuditLogRepository auditLogRepository) {
         this.auditLogRepository = auditLogRepository;
@@ -48,8 +50,8 @@ public class AuditService {
                 .action(action)
                 .entityType(entityType)
                 .entityId(entityId)
-                .payloadBefore(payloadBefore)
-                .payloadAfter(payloadAfter)
+                .payloadBefore(toValidJson(payloadBefore))
+                .payloadAfter(toValidJson(payloadAfter))
                 .ipAddress(getClientIp())
                 .timestamp(OffsetDateTime.now())
                 .build();
@@ -160,6 +162,22 @@ public class AuditService {
             return attrs.getRequest().getRemoteAddr();
         }
         return "unknown";
+    }
+
+    private String toValidJson(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            objectMapper.readTree(value);
+            return value;
+        } catch (Exception e) {
+            try {
+                return objectMapper.writeValueAsString(value);
+            } catch (Exception ex) {
+                return null;
+            }
+        }
     }
 
     /** Runtime exception for audit logging failures. */

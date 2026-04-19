@@ -211,7 +211,7 @@ public class AuditAspect {
             }
             return auditObjectMapper.writeValueAsString(obj);
         } catch (Exception e) {
-            return obj.toString();
+            return null;
         }
     }
 

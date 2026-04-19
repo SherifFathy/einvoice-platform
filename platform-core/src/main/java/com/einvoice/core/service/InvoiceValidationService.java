@@ -1,65 +1,90 @@
 package com.einvoice.core.service;
 
 import com.einvoice.core.domain.Invoice;
-import com.einvoice.core.domain.InvoiceLine;
-import com.einvoice.core.domain.enums.CustomerType;
-import com.einvoice.core.domain.enums.InvoiceType;
+import com.einvoice.core.domain.enums.Authority;
+import com.einvoice.core.service.validation.ValidationLayer;
+import com.einvoice.core.service.validation.ValidationSeverity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
-/** Validates invoice domain rules before persisting. */
+/**
+ * Validates invoice domain rules before persisting a draft.
+ *
+ * <p>Delegates to the three-layer {@link ValidationService} but restricts
+ * evaluation to {@link ValidationLayer#STRUCTURAL STRUCTURAL} and
+ * {@link ValidationLayer#ARITHMETIC ARITHMETIC} layers only — COMPLIANCE and
+ * READINESS checks are submission-time concerns and must not block draft
+ * creation.
+ *
+ * <p>Additionally enforces three draft-scope rules that are not covered by
+ * any {@code ValidationRule} implementation:
+ * <ul>
+ *   <li>Issue date must not be in the future</li>
+ *   <li>Supply end date must be after supply date</li>
+ *   <li>selfBilled + export subtype flag combination is invalid</li>
+ * </ul>
+ */
 @Service
 public class InvoiceValidationService {
 
+    private final ValidationService validationService;
     private final ObjectMapper objectMapper;
 
-    public InvoiceValidationService(ObjectMapper objectMapper) {
+    public InvoiceValidationService(ValidationService validationService,
+            ObjectMapper objectMapper) {
+        this.validationService = validationService;
         this.objectMapper = objectMapper;
     }
 
     /**
-     * Validates invoice header and line-level rules.
+     * Validates invoice header and line-level rules for draft persistence.
      *
      * @param invoice the invoice to validate
      * @return list of errors (empty if valid)
      */
     public List<ValidationError> validate(Invoice invoice) {
-        List<ValidationError> errors = new ArrayList<>();
+        Authority authority = invoice.getAuthority() != null
+                ? invoice.getAuthority() : Authority.ZATCA;
 
-        validateHeader(invoice, errors);
-        validateLines(invoice, errors);
+        ValidationService.ValidationResult result =
+                validationService.validate(invoice, authority);
 
-        return errors;
+        List<ValidationError> legacyErrors = new ArrayList<>();
+
+        for (com.einvoice.core.service.validation.ValidationError ve : result.errors()) {
+            if (ve.layer() == ValidationLayer.STRUCTURAL
+                    || ve.layer() == ValidationLayer.ARITHMETIC) {
+                legacyErrors.add(new ValidationError(ve.field(), ve.message()));
+            }
+        }
+
+        validateFutureIssueDate(invoice, legacyErrors);
+        validateSupplyDateOrdering(invoice, legacyErrors);
+        validateSubtypeFlags(invoice, legacyErrors);
+
+        return legacyErrors;
     }
 
-    private void validateHeader(Invoice invoice, List<ValidationError> errors) {
+    private void validateFutureIssueDate(Invoice invoice,
+            List<ValidationError> errors) {
         if (invoice.getIssueDate() != null
                 && invoice.getIssueDate().isAfter(LocalDate.now())) {
             errors.add(new ValidationError("issueDate",
                     "Issue date cannot be in the future"));
         }
+    }
 
+    private void validateSupplyDateOrdering(Invoice invoice,
+            List<ValidationError> errors) {
         if (invoice.getSupplyDate() != null && invoice.getSupplyEndDate() != null
                 && !invoice.getSupplyEndDate().isAfter(invoice.getSupplyDate())) {
             errors.add(new ValidationError("supplyEndDate",
                     "Supply end date must be after supply date"));
         }
-
-        if (invoice.getType() == InvoiceType.CREDIT_NOTE
-                || invoice.getType() == InvoiceType.DEBIT_NOTE) {
-            if (invoice.getOriginalInvoice() == null) {
-                errors.add(new ValidationError("originalInvoiceId",
-                        "Original invoice reference is required for "
-                                + invoice.getType().name()));
-            }
-        }
-
-        validateSubtypeFlags(invoice, errors);
     }
 
     private void validateSubtypeFlags(Invoice invoice,
@@ -80,50 +105,6 @@ public class InvoiceValidationService {
         } catch (Exception e) {
             errors.add(new ValidationError("subtypeFlags",
                     "Invalid JSON format for subtype flags"));
-        }
-    }
-
-    private void validateLines(Invoice invoice, List<ValidationError> errors) {
-        List<InvoiceLine> lines = invoice.getLines();
-        if (lines == null || lines.isEmpty()) {
-            errors.add(new ValidationError("lines",
-                    "Invoice must have at least one line item"));
-            return;
-        }
-
-        if (invoice.getBuyer() != null
-                && invoice.getBuyer().getCustomerType() == CustomerType.B2B) {
-            if (invoice.getBuyer().getVatNumber() == null
-                    || invoice.getBuyer().getVatNumber().isBlank()) {
-                errors.add(new ValidationError("buyerId",
-                        "Buyer VAT number is required for B2B invoices"));
-            }
-        }
-
-        for (int i = 0; i < lines.size(); i++) {
-            InvoiceLine line = lines.get(i);
-            String prefix = "lines[" + i + "].";
-
-            if (line.getQuantity() != null
-                    && line.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
-                errors.add(new ValidationError(prefix + "quantity",
-                        "Quantity must be positive"));
-            }
-            if (line.getUnitPrice() != null
-                    && line.getUnitPrice().compareTo(BigDecimal.ZERO) <= 0) {
-                errors.add(new ValidationError(prefix + "unitPrice",
-                        "Unit price must be positive"));
-            }
-            if (line.getDiscountAmount() != null
-                    && line.getDiscountAmount().compareTo(BigDecimal.ZERO) < 0) {
-                errors.add(new ValidationError(prefix + "discountAmount",
-                        "Discount amount cannot be negative"));
-            }
-            if (line.getDescriptionEn() == null
-                    || line.getDescriptionEn().isBlank()) {
-                errors.add(new ValidationError(prefix + "descriptionEn",
-                        "Line description is required"));
-            }
         }
     }
 

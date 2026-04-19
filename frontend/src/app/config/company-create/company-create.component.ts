@@ -61,7 +61,7 @@ export class CompanyCreateComponent {
         this.router.navigate(['/config/company-create', company.id, 'branches']);
       },
       error: (err) => {
-        this.toast.error(err.error?.message || 'Failed to create company');
+        this.toast.error(err.error?.error || 'Failed to create company');
         this.submitting = false;
       },
     });

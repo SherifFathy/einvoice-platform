@@ -1,0 +1,10 @@
+ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_status_check;
+
+ALTER TABLE invoices ADD CONSTRAINT invoices_status_check
+    CHECK (status IN (
+        'DRAFT', 'CANCELLED',
+        'VALIDATED', 'READY_FOR_SUBMISSION', 'SUBMISSION_IN_PROGRESS',
+        'CLEARED', 'REPORTED', 'ACCEPTED', 'IN_REVIEW',
+        'REJECTED', 'FAILED_RETRYABLE', 'FAILED_NON_RETRYABLE',
+        'SUBMISSION_AMBIGUOUS'
+    ));

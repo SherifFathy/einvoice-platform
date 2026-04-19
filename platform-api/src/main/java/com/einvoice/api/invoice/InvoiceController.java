@@ -64,9 +64,11 @@ public class InvoiceController {
      * @param pageable pagination parameters
      * @param status optional status filter
      * @param type optional type filter
+     * @param authority optional authority filter
      * @param dateFrom optional start date
      * @param dateTo optional end date
-     * @param search optional search term
+     * @param search optional search term (invoice number)
+     * @param buyer optional buyer name search
      * @return page of invoice summaries
      */
     @GetMapping
@@ -75,13 +77,17 @@ public class InvoiceController {
             @PageableDefault(size = 20) Pageable pageable,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) String authority,
             @RequestParam(required = false) LocalDate dateFrom,
             @RequestParam(required = false) LocalDate dateTo,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String buyer) {
         InvoiceStatus invoiceStatus = parseStatus(status);
         InvoiceType invoiceType = parseType(type);
+        Authority invoiceAuthority = parseAuthority(authority);
         Page<Invoice> invoices = invoiceService.list(invoiceStatus,
-                invoiceType, dateFrom, dateTo, search, pageable);
+                invoiceType, invoiceAuthority, dateFrom, dateTo, search,
+                buyer, pageable);
         return ResponseEntity.ok(invoices.map(this::toListResponse));
     }
 
@@ -160,7 +166,7 @@ public class InvoiceController {
             invoiceService.cancelDraft(id);
             return ResponseEntity.noContent().build();
         } catch (InvoiceService.InvoiceNotDraftException e) {
-            return ResponseEntity.badRequest()
+            return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("error", e.getMessage()));
         }
     }
@@ -202,7 +208,7 @@ public class InvoiceController {
                 .issueDate(req.issueDate())
                 .supplyDate(req.supplyDate())
                 .supplyEndDate(req.supplyEndDate())
-                .currency(req.currency() != null ? req.currency() : "SAR")
+                .currency(req.currency())
                 .authority(authority)
                 .environment(environment)
                 .paymentMeansCode(req.paymentMeansCode())
@@ -210,6 +216,7 @@ public class InvoiceController {
                 .prepaidAmount(req.prepaidAmount())
                 .totalAllowances(req.totalAllowances())
                 .notes(req.notes())
+                .externalInvoiceReference(req.externalInvoiceReference())
                 .build();
 
         if (req.subtypeFlags() != null) {
@@ -357,6 +364,7 @@ public class InvoiceController {
                 inv.getBranch() != null ? inv.getBranch().getId() : null,
                 inv.getOriginalInvoice() != null
                         ? inv.getOriginalInvoice().getId() : null,
+                inv.getExternalInvoiceReference(),
                 inv.getNotes(),
                 inv.getCreatedAt(),
                 lineResponses,
@@ -407,6 +415,18 @@ public class InvoiceController {
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid type: " + type);
+        }
+    }
+
+    private Authority parseAuthority(String authority) {
+        if (authority == null || authority.isBlank()) {
+            return null;
+        }
+        try {
+            return Authority.valueOf(authority.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid authority: " + authority);
         }
     }
 }

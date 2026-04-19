@@ -43,6 +43,7 @@ export interface InvoiceDetailResponse {
   environment: string;
   branchId: number | null;
   originalInvoiceId: string | null;
+  externalInvoiceReference: string | null;
   notes: string | null;
   createdAt: string;
   lines: InvoiceLineResponse[];
@@ -88,6 +89,7 @@ export interface CreateInvoiceRequest {
   prepaidAmount?: number;
   totalAllowances?: number;
   originalInvoiceId?: string | null;
+  externalInvoiceReference?: string | null;
   notes?: string | null;
   lines: InvoiceLineRequest[];
 }
@@ -112,13 +114,16 @@ export class InvoiceService {
 
   list(page: number, size: number, status?: string, type?: string,
       dateFrom?: string, dateTo?: string,
-      search?: string): Observable<PageResponse<InvoiceListResponse>> {
+      search?: string, authority?: string,
+      buyer?: string): Observable<PageResponse<InvoiceListResponse>> {
     let url = `${this.apiUrl}?page=${page}&size=${size}`;
     if (status) url += `&status=${status}`;
     if (type) url += `&type=${type}`;
+    if (authority) url += `&authority=${authority}`;
     if (dateFrom) url += `&dateFrom=${dateFrom}`;
     if (dateTo) url += `&dateTo=${dateTo}`;
     if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (buyer) url += `&buyer=${encodeURIComponent(buyer)}`;
     return this.http.get<PageResponse<InvoiceListResponse>>(url);
   }
 
@@ -137,4 +142,90 @@ export class InvoiceService {
   cancel(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  cancelEta(id: string, reason?: string): Observable<{ invoiceId: string; status: string }> {
+    return this.http.post<{ invoiceId: string; status: string }>(`${this.apiUrl}/${id}/cancel-eta`,
+      { reason: reason || '' });
+  }
+
+  validate(id: string): Observable<ValidationResultResponse> {
+    return this.http.post<ValidationResultResponse>(`${this.apiUrl}/${id}/validate`, null);
+  }
+
+  submit(id: string): Observable<SubmitResponse> {
+    return this.http.post<SubmitResponse>(`${this.apiUrl}/${id}/submit`, null);
+  }
+
+  retry(id: string): Observable<SubmitResponse> {
+    return this.http.post<SubmitResponse>(`${this.apiUrl}/${id}/retry`, null);
+  }
+
+  confirmSubmission(id: string): Observable<{ invoiceId: string; status: string }> {
+    return this.http.post<{ invoiceId: string; status: string }>(`${this.apiUrl}/${id}/confirm-submission`, null);
+  }
+
+  checkStatus(id: string): Observable<{ invoiceId: string; status: string; previousStatus: string; checkedAt: string }> {
+    return this.http.post<{ invoiceId: string; status: string; previousStatus: string; checkedAt: string }>(`${this.apiUrl}/${id}/check-status`, null);
+  }
+
+  getSubmissions(id: string): Observable<{ invoiceId: string; currentStatus: string; attempts: SubmissionAttemptResponse[] }> {
+    return this.http.get<{ invoiceId: string; currentStatus: string; attempts: SubmissionAttemptResponse[] }>(`${this.apiUrl}/${id}/submissions`);
+  }
+
+  getArtifact(id: string, type: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${id}/artifacts/${type}`, { responseType: 'blob' });
+  }
+
+  getArtifacts(id: string): Observable<ArtifactListResponse> {
+    return this.http.get<ArtifactListResponse>(`${this.apiUrl}/${id}/artifacts`);
+  }
+
+  returnToDraft(id: string): Observable<{ invoiceId: string; status: string }> {
+    return this.http.post<{ invoiceId: string; status: string }>(`${this.apiUrl}/${id}/return-to-draft`, null);
+  }
+
+  getEtaPdf(id: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${id}/eta-pdf`, { responseType: 'blob' });
+  }
+}
+
+export interface ValidationResultResponse {
+  valid: boolean;
+  errors: ValidationItem[];
+  warnings: ValidationItem[];
+}
+
+export interface ValidationItem {
+  layer: string;
+  authority: string | null;
+  ruleId: string | null;
+  field: string;
+  message: string;
+  severity: string;
+}
+
+export interface SubmitResponse {
+  invoiceId: string;
+  status: string;
+  attemptNumber: number;
+  authority: string;
+  warnings: string[];
+  errors: { code: string; message: string }[];
+  submittedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface SubmissionAttemptResponse {
+  attemptNumber: number;
+  authority: string;
+  environment: string;
+  result: string;
+  statusCode: number | null;
+  errorSummary: string | null;
+  submittedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ArtifactListResponse {
+  artifacts: { type: string; createdAt: string }[];
 }

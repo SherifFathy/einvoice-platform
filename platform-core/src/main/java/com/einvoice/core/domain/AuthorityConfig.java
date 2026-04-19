@@ -97,6 +97,13 @@ public class AuthorityConfig {
     @Builder.Default
     private String enabledDocumentTypes = "[]";
 
+    @Column(name = "onboarding_status", length = 30)
+    private String onboardingStatus;
+
+    @Column(name = "polling_enabled")
+    @Builder.Default
+    private Boolean pollingEnabled = true;
+
     @Column(name = "is_active")
     @Builder.Default
     private Boolean isActive = true;

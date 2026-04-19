@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/einvoice
+    url: jdbc:postgresql://localhost:5433/einvoice
     username: einvoice
     password: einvoice_dev
     hikari:

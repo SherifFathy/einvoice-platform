@@ -71,7 +71,7 @@ export class PermissionMatrixComponent implements OnInit {
         this.dialogRef.close(true);
       },
       error: (err) => {
-        this.toast.error(err.error?.message || 'Failed to update permissions');
+        this.toast.error(err.error?.error || 'Failed to update permissions');
         this.submitting = false;
       },
     });

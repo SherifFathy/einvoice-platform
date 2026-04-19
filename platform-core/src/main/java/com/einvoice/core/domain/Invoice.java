@@ -137,6 +137,9 @@ public class Invoice {
     @JoinColumn(name = "original_invoice_id")
     private Invoice originalInvoice;
 
+    @Column(name = "external_invoice_reference", columnDefinition = "text")
+    private String externalInvoiceReference;
+
     @Column(columnDefinition = "text")
     private String notes;
 

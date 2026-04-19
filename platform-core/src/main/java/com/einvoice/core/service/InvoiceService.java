@@ -8,6 +8,7 @@ import com.einvoice.core.domain.Customer;
 import com.einvoice.core.domain.Invoice;
 import com.einvoice.core.domain.InvoiceLine;
 import com.einvoice.core.domain.User;
+import com.einvoice.core.domain.enums.Authority;
 import com.einvoice.core.domain.enums.InvoiceStatus;
 import com.einvoice.core.domain.enums.InvoiceType;
 import com.einvoice.core.repository.BranchRepository;
@@ -17,12 +18,16 @@ import com.einvoice.core.repository.InvoiceRepository;
 import com.einvoice.core.repository.ItemRepository;
 import com.einvoice.core.repository.UserRepository;
 import com.einvoice.core.service.InvoiceValidationService.ValidationError;
+import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,6 +97,8 @@ public class InvoiceService {
 
         resolveRelations(invoice, companyId);
 
+        applyCurrencyDefault(invoice);
+
         List<ValidationError> errors = validationService.validate(invoice);
         if (!errors.isEmpty()) {
             throw new InvoiceValidationException(errors);
@@ -127,6 +134,8 @@ public class InvoiceService {
         }
 
         applyUpdates(existing, updates, companyId);
+
+        applyCurrencyDefault(existing);
 
         List<ValidationError> errors = validationService.validate(existing);
         if (!errors.isEmpty()) {
@@ -167,22 +176,56 @@ public class InvoiceService {
      *
      * @param status optional status filter
      * @param type optional invoice type filter
+     * @param authority optional authority filter
      * @param dateFrom optional start date filter
      * @param dateTo optional end date filter
-     * @param search optional search term
+     * @param search optional search term (invoice number)
+     * @param buyerSearch optional buyer name search
      * @param pageable pagination parameters
      * @return page of matching invoices
      */
     @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('READ')")
     public Page<Invoice> list(InvoiceStatus status, InvoiceType type,
-            LocalDate dateFrom, LocalDate dateTo, String search,
-            Pageable pageable) {
+            Authority authority, LocalDate dateFrom, LocalDate dateTo,
+            String search, String buyerSearch, Pageable pageable) {
         Long companyId = TenantContext.getCurrentTenantId();
-        return invoiceRepository.findByCompanyIdFiltered(companyId, status,
-                type, dateFrom, dateTo,
-                (search != null && !search.isBlank()) ? search : null,
-                pageable);
+        boolean hasBuyerSearch = buyerSearch != null && !buyerSearch.isBlank();
+        Specification<Invoice> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("company").get("id"), companyId));
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (type != null) {
+                predicates.add(cb.equal(root.get("type"), type));
+            }
+            if (authority != null) {
+                predicates.add(cb.equal(root.get("authority"), authority));
+            }
+            if (dateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("issueDate"), dateFrom));
+            }
+            if (dateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("issueDate"), dateTo));
+            }
+            if (search != null && !search.isBlank()) {
+                predicates.add(cb.like(
+                        cb.lower(root.get("invoiceNumber")),
+                        "%" + search.toLowerCase() + "%"));
+            }
+            if (query != null && Long.class != query.getResultType()) {
+                root.fetch("buyer", JoinType.LEFT);
+            }
+            if (hasBuyerSearch) {
+                var buyerJoin = root.join("buyer", JoinType.INNER);
+                predicates.add(cb.like(
+                        cb.lower(buyerJoin.get("nameEn")),
+                        "%" + buyerSearch.toLowerCase() + "%"));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return invoiceRepository.findAll(spec, pageable);
     }
 
     /**
@@ -286,6 +329,8 @@ public class InvoiceService {
                 updates.getTotalAllowances() != null
                         ? updates.getTotalAllowances() : BigDecimal.ZERO);
         existing.setNotes(updates.getNotes());
+        existing.setExternalInvoiceReference(
+                updates.getExternalInvoiceReference());
 
         if (updates.getLines() != null) {
             existing.getLines().clear();
@@ -326,6 +371,13 @@ public class InvoiceService {
             throw new IllegalStateException(
                     "Cannot determine user id from authentication principal: "
                             + auth.getName());
+        }
+    }
+
+    private void applyCurrencyDefault(Invoice invoice) {
+        if (invoice.getCurrency() == null || invoice.getCurrency().isBlank()) {
+            invoice.setCurrency(
+                    invoice.getAuthority() == Authority.ETA ? "EGP" : "SAR");
         }
     }
 

@@ -3,6 +3,7 @@ package com.einvoice.api.config;
 import com.einvoice.core.exception.CompanyDeactivatedException;
 import com.einvoice.core.exception.InvalidCredentialsException;
 import com.einvoice.core.exception.InvalidRefreshTokenException;
+import com.einvoice.core.exception.InvalidTransitionException;
 import com.einvoice.core.exception.NoRoleInCompanyException;
 import com.einvoice.core.service.AuthorityConfigService;
 import com.einvoice.core.service.BranchService;
@@ -10,6 +11,7 @@ import com.einvoice.core.service.CompanyService;
 import com.einvoice.core.service.CustomerService;
 import com.einvoice.core.service.ItemService;
 import com.einvoice.core.service.UserService;
+import com.einvoice.core.service.InvoiceService;
 import com.einvoice.core.service.importing.ImportException;
 import com.einvoice.core.service.importing.TemplateException;
 import java.util.LinkedHashMap;
@@ -235,6 +237,18 @@ public class GlobalExceptionHandler {
                 "The resource was modified by another user. Please refresh and try again.");
     }
 
+    @ExceptionHandler(InvalidTransitionException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidTransition(
+            InvalidTransitionException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvoiceService.InvoiceNotDraftException.class)
+    public ResponseEntity<Map<String, String>> handleInvoiceNotDraft(
+            InvoiceService.InvoiceNotDraftException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     /**
      * Handles bean validation failures from {@code @Valid}-annotated request bodies.
      *
@@ -288,6 +302,48 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleMediaTypeNotSupported(
             HttpMediaTypeNotSupportedException ex) {
         return buildResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.zatca.onboarding.ZatcaOnboardingService.OnboardingAlreadyCompletedException.class)
+    public ResponseEntity<Map<String, String>> handleOnboardingAlreadyCompleted(
+            com.einvoice.zatca.onboarding.ZatcaOnboardingService.OnboardingAlreadyCompletedException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.zatca.onboarding.ZatcaOnboardingService.MissingAuthorityConfigException.class)
+    public ResponseEntity<Map<String, String>> handleMissingAuthorityConfig(
+            com.einvoice.zatca.onboarding.ZatcaOnboardingService.MissingAuthorityConfigException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.zatca.renewal.ZatcaCertRenewalService.MissingCertificateException.class)
+    public ResponseEntity<Map<String, String>> handleMissingCertificate(
+            com.einvoice.zatca.renewal.ZatcaCertRenewalService.MissingCertificateException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.eta.codes.DuplicateEtaItemCodeException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateEtaItemCode(
+            com.einvoice.eta.codes.DuplicateEtaItemCodeException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.eta.codes.EtaItemCodeNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleEtaItemCodeNotFound(
+            com.einvoice.eta.codes.EtaItemCodeNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.eta.codes.EtaItemCodeAccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleEtaItemCodeAccessDenied(
+            com.einvoice.eta.codes.EtaItemCodeAccessDeniedException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(com.einvoice.eta.codes.EtaSearchException.class)
+    public ResponseEntity<Map<String, String>> handleEtaSearch(
+            com.einvoice.eta.codes.EtaSearchException ex) {
+        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

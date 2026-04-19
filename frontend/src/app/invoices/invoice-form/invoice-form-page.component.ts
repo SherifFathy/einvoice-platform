@@ -1,8 +1,9 @@
 import { Component, inject, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { InvoiceFormComponent } from '../invoice-form/invoice-form.component';
+import { InvoiceFormComponent } from './invoice-form.component';
 import { InvoiceService, InvoiceDetailResponse } from '../../shared/services/invoice.service';
 import { CanComponentDeactivate } from '../../shared/guards/unsaved-changes.guard';
+import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   selector: 'app-invoice-form-page',
@@ -11,6 +12,7 @@ import { CanComponentDeactivate } from '../../shared/guards/unsaved-changes.guar
   template: `
     <app-invoice-form
       [invoice]="invoice"
+      [companyId]="companyId"
       (saved)="onSaved()"
       (cancelled)="router.navigate(['/invoices'])">
     </app-invoice-form>
@@ -22,10 +24,14 @@ export class InvoiceFormPageComponent implements CanComponentDeactivate {
   protected router = inject(Router);
   private route = inject(ActivatedRoute);
   private invoiceService = inject(InvoiceService);
+  private auth = inject(AuthService);
+
   invoice: InvoiceDetailResponse | null = null;
+  companyId: number | null = null;
   private saved = false;
 
   constructor() {
+    this.companyId = this.auth.getActiveCompanyId();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.invoiceService.get(id).subscribe({

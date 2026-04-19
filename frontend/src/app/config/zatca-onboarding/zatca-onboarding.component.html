@@ -1,0 +1,124 @@
+<mat-card class="onboarding-container">
+  <mat-card-header>
+    <mat-card-title>ZATCA Onboarding</mat-card-title>
+    <mat-card-subtitle>Branch {{ branchId }}</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="form-row">
+      <mat-form-field>
+        <mat-label>Environment</mat-label>
+        <mat-select [(ngModel)]="environment" [ngModelOptions]="{standalone: true}">
+          <mat-option value="ZATCA_SANDBOX">Sandbox</mat-option>
+          <mat-option value="ZATCA_SIMULATION">Simulation</mat-option>
+          <mat-option value="ZATCA_PRODUCTION">Production</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    @if (loading) {
+      <div style="text-align: center; padding: 32px;">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Processing onboarding...</p>
+      </div>
+    }
+
+    @if (!loading && status) {
+      <div>
+        <h3>Progress</h3>
+        <div class="step-indicator">
+          @for (step of displaySteps; track step) {
+            <div class="step-dot"
+                 [class.completed]="isStepCompleted(step)"
+                 [class.current]="isStepCurrent(step)"
+                 [title]="step">
+            </div>
+          }
+        </div>
+
+        <p><strong>Current Step:</strong> {{ status.currentStep }}</p>
+        <p><strong>Status:</strong> {{ status.status }}</p>
+        @if (status.message) {
+          <p>{{ status.message }}</p>
+        }
+        @if (status.lastError) {
+          <p class="error-message">Error: {{ status.lastError }}</p>
+        }
+
+        @if (status.status === 'COMPLETED') {
+          <p class="success-message">Onboarding complete. Branch is ready for ZATCA submission.</p>
+        }
+      </div>
+    }
+
+    @if (!loading && (!status || status.currentStep === 'NOT_STARTED')) {
+      <div>
+        <h3>Step 1: Generate CSR</h3>
+        <form [formGroup]="csrForm">
+          <div class="form-row">
+            <mat-form-field>
+              <mat-label>Common Name (Company Name)</mat-label>
+              <input matInput formControlName="commonName" required>
+            </mat-form-field>
+          </div>
+          <div class="form-row">
+            <mat-form-field>
+              <mat-label>Organization Unit (Branch Name)</mat-label>
+              <input matInput formControlName="organizationUnit">
+            </mat-form-field>
+          </div>
+          <div class="form-row">
+            <mat-form-field>
+              <mat-label>Organization</mat-label>
+              <input matInput formControlName="organization" required>
+            </mat-form-field>
+          </div>
+          <div class="form-row">
+            <mat-form-field>
+              <mat-label>Country</mat-label>
+              <input matInput formControlName="country" required>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Serial Number (VAT/TIN)</mat-label>
+              <input matInput formControlName="serialNumber" required>
+            </mat-form-field>
+          </div>
+          <div class="form-row">
+            <mat-form-field>
+              <mat-label>OTP (from ZATCA portal)</mat-label>
+              <input matInput formControlName="otp" type="password">
+            </mat-form-field>
+          </div>
+          <button mat-raised-button color="primary" (click)="startOnboarding()"
+                  [disabled]="csrForm.invalid || loading">
+            Start Onboarding
+          </button>
+        </form>
+      </div>
+    }
+
+    <div class="import-section">
+      <h3>Manual CSID Import</h3>
+      <p>Alternatively, import an existing CSID certificate and private key.</p>
+
+      <div class="file-upload">
+        <label>Certificate file (PEM/DER):</label>
+        <input type="file" (change)="onCertificateSelected($event)" accept=".pem,.der,.crt,.cer">
+      </div>
+      <div class="file-upload">
+        <label>Private key file (PEM/DER):</label>
+        <input type="file" (change)="onPrivateKeySelected($event)" accept=".pem,.der,.key">
+      </div>
+      <mat-form-field>
+        <mat-label>CSID Secret</mat-label>
+        <input matInput [(ngModel)]="importCsidSecret" [ngModelOptions]="{standalone: true}" type="password">
+      </mat-form-field>
+      <div>
+        <button mat-raised-button color="accent" (click)="importCsid()"
+                [disabled]="importing || !certificateFile || !privateKeyFile || !importCsidSecret">
+          @if (importing) { Importing... } @else { Import CSID }
+        </button>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>

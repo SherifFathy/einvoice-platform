@@ -24,6 +24,7 @@ public record CreateInvoiceRequest(
         BigDecimal prepaidAmount,
         BigDecimal totalAllowances,
         java.util.UUID originalInvoiceId,
+        String externalInvoiceReference,
         String notes,
         @Valid @NotNull List<InvoiceLineRequest> lines
 ) {}

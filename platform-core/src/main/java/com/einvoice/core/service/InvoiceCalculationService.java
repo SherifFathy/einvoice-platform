@@ -51,7 +51,8 @@ public class InvoiceCalculationService {
                 .setScale(FINAL_SCALE, RoundingMode.HALF_UP);
         invoice.setTotalWithoutVat(totalWithoutVat);
 
-        List<InvoiceVatBreakdown> breakdown = buildVatBreakdown(invoice, lines);
+        List<InvoiceVatBreakdown> breakdown = buildVatBreakdown(
+                invoice, lines, totalLineNet, totalAllowances);
         invoice.getVatBreakdown().clear();
         invoice.getVatBreakdown().addAll(breakdown);
 
@@ -97,7 +98,8 @@ public class InvoiceCalculationService {
     }
 
     private List<InvoiceVatBreakdown> buildVatBreakdown(Invoice invoice,
-            List<InvoiceLine> lines) {
+            List<InvoiceLine> lines, BigDecimal totalLineNet,
+            BigDecimal totalAllowances) {
         Map<String, InvoiceVatBreakdown> map = new LinkedHashMap<>();
         for (InvoiceLine line : lines) {
             String key = line.getVatCategory() + "@" + line.getVatRate();
@@ -111,15 +113,40 @@ public class InvoiceCalculationService {
             InvoiceVatBreakdown bd = map.get(key);
             bd.setTaxableAmount(bd.getTaxableAmount()
                     .add(line.getLineNetAmount()));
-            bd.setTaxAmount(bd.getTaxAmount()
-                    .add(line.getLineVatAmount()));
         }
+
         List<InvoiceVatBreakdown> result = new ArrayList<>(map.values());
+
+        boolean hasAllowance = totalAllowances != null
+                && totalAllowances.signum() > 0
+                && totalLineNet != null
+                && totalLineNet.signum() > 0;
+        if (hasAllowance) {
+            BigDecimal remainingAllowance = totalAllowances;
+            for (int i = 0; i < result.size(); i++) {
+                InvoiceVatBreakdown bd = result.get(i);
+                BigDecimal share;
+                if (i == result.size() - 1) {
+                    share = remainingAllowance;
+                } else {
+                    share = bd.getTaxableAmount()
+                            .multiply(totalAllowances)
+                            .divide(totalLineNet, CALC_SCALE, RoundingMode.HALF_UP);
+                    remainingAllowance = remainingAllowance.subtract(share);
+                }
+                bd.setTaxableAmount(bd.getTaxableAmount().subtract(share));
+            }
+        }
+
         for (InvoiceVatBreakdown bd : result) {
-            bd.setTaxableAmount(bd.getTaxableAmount()
-                    .setScale(FINAL_SCALE, RoundingMode.HALF_UP));
-            bd.setTaxAmount(bd.getTaxAmount()
-                    .setScale(FINAL_SCALE, RoundingMode.HALF_UP));
+            BigDecimal taxable = bd.getTaxableAmount()
+                    .setScale(FINAL_SCALE, RoundingMode.HALF_UP);
+            BigDecimal rate = bd.getVatRate() != null
+                    ? bd.getVatRate() : BigDecimal.ZERO;
+            BigDecimal tax = taxable.multiply(rate)
+                    .divide(ONE_HUNDRED, FINAL_SCALE, RoundingMode.HALF_UP);
+            bd.setTaxableAmount(taxable);
+            bd.setTaxAmount(tax);
         }
         return result;
     }

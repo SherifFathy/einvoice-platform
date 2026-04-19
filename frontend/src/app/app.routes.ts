@@ -114,7 +114,23 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./config/users/users.component').then((m) => m.UsersComponent),
       },
+      {
+        path: 'branches/:branchId/zatca-onboarding',
+        loadComponent: () =>
+          import('./config/zatca-onboarding/zatca-onboarding.component').then((m) => m.ZatcaOnboardingComponent),
+      },
+      {
+        path: 'branches/:branchId/zatca-certificate',
+        loadComponent: () =>
+          import('./config/zatca-certificate/zatca-certificate.component').then((m) => m.ZatcaCertificateComponent),
+      },
     ],
+  },
+  {
+    path: 'eta-codes',
+    canActivate: [authGuard, roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'])],
+    loadComponent: () =>
+      import('./config/eta-codes/eta-codes.component').then((m) => m.EtaCodesComponent),
   },
   {
     path: 'logs',

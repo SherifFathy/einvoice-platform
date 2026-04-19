@@ -123,7 +123,7 @@ export class AuthorityConfigComponent implements OnInit {
         this.loadConfigs();
       },
       error: (err) => {
-        this.toast.error(err.error?.message || 'Failed to save config');
+        this.toast.error(err.error?.error || 'Failed to save config');
         this.submitting = false;
       },
     });

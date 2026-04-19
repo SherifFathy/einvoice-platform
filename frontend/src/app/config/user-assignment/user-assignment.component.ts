@@ -70,7 +70,7 @@ export class UserAssignmentComponent implements OnInit {
         this.submitting = false;
       },
       error: (err) => {
-        this.toast.error(err.error?.message || 'Failed to assign user');
+        this.toast.error(err.error?.error || 'Failed to assign user');
         this.submitting = false;
       },
     });

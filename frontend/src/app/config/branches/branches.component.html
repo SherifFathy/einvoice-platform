@@ -65,6 +65,12 @@
             <button mat-button color="primary" (click)="goToAuthorityConfig(branch.id)">
               Authority Config
             </button>
+            <button mat-button (click)="goToZatcaOnboarding(branch.id)">
+              ZATCA Onboarding
+            </button>
+            <button mat-button (click)="goToZatcaCertificate(branch.id)">
+              ZATCA Certificate
+            </button>
           </td>
         </ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>

@@ -35,4 +35,11 @@ public interface AuthorityConfigRepository extends JpaRepository<AuthorityConfig
 
     boolean existsByBranchIdAndAuthorityAndEnvironment(
             Long branchId, Authority authority, Environment environment);
+
+    @Query("SELECT ac FROM AuthorityConfig ac "
+            + "WHERE ac.branch.company.id = :companyId "
+            + "AND ac.authority = :authority")
+    List<AuthorityConfig> findByCompanyIdAndAuthority(
+            @Param("companyId") Long companyId,
+            @Param("authority") Authority authority);
 }

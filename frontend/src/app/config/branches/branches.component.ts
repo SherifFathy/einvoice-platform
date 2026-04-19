@@ -133,6 +133,14 @@ export class BranchesComponent implements OnInit {
     this.router.navigate(['/config/company-create', this.companyId, 'branches', branchId, 'authority-config']);
   }
 
+  goToZatcaOnboarding(branchId: number): void {
+    this.router.navigate(['/config/branches', branchId, 'zatca-onboarding']);
+  }
+
+  goToZatcaCertificate(branchId: number): void {
+    this.router.navigate(['/config/branches', branchId, 'zatca-certificate']);
+  }
+
   goToAssignUser(): void {
     this.router.navigate(['/config/company-create', this.companyId, 'assign-user']);
   }

@@ -2,17 +2,52 @@
   <p>Loading invoice...</p>
 } @else if (invoice) {
   <div class="header">
-    <div>
+    <div class="header-title">
       <h2>{{ invoice.invoiceNumber || 'Draft' }}</h2>
-      <span class="status-badge status-{{ invoice.status }}">{{ invoice.status }}</span>
+      <app-status-badge [status]="invoice.status"></app-status-badge>
     </div>
-    <div>
+    <div class="actions-bar">
       <button mat-stroked-button (click)="onBack()">
         <mat-icon>arrow_back</mat-icon> Back
       </button>
       @if (invoice.status === 'DRAFT') {
-        <button mat-raised-button color="primary" (click)="onEdit()" style="margin-left: 8px;">
+        <button mat-raised-button color="primary" (click)="onEdit()">
           <mat-icon>edit</mat-icon> Edit
+        </button>
+      }
+      @if (canSubmit) {
+        <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="submitting">
+          @if (submitting) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>send</mat-icon>
+          }
+          {{ submitting ? 'Submitting...' : 'Submit' }}
+        </button>
+      }
+      @if (canRetry) {
+        <button mat-raised-button color="accent" (click)="onRetry()" [disabled]="retrying">
+          @if (retrying) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>refresh</mat-icon>
+          }
+          {{ retrying ? 'Retrying...' : 'Retry' }}
+        </button>
+      }
+      @if (canReturnToDraft) {
+        <button mat-stroked-button color="warn" (click)="onReturnToDraft()" [disabled]="returningToDraft">
+          <mat-icon>undo</mat-icon> Return to Draft
+        </button>
+      }
+      @if (canCheckStatus) {
+        <button mat-stroked-button (click)="onCheckStatus()">
+          <mat-icon>sync</mat-icon> Check Status
+        </button>
+      }
+      @if (canCancelEta) {
+        <button mat-raised-button color="warn" (click)="onCancelEta()" [disabled]="cancelling">
+          <mat-icon>cancel</mat-icon> Cancel
         </button>
       }
     </div>
@@ -32,6 +67,9 @@
         <div><div class="meta-label">Payment Terms</div><div class="meta-value">{{ invoice.paymentTerms || '-' }}</div></div>
         @if (invoice.originalInvoiceId) {
           <div><div class="meta-label">Original Invoice</div><div class="meta-value">{{ invoice.originalInvoiceId }}</div></div>
+        }
+        @if (invoice.externalInvoiceReference) {
+          <div><div class="meta-label">External Reference</div><div class="meta-value">{{ invoice.externalInvoiceReference }}</div></div>
         }
       </div>
 
@@ -98,6 +136,40 @@
       }
     </mat-card-content>
   </mat-card>
+
+  @if (submissionAttempts.length > 0) {
+    <mat-card style="margin-top: 16px;">
+      <mat-card-header>
+        <mat-card-title class="section-title">Submission Timeline</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <app-submission-timeline [attempts]="submissionAttempts"></app-submission-timeline>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (hasArtifacts) {
+    <mat-card style="margin-top: 16px;">
+      <mat-card-header>
+        <mat-card-title class="section-title">Artifacts</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="artifact-list">
+          @for (artifact of artifacts; track artifact.type) {
+            <button mat-stroked-button (click)="onDownloadArtifact(artifact.type)">
+              <mat-icon>download</mat-icon>
+              {{ formatArtifactType(artifact.type) }}
+            </button>
+          }
+          @if (invoice.authority === 'ETA' && (invoice.status === 'ACCEPTED' || invoice.status === 'IN_REVIEW')) {
+            <button mat-stroked-button color="accent" (click)="onDownloadEtaPdf()">
+              <mat-icon>picture_as_pdf</mat-icon> ETA PDF
+            </button>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
 } @else {
   <p>Select an invoice to view details.</p>
 }

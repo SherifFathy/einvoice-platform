@@ -1,41 +1,31 @@
-import { Component, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
-import { MatDividerModule } from '@angular/material/divider';
+import { MatStepper, MatStepperModule } from '@angular/material/stepper';
+import { firstValueFrom } from 'rxjs';
 import {
   InvoiceService, InvoiceDetailResponse, CreateInvoiceRequest, InvoiceLineRequest,
 } from '../../shared/services/invoice.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
+import { HeaderStepComponent } from './steps/header-step.component';
+import { BuyerStepComponent } from './steps/buyer-step.component';
+import { LinesStepComponent } from './steps/lines-step.component';
+import { ReviewStepComponent } from './steps/review-step.component';
 
 @Component({
   selector: 'app-invoice-form',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule,
-    MatInputModule, MatButtonModule, MatSelectModule, MatIconModule,
-    MatDatepickerModule, MatNativeDateModule, MatDividerModule,
+    CommonModule, ReactiveFormsModule, MatCardModule, MatButtonModule,
+    MatIconModule, MatStepperModule,
+    HeaderStepComponent, BuyerStepComponent, LinesStepComponent, ReviewStepComponent,
   ],
   templateUrl: './invoice-form.component.html',
   styles: `
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-    .full-width { grid-column: 1 / -1; }
-    .two-col { grid-column: span 2; }
     .form-actions { display: flex; gap: 12px; margin-top: 16px; justify-content: flex-end; }
-    .line-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
-    .line-header { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 4px; font-weight: bold; }
-    .totals-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; max-width: 400px; margin-left: auto; margin-top: 16px; }
-    .totals-grid .label { text-align: right; font-weight: 500; }
-    .totals-grid .value { text-align: right; }
-    .vat-section { margin-top: 16px; }
-    h4 { margin: 12px 0 8px 0; }
   `,
 })
 export class InvoiceFormComponent implements OnChanges {
@@ -44,65 +34,77 @@ export class InvoiceFormComponent implements OnChanges {
   private toast = inject(ToastNotificationService);
 
   @Input() invoice: InvoiceDetailResponse | null = null;
+  @Input() companyId: number | null = null;
   @Output() saved = new EventEmitter<void>();
   @Output() cancelled = new EventEmitter<void>();
+
+  @ViewChild('stepper') stepper!: MatStepper;
+  @ViewChild(ReviewStepComponent) reviewStep?: ReviewStepComponent;
 
   form: FormGroup;
   submitting = false;
   isEdit = false;
-
-  calculatedTotals = {
-    totalLineNet: 0,
-    totalAllowances: 0,
-    totalWithoutVat: 0,
-    totalVat: 0,
-    totalWithVat: 0,
-    amountDue: 0,
-  };
-
-  vatBreakdown: { category: string; rate: number; taxable: number; tax: number }[] = [];
+  serverValidationPassed = false;
 
   constructor() {
     this.form = this.fb.group({
+      authority: ['ZATCA', Validators.required],
       type: ['TAX_INVOICE', Validators.required],
+      subtypeFlags: this.fb.group({
+        thirdParty: [false],
+        nominal: [false],
+        export: [false],
+        summary: [false],
+        selfBilled: [false],
+      }),
       issueDate: [this.todayAsString(), Validators.required],
       supplyDate: [null],
       supplyEndDate: [null],
       currency: ['SAR'],
-      buyerId: [null],
       branchId: [null, Validators.required],
-      authority: ['ZATCA', Validators.required],
       paymentMeansCode: ['10'],
       paymentTerms: [''],
-      prepaidAmount: [0],
-      totalAllowances: [0],
+      buyerId: [null],
       originalInvoiceId: [null],
+      externalInvoiceReference: [null],
       notes: [''],
+      totalAllowances: [0],
+      prepaidAmount: [0],
       lines: this.fb.array([]),
     });
 
     this.addLine();
-    this.recalcTotals();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['invoice'] && this.invoice) {
       this.isEdit = true;
+      const subtypeFlags = this.invoice.subtypeFlags || {};
       this.form.patchValue({
+        authority: this.invoice.authority,
         type: this.invoice.type,
         issueDate: this.invoice.issueDate,
         supplyDate: this.invoice.supplyDate,
         supplyEndDate: this.invoice.supplyEndDate,
         currency: this.invoice.currency,
-        buyerId: this.invoice.buyerId,
         branchId: this.invoice.branchId,
-        authority: this.invoice.authority,
         paymentMeansCode: this.invoice.paymentMeansCode,
         paymentTerms: this.invoice.paymentTerms,
-        prepaidAmount: this.invoice.prepaidAmount,
-        totalAllowances: this.invoice.totalAllowances,
+        buyerId: this.invoice.buyerId,
         originalInvoiceId: this.invoice.originalInvoiceId,
+        externalInvoiceReference: this.invoice.externalInvoiceReference,
         notes: this.invoice.notes,
+        totalAllowances: this.invoice.totalAllowances,
+        prepaidAmount: this.invoice.prepaidAmount,
+      });
+
+      const sfGroup = this.form.get('subtypeFlags') as FormGroup;
+      sfGroup.patchValue({
+        thirdParty: subtypeFlags['thirdParty'] || false,
+        nominal: subtypeFlags['nominal'] || false,
+        export: subtypeFlags['export'] || false,
+        summary: subtypeFlags['summary'] || false,
+        selfBilled: subtypeFlags['selfBilled'] || false,
       });
 
       const linesArray = this.form.get('lines') as FormArray;
@@ -120,22 +122,24 @@ export class InvoiceFormComponent implements OnChanges {
           sortOrder: [line.sortOrder],
         }));
       }
-      this.recalcTotals();
     } else if (changes['invoice'] && !this.invoice) {
       this.isEdit = false;
       this.form.reset({
+        authority: 'ZATCA',
         type: 'TAX_INVOICE',
         issueDate: this.todayAsString(),
         currency: 'SAR',
-        authority: 'ZATCA',
         paymentMeansCode: '10',
-        prepaidAmount: 0,
         totalAllowances: 0,
+        prepaidAmount: 0,
+      });
+      const sfGroup = this.form.get('subtypeFlags') as FormGroup;
+      sfGroup.reset({
+        thirdParty: false, nominal: false, export: false, summary: false, selfBilled: false,
       });
       const linesArray = this.form.get('lines') as FormArray;
       linesArray.clear();
       this.addLine();
-      this.recalcTotals();
     }
   }
 
@@ -144,6 +148,7 @@ export class InvoiceFormComponent implements OnChanges {
   }
 
   addLine(): void {
+    const authority = this.form.get('authority')?.value || 'ZATCA';
     const sortOrder = this.linesArray.length + 1;
     this.linesArray.push(this.fb.group({
       itemId: [null],
@@ -153,74 +158,62 @@ export class InvoiceFormComponent implements OnChanges {
       unitPrice: [0, [Validators.required, Validators.min(0.01)]],
       discountAmount: [0],
       vatCategory: ['S', Validators.required],
-      vatRate: [15, Validators.required],
+      vatRate: [authority === 'ZATCA' ? 15 : 14, Validators.required],
       sortOrder: [sortOrder],
     }));
   }
 
-  removeLine(index: number): void {
-    if (this.linesArray.length > 1) {
-      this.linesArray.removeAt(index);
-      this.recalcTotals();
+  onAuthorityChanged(authority: string): void {
+    const defaultVatRate = authority === 'ZATCA' ? 15 : 14;
+    for (const control of this.linesArray.controls) {
+      const fg = control as FormGroup;
+      fg.patchValue({ vatRate: defaultVatRate });
     }
   }
 
-  recalcTotals(): void {
-    const lines = this.linesArray.value as any[];
-    const totalAllowances = parseFloat(this.form.get('totalAllowances')?.value) || 0;
-    const prepaidAmount = parseFloat(this.form.get('prepaidAmount')?.value) || 0;
-
-    let totalLineNet = 0;
-    const vatMap = new Map<string, { taxable: number; tax: number; rate: number }>();
-
-    for (const line of lines) {
-      const gross = (parseFloat(line.unitPrice) || 0) * (parseFloat(line.quantity) || 0);
-      const discount = parseFloat(line.discountAmount) || 0;
-      const lineNet = gross - discount;
-      totalLineNet += lineNet;
-
-      const vatRate = parseFloat(line.vatRate) || 0;
-      const lineVat = lineNet * (vatRate / 100);
-      const key = `${line.vatCategory}@${vatRate}`;
-      const existing = vatMap.get(key);
-      if (existing) {
-        existing.taxable += lineNet;
-        existing.tax += lineVat;
-      } else {
-        vatMap.set(key, { taxable: lineNet, tax: lineVat, rate: vatRate });
-      }
+  private get needsBuyer(): boolean {
+    const authority = this.form.get('authority')?.value;
+    const type = this.form.get('type')?.value;
+    if (authority === 'ZATCA') {
+      return type === 'TAX_INVOICE' || type === 'CREDIT_NOTE' || type === 'DEBIT_NOTE';
     }
-
-    const totalWithoutVat = totalLineNet - totalAllowances;
-    let totalVat = 0;
-    this.vatBreakdown = [];
-    vatMap.forEach((val, key) => {
-      totalVat += val.tax;
-      this.vatBreakdown.push({
-        category: key.split('@')[0],
-        rate: val.rate,
-        taxable: Math.round(val.taxable * 100) / 100,
-        tax: Math.round(val.tax * 100) / 100,
-      });
-    });
-
-    const totalWithVat = totalWithoutVat + totalVat;
-    const amountDue = totalWithVat - prepaidAmount;
-
-    this.calculatedTotals = {
-      totalLineNet: Math.round(totalLineNet * 100) / 100,
-      totalAllowances: Math.round(totalAllowances * 100) / 100,
-      totalWithoutVat: Math.round(totalWithoutVat * 100) / 100,
-      totalVat: Math.round(totalVat * 100) / 100,
-      totalWithVat: Math.round(totalWithVat * 100) / 100,
-      amountDue: Math.round(amountDue * 100) / 100,
-    };
+    return true;
   }
 
-  onSubmit(): void {
-    if (this.form.invalid) return;
-    this.submitting = true;
+  isStepValid(stepIndex: number): boolean {
+    switch (stepIndex) {
+      case 0:
+        return !!this.form.get('authority')?.valid
+          && !!this.form.get('type')?.valid
+          && !!this.form.get('branchId')?.valid
+          && !!this.form.get('issueDate')?.valid;
+      case 1:
+        if (!this.needsBuyer) return true;
+        return !!this.form.get('buyerId')?.value;
+      case 2:
+        return this.linesArray.length > 0 && this.linesArray.valid;
+      case 3:
+        return this.form.valid;
+      default:
+        return true;
+    }
+  }
 
+  canSubmit(): boolean {
+    if (!this.form.valid || this.linesArray.length === 0 || this.submitting) {
+      return false;
+    }
+    if (this.reviewStep && this.reviewStep.hasServerError) {
+      return false;
+    }
+    return true;
+  }
+
+  onValidationComplete(passed: boolean): void {
+    this.serverValidationPassed = passed;
+  }
+
+  private buildRequest(): CreateInvoiceRequest {
     const formVal = this.form.value;
     const lines: InvoiceLineRequest[] = formVal.lines.map((l: any, i: number) => ({
       itemId: l.itemId || null,
@@ -234,8 +227,17 @@ export class InvoiceFormComponent implements OnChanges {
       sortOrder: i + 1,
     }));
 
-    const request: CreateInvoiceRequest = {
+    const activeFlags: Record<string, boolean> = {};
+    const sf = formVal.subtypeFlags;
+    if (sf) {
+      for (const [key, value] of Object.entries(sf)) {
+        if (value === true) activeFlags[key] = true;
+      }
+    }
+
+    return {
       type: formVal.type,
+      subtypeFlags: Object.keys(activeFlags).length > 0 ? activeFlags : undefined,
       issueDate: formVal.issueDate,
       supplyDate: formVal.supplyDate || null,
       supplyEndDate: formVal.supplyEndDate || null,
@@ -248,10 +250,17 @@ export class InvoiceFormComponent implements OnChanges {
       prepaidAmount: parseFloat(formVal.prepaidAmount) || 0,
       totalAllowances: parseFloat(formVal.totalAllowances) || 0,
       originalInvoiceId: formVal.originalInvoiceId || null,
+      externalInvoiceReference: formVal.externalInvoiceReference || null,
       notes: formVal.notes || null,
       lines,
     };
+  }
 
+  onSubmit(): void {
+    if (!this.canSubmit()) return;
+    this.submitting = true;
+
+    const request = this.buildRequest();
     const obs = this.isEdit && this.invoice
         ? this.invoiceService.update(this.invoice.id, request)
         : this.invoiceService.create(request);
@@ -272,6 +281,20 @@ export class InvoiceFormComponent implements OnChanges {
         this.submitting = false;
       },
     });
+  }
+
+  async onStepperSelectionChange(event: any): Promise<void> {
+    if (event.selectedIndex !== 3) return;
+    if (this.isEdit || !this.reviewStep) return;
+    if (!this.form.valid || this.linesArray.length === 0) return;
+
+    try {
+      const saved = await firstValueFrom(this.invoiceService.create(this.buildRequest()));
+      this.invoice = saved;
+      this.isEdit = true;
+    } catch {
+      this.toast.error('Could not save draft for validation');
+    }
   }
 
   onCancel(): void {

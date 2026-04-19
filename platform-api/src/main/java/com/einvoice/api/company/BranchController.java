@@ -16,6 +16,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -189,6 +190,12 @@ public class BranchController {
     }
 
     private void validateTenantAccess(Long companyId) {
+        boolean isSuperAdmin = SecurityContextHolder.getContext().getAuthentication()
+                .getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+        if (isSuperAdmin) {
+            return;
+        }
         Long tenantId = TenantContext.getCurrentTenantId();
         if (tenantId != null && !tenantId.equals(companyId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,

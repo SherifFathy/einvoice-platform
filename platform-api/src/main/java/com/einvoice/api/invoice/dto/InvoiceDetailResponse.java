@@ -35,6 +35,7 @@ public record InvoiceDetailResponse(
         String environment,
         Long branchId,
         UUID originalInvoiceId,
+        String externalInvoiceReference,
         String notes,
         OffsetDateTime createdAt,
         List<InvoiceLineResponse> lines,

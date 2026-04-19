@@ -1,0 +1,128 @@
+<div [formGroup]="form">
+  @if (needsBuyer) {
+    <div class="buyer-section">
+      <h4>Customer</h4>
+
+      @if (selectedCustomer) {
+        <div class="selected-buyer">
+          <div class="name">{{ selectedCustomer.nameEn }}</div>
+          @if (selectedCustomer.vatNumber) {
+            <div class="detail">VAT: {{ selectedCustomer.vatNumber }}</div>
+          }
+          <div class="detail">{{ selectedCustomer.city }}, {{ selectedCustomer.countryCode }}</div>
+          <button mat-button type="button" color="warn" (click)="clearCustomer()" style="margin-top: 8px;">
+            <mat-icon>close</mat-icon> Remove
+          </button>
+        </div>
+      } @else {
+        <div class="buyer-search">
+          <mat-form-field appearance="outline">
+            <mat-label>Search Customer</mat-label>
+            <input matInput [(ngModel)]="searchTerm" (keyup.enter)="searchCustomers()" placeholder="Name or VAT number..." [ngModelOptions]="{standalone: true}">
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="searchCustomers()">
+            <mat-icon>search</mat-icon> Search
+          </button>
+          <button mat-stroked-button type="button" (click)="toggleInlineCreate()">
+            <mat-icon>person_add</mat-icon> New
+          </button>
+        </div>
+
+        @if (customers.length > 0) {
+          <mat-selection-list [multiple]="false" (selectionChange)="selectCustomer(customers[$event.options[0].value])">
+            @for (c of customers; track c.id; let i = $index) {
+              <mat-list-option [value]="i">
+                <span matListItemTitle>{{ c.nameEn }}</span>
+                <span matListItemLine>{{ c.vatNumber || 'No VAT' }} &middot; {{ c.customerType }}</span>
+              </mat-list-option>
+            }
+          </mat-selection-list>
+        }
+
+        @if (showInlineCreate) {
+          <div class="inline-create">
+            <h4>Create New Customer</h4>
+            <form [formGroup]="inlineForm">
+              <div class="form-grid">
+                <mat-form-field appearance="outline">
+                  <mat-label>Name (English) *</mat-label>
+                  <input matInput formControlName="nameEn">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Name (Arabic)</mat-label>
+                  <input matInput formControlName="nameAr">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>VAT Number</mat-label>
+                  <input matInput formControlName="vatNumber">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Customer Type *</mat-label>
+                  <mat-select formControlName="customerType">
+                    <mat-option value="B2B">B2B</mat-option>
+                    <mat-option value="B2C">B2C</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>ID Type</mat-label>
+                  <mat-select formControlName="idType">
+                    <mat-option value="CR">Commercial Registration</mat-option>
+                    <mat-option value="NAT">National ID</mat-option>
+                    <mat-option value="PASS">Passport</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>ID Value</mat-label>
+                  <input matInput formControlName="idValue">
+                </mat-form-field>
+              </div>
+              <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+                <button mat-button type="button" (click)="showInlineCreate = false">Cancel</button>
+                <button mat-raised-button color="primary" type="button" (click)="createCustomerInline()">Create</button>
+              </div>
+            </form>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  @if (isCreditOrDebitNote) {
+    <div class="reference-grid">
+      <div>
+        <div style="display: flex; gap: 8px; align-items: flex-start;">
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>Search Original Invoice</mat-label>
+            <input matInput [(ngModel)]="invoiceSearchTerm" (keyup.enter)="searchInvoices()" placeholder="Invoice number or ID..." [ngModelOptions]="{standalone: true}">
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="searchInvoices()" style="margin-top: 4px;">
+            <mat-icon>search</mat-icon>
+          </button>
+        </div>
+        @if (invoices.length > 0) {
+          <mat-selection-list [multiple]="false" (selectionChange)="selectInvoice(invoices[$event.options[0].value])" style="max-height: 200px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">
+            @for (inv of invoices; track inv.id; let i = $index) {
+              <mat-list-option [value]="i">
+                <span matListItemTitle>{{ inv.invoiceNumber || inv.id }}</span>
+                <span matListItemLine>{{ inv.type }} &middot; {{ inv.status }} &middot; {{ inv.totalWithVat | number:'1.2-2' }}</span>
+              </mat-list-option>
+            }
+          </mat-selection-list>
+        }
+        @if (form.get('originalInvoiceId')?.value) {
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            <span>Selected: <strong>{{ form.get('originalInvoiceId')?.value }}</strong></span>
+            <button mat-icon-button type="button" color="warn" (click)="clearInvoice()">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+        }
+      </div>
+      <mat-form-field appearance="outline">
+        <mat-label>External Invoice Reference</mat-label>
+        <input matInput formControlName="externalInvoiceReference" placeholder="External invoice number">
+        <span class="reference-hint">Reference an external/legacy invoice</span>
+      </mat-form-field>
+    </div>
+  }
+</div>
