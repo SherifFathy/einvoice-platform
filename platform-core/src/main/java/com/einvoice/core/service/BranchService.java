@@ -1,6 +1,7 @@
 package com.einvoice.core.service;
 
 import com.einvoice.core.audit.Audited;
+import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.Branch;
 import com.einvoice.core.domain.Company;
 import com.einvoice.core.repository.BranchRepository;
@@ -30,18 +31,29 @@ public class BranchService {
     }
 
     /**
-     * Creates a new branch under a company.
+     * Creates a new branch under the given company.
      *
      * @param companyId the company identifier
      * @param nameAr the Arabic name
      * @param nameEn the English name
      * @param branchCode the branch code
+     * @param street the street address
+     * @param buildingNumber the building number
+     * @param additionalNumber the additional number
+     * @param city the city
+     * @param district the district
+     * @param postalCode the postal code
+     * @param countryCode the country code
+     * @param additionalStreet the additional street
      * @return the created branch
      */
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN')")
     @Audited(action = "branch.create", entityType = "Branch")
-    public Branch create(Long companyId, String nameAr, String nameEn, String branchCode) {
+    public Branch create(Long companyId, String nameAr, String nameEn, String branchCode,
+            String street, String buildingNumber, String additionalNumber,
+            String city, String district, String postalCode,
+            String countryCode, String additionalStreet) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new CompanyService.CompanyNotFoundException(
                         "Company not found: " + companyId));
@@ -50,29 +62,57 @@ public class BranchService {
                 .nameAr(nameAr)
                 .nameEn(nameEn)
                 .branchCode(branchCode)
+                .lovContextId(TenantContext.getLovContextId())
+                .street(street)
+                .buildingNumber(buildingNumber)
+                .additionalNumber(additionalNumber)
+                .city(city)
+                .district(district)
+                .postalCode(postalCode)
+                .countryCode(countryCode)
+                .additionalStreet(additionalStreet)
                 .isActive(true)
                 .build();
         return branchRepository.save(branch);
     }
 
     /**
-     * Updates an existing branch.
+     * Updates an existing branch's details and address fields.
      *
      * @param branchId the branch identifier
      * @param nameAr the Arabic name
      * @param nameEn the English name
      * @param branchCode the branch code
+     * @param street the street address
+     * @param buildingNumber the building number
+     * @param additionalNumber the additional number
+     * @param city the city
+     * @param district the district
+     * @param postalCode the postal code
+     * @param countryCode the country code
+     * @param additionalStreet the additional street
      * @return the updated branch
      */
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN')")
     @Audited(action = "branch.update", entityType = "Branch", entityClass = Branch.class)
-    public Branch update(Long branchId, String nameAr, String nameEn, String branchCode) {
+    public Branch update(Long branchId, String nameAr, String nameEn, String branchCode,
+            String street, String buildingNumber, String additionalNumber,
+            String city, String district, String postalCode,
+            String countryCode, String additionalStreet) {
         Branch branch = branchRepository.findById(branchId)
                 .orElseThrow(() -> new BranchNotFoundException("Branch not found: " + branchId));
         branch.setNameAr(nameAr);
         branch.setNameEn(nameEn);
         branch.setBranchCode(branchCode);
+        branch.setStreet(street);
+        branch.setBuildingNumber(buildingNumber);
+        branch.setAdditionalNumber(additionalNumber);
+        branch.setCity(city);
+        branch.setDistrict(district);
+        branch.setPostalCode(postalCode);
+        branch.setCountryCode(countryCode);
+        branch.setAdditionalStreet(additionalStreet);
         return branch;
     }
 

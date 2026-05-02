@@ -34,9 +34,14 @@ public class TenantFilter extends OncePerRequestFilter {
         try {
             Object claimsObj = request.getAttribute("jwtClaims");
             if (claimsObj instanceof Claims claims) {
-                Long companyId = claims.get("activeCompanyId", Long.class);
+                Long companyId = toLong(claims.get("activeCompanyId"));
                 if (companyId != null) {
                     TenantContext.setCurrentTenantId(companyId);
+                }
+
+                Long lovContextId = toLong(claims.get("lov_context_id"));
+                if (lovContextId != null) {
+                    TenantContext.setLovContextId(lovContextId);
                 }
 
                 String environment = claims.get("activeEnvironment", String.class);
@@ -72,5 +77,15 @@ public class TenantFilter extends OncePerRequestFilter {
         } catch (IllegalArgumentException e) {
             // Invalid environment — skip
         }
+    }
+
+    private Long toLong(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.valueOf(raw.toString());
     }
 }

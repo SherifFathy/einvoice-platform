@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: Jobs Monitoring API
+  version: 1.0.0
+  description: Read + cancel operations on bulk jobs. Tenant-scoped.
+
+servers:
+  - url: /api
+
+paths:
+  /jobs:
+    get:
+      summary: List bulk jobs for the active tenant
+      operationId: listJobs
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED] } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: Paginated job list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListPage'
+
+  /jobs/{jobId}:
+    get:
+      summary: Get job detail including per-item outcomes
+      operationId: getJob
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: itemStatus, in: query, schema: { type: string, enum: [PENDING, IN_PROGRESS, SUCCEEDED, FAILED, SKIPPED, CANCELLED, NEEDS_RECONCILIATION] } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+      responses:
+        '200':
+          description: Job plus a page of items
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobDetail' }
+        '404':
+          description: Not found or not in the active tenant
+
+  /jobs/{jobId}/cancel:
+    post:
+      summary: Cancel a queued or running job
+      operationId: cancelJob
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Job cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '409':
+          description: Job is already in a terminal state
+
+  /jobs/{jobId}/report:
+    get:
+      summary: Download a spreadsheet report for a completed or cancelled job
+      operationId: downloadJobReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: jobId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: XLSX binary
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        '409':
+          description: Job is still running; partial report only on explicit request
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Job:
+      type: object
+      required: [id, type, status, totalCount, successCount, failedCount, skippedCount, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [BULK_SUBMISSION] }
+        status: { type: string, enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED] }
+        totalCount: { type: integer }
+        successCount: { type: integer }
+        failedCount: { type: integer }
+        skippedCount: { type: integer }
+        createdByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        cancellationReason: { type: string, nullable: true }
+
+    JobItem:
+      type: object
+      required: [id, invoiceId, sequenceIndex, status]
+      properties:
+        id: { type: string, format: uuid }
+        invoiceId: { type: string, format: uuid }
+        invoiceNumber: { type: string }
+        sequenceIndex: { type: integer }
+        status: { type: string, enum: [PENDING, IN_PROGRESS, SUCCEEDED, FAILED, SKIPPED, CANCELLED, NEEDS_RECONCILIATION] }
+        errorSummary: { type: string, nullable: true }
+        submissionAttemptId: { type: string, format: uuid, nullable: true }
+        processedAt: { type: string, format: date-time, nullable: true }
+
+    JobListPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Job' }
+        nextCursor: { type: string, nullable: true }
+
+    JobDetail:
+      allOf:
+        - $ref: '#/components/schemas/Job'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/JobItem' }
+            nextItemsCursor: { type: string, nullable: true }

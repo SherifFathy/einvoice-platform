@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { ItemService, ImportError } from '../../shared/services/item.service';
+import { ItemService, BulkUploadResult, RowError } from '../../shared/services/item.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 
 @Component({
@@ -38,7 +38,7 @@ export class ItemImportComponent {
   uploading = false;
   selectedFile: File | null = null;
   dragover = false;
-  result: { totalRows: number; importedCount: number; errorCount: number; errors: ImportError[] } | null = null;
+  result: BulkUploadResult | null = null;
   errorColumns: string[] = ['row', 'field', 'message'];
 
   onDragOver(event: DragEvent): void {
@@ -66,7 +66,7 @@ export class ItemImportComponent {
   }
 
   selectFile(file: File): void {
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+    if (!file.name.endsWith('.xlsx')) {
       this.toast.error('Please select an Excel file (.xlsx)');
       return;
     }
@@ -77,16 +77,16 @@ export class ItemImportComponent {
   upload(): void {
     if (!this.selectedFile) return;
     this.uploading = true;
-    this.itemService.importItems(this.selectedFile).subscribe({
+    this.itemService.bulkUpload(this.selectedFile).subscribe({
       next: (res) => {
         this.result = res;
         this.uploading = false;
-        if (res.importedCount > 0) {
-          this.toast.success(`${res.importedCount} items imported`);
+        if (res.processed > 0) {
+          this.toast.success(`${res.processed} items imported`);
           this.importComplete.emit();
         }
-        if (res.errorCount > 0) {
-          this.toast.error(`${res.errorCount} rows had errors`);
+        if (res.failed > 0) {
+          this.toast.error(`${res.failed} rows had errors`);
         }
       },
       error: (err) => {

@@ -62,9 +62,7 @@ public class CompanyController {
             @PathVariable Long id, @Valid @RequestBody UpdateCompanyRequest request) {
         validateTenantAccess(id);
         Company company = companyService.update(id, request.nameAr(), request.nameEn(),
-                request.vatNumber(), request.crNumber(), request.street(),
-                request.buildingNumber(), request.city(), request.district(),
-                request.postalCode(), request.countryCode(), request.additionalId());
+                request.vatNumber(), request.crNumber());
         return ResponseEntity.ok(toResponse(company));
     }
 
@@ -84,9 +82,7 @@ public class CompanyController {
 
     private CompanyProfileResponse toResponse(Company c) {
         return new CompanyProfileResponse(c.getId(), c.getNameAr(), c.getNameEn(),
-                c.getVatNumber(), c.getCrNumber(), c.getStreet(),
-                c.getBuildingNumber(), c.getCity(), c.getDistrict(),
-                c.getPostalCode(), c.getCountryCode(), c.getAdditionalId(),
+                c.getVatNumber(), c.getCrNumber(),
                 c.getIsActive(), c.getCreatedAt());
     }
 }

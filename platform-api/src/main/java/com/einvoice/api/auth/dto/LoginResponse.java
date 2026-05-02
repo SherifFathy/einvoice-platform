@@ -19,6 +19,12 @@ public record LoginResponse(
             String role,
             List<String> permittedEnvironments,
             List<Map<String, Object>> availableCompanies,
-            String activeEnvironment
+            String activeEnvironment,
+            String activeAuthority,
+            String activeDocType,
+            String activeSubEnv,
+            Long lovContextId,
+            List<String> permissions,
+            boolean isSuperUser
     ) {}
 }

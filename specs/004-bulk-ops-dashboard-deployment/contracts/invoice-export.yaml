@@ -1,0 +1,41 @@
+openapi: 3.0.3
+info:
+  title: Invoice Export API
+  version: 1.0.0
+  description: Streamed spreadsheet export of the filtered invoice list. Filters match the invoice list endpoint.
+
+servers:
+  - url: /api
+
+paths:
+  /invoices/export:
+    get:
+      summary: Export the filtered invoice list as a streaming XLSX
+      operationId: exportInvoices
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: authority, in: query, schema: { type: string, enum: [ZATCA, ETA] } }
+        - { name: type, in: query, schema: { type: string } }
+        - { name: customerId, in: query, schema: { type: string, format: uuid } }
+        - { name: branchId, in: query, schema: { type: string, format: uuid } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Streamed XLSX of the filtered list
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: >-
+                Attachment filename following the pattern
+                `invoices-YYYYMMDD-HHMMSS.xlsx`.
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        '403': { description: Caller lacks permission }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

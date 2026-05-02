@@ -7,10 +7,12 @@ import com.einvoice.core.domain.SubmissionAttempt;
 import com.einvoice.core.domain.enums.Authority;
 import com.einvoice.core.domain.enums.InvoiceStatus;
 import com.einvoice.core.domain.enums.InvoiceType;
+import com.einvoice.core.domain.enums.Permission;
 import com.einvoice.core.domain.enums.SubmissionResult;
 import com.einvoice.core.exception.InvalidTransitionException;
 import com.einvoice.core.repository.AuthorityConfigRepository;
 import com.einvoice.core.repository.InvoiceRepository;
+import com.einvoice.core.security.RequiresPermission;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
@@ -74,6 +76,7 @@ public class SubmissionOrchestrator {
      * @return the submission result
      */
     @Transactional
+    @RequiresPermission(Permission.TRANSFER_INVOICE)
     @Audited(action = "invoice.submit", entityType = "Invoice",
             entityClass = Invoice.class)
     public SubmissionResultDto submit(UUID invoiceId) {
@@ -96,6 +99,7 @@ public class SubmissionOrchestrator {
      * @return the submission result
      */
     @Transactional
+    @RequiresPermission(Permission.REFRESH_INVOICE)
     @Audited(action = "invoice.retry", entityType = "Invoice",
             entityClass = Invoice.class)
     public SubmissionResultDto retry(UUID invoiceId) {

@@ -1,5 +1,6 @@
 package com.einvoice.zatca.xml;
 
+import com.einvoice.core.domain.Branch;
 import com.einvoice.core.domain.Company;
 import com.einvoice.core.domain.Customer;
 import com.einvoice.core.domain.Invoice;
@@ -246,14 +247,17 @@ public class ZatcaUblBuilder {
         party.appendChild(partyName);
 
         Element postalAddress = doc.createElementNS(CAC_NS, "cac:PostalAddress");
-        appendTextElement(doc, postalAddress, CBC_NS, "cbc:StreetName", company.getStreet());
-        appendTextElement(doc, postalAddress, CBC_NS, "cbc:BuildingNumber", company.getBuildingNumber());
-        appendTextElement(doc, postalAddress, CBC_NS, "cbc:CitySubdivisionName", company.getDistrict());
-        appendTextElement(doc, postalAddress, CBC_NS, "cbc:CityName", company.getCity());
-        appendTextElement(doc, postalAddress, CBC_NS, "cbc:PostalZone", company.getPostalCode());
+        Branch branch = invoice.getBranch();
+        appendTextElement(doc, postalAddress, CBC_NS, "cbc:StreetName", branch != null ? branch.getStreet() : null);
+        appendTextElement(doc, postalAddress, CBC_NS, "cbc:BuildingNumber",
+                branch != null ? branch.getBuildingNumber() : null);
+        appendTextElement(doc, postalAddress, CBC_NS, "cbc:CitySubdivisionName",
+                branch != null ? branch.getDistrict() : null);
+        appendTextElement(doc, postalAddress, CBC_NS, "cbc:CityName", branch != null ? branch.getCity() : null);
+        appendTextElement(doc, postalAddress, CBC_NS, "cbc:PostalZone", branch != null ? branch.getPostalCode() : null);
         Element country = doc.createElementNS(CAC_NS, "cac:Country");
         Element countryCode = doc.createElementNS(CBC_NS, "cbc:IdentificationCode");
-        countryCode.setTextContent(company.getCountryCode() != null ? company.getCountryCode() : "SA");
+        countryCode.setTextContent(branch != null && branch.getCountryCode() != null ? branch.getCountryCode() : "SA");
         country.appendChild(countryCode);
         postalAddress.appendChild(country);
         party.appendChild(postalAddress);

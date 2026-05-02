@@ -40,14 +40,13 @@ export interface CustomerRequest {
   contactPhone?: string;
 }
 
-export interface ImportResponse {
-  totalRows: number;
-  importedCount: number;
-  errorCount: number;
-  errors: ImportError[];
+export interface BulkUploadResult {
+  processed: number;
+  failed: number;
+  errors: RowError[];
 }
 
-export interface ImportError {
+export interface RowError {
   row: number;
   field: string;
   message: string;
@@ -89,9 +88,9 @@ export class CustomerService {
     });
   }
 
-  importCustomers(file: File): Observable<ImportResponse> {
+  bulkUpload(file: File): Observable<BulkUploadResult> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<ImportResponse>(`${this.apiUrl}/import`, formData);
+    return this.http.post<BulkUploadResult>(`${this.apiUrl}/bulk-upload`, formData);
   }
 }

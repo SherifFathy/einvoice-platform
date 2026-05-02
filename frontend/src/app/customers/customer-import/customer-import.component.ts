@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CustomerService, ImportError } from '../../shared/services/customer.service';
+import { CustomerService, BulkUploadResult, RowError } from '../../shared/services/customer.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 
 @Component({
@@ -38,7 +38,7 @@ export class CustomerImportComponent {
   uploading = false;
   selectedFile: File | null = null;
   dragover = false;
-  result: { totalRows: number; importedCount: number; errorCount: number; errors: ImportError[] } | null = null;
+  result: BulkUploadResult | null = null;
   errorColumns: string[] = ['row', 'field', 'message'];
 
   onDragOver(event: DragEvent): void {
@@ -66,7 +66,7 @@ export class CustomerImportComponent {
   }
 
   selectFile(file: File): void {
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+    if (!file.name.endsWith('.xlsx')) {
       this.toast.error('Please select an Excel file (.xlsx)');
       return;
     }
@@ -77,16 +77,16 @@ export class CustomerImportComponent {
   upload(): void {
     if (!this.selectedFile) return;
     this.uploading = true;
-    this.customerService.importCustomers(this.selectedFile).subscribe({
+    this.customerService.bulkUpload(this.selectedFile).subscribe({
       next: (res) => {
         this.result = res;
         this.uploading = false;
-        if (res.importedCount > 0) {
-          this.toast.success(`${res.importedCount} customers imported`);
+        if (res.processed > 0) {
+          this.toast.success(`${res.processed} customers imported`);
           this.importComplete.emit();
         }
-        if (res.errorCount > 0) {
-          this.toast.error(`${res.errorCount} rows had errors`);
+        if (res.failed > 0) {
+          this.toast.error(`${res.failed} rows had errors`);
         }
       },
       error: (err) => {

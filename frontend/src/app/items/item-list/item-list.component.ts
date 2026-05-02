@@ -13,6 +13,8 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { ItemService, ItemResponse } from '../../shared/services/item.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   selector: 'app-item-list',
@@ -20,7 +22,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
   imports: [
     CommonModule, FormsModule, MatTableModule, MatPaginatorModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
-    MatSelectModule, MatDialogModule,
+    MatSelectModule, MatDialogModule, HasPermissionDirective,
   ],
   templateUrl: './item-list.component.html',
   styles: `
@@ -36,6 +38,7 @@ export class ItemListComponent implements OnInit {
   private itemService = inject(ItemService);
   private toast = inject(ToastNotificationService);
   private dialog = inject(MatDialog);
+  protected authService = inject(AuthService);
 
   @Output() editItem = new EventEmitter<ItemResponse | null>();
   @Output() importItems = new EventEmitter<void>();

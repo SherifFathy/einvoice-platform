@@ -78,7 +78,10 @@ public class BranchController {
             @PathVariable Long companyId, @Valid @RequestBody BranchRequest request) {
         validateTenantAccess(companyId);
         Branch branch = branchService.create(companyId, request.nameAr(),
-                request.nameEn(), request.branchCode());
+                request.nameEn(), request.branchCode(), request.street(),
+                request.buildingNumber(), request.additionalNumber(),
+                request.city(), request.district(), request.postalCode(),
+                request.countryCode(), request.additionalStreet());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(toBranchResponse(branch));
     }
@@ -99,7 +102,10 @@ public class BranchController {
         validateTenantAccess(companyId);
         validateBranchBelongsToCompany(branchId, companyId);
         Branch branch = branchService.update(branchId, request.nameAr(),
-                request.nameEn(), request.branchCode());
+                request.nameEn(), request.branchCode(), request.street(),
+                request.buildingNumber(), request.additionalNumber(),
+                request.city(), request.district(), request.postalCode(),
+                request.countryCode(), request.additionalStreet());
         return ResponseEntity.ok(toBranchResponse(branch));
     }
 
@@ -221,6 +227,9 @@ public class BranchController {
     private BranchDetailResponse toBranchResponse(Branch b) {
         return new BranchDetailResponse(b.getId(), b.getCompany().getId(),
                 b.getNameAr(), b.getNameEn(), b.getBranchCode(),
+                b.getStreet(), b.getBuildingNumber(), b.getAdditionalNumber(),
+                b.getCity(), b.getDistrict(), b.getPostalCode(),
+                b.getCountryCode(), b.getAdditionalStreet(),
                 b.getIsActive(), b.getCreatedAt());
     }
 

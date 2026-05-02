@@ -17,7 +17,11 @@ import org.springframework.stereotype.Repository;
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID>,
         JpaSpecificationExecutor<Invoice> {
 
-    Optional<Invoice> findByIdAndCompanyId(UUID id, Long companyId);
+    @Query("SELECT i FROM Invoice i WHERE i.id = :id AND i.company.id = :companyId "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId)")
+    Optional<Invoice> findByIdAndCompanyId(@Param("id") UUID id,
+            @Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId);
 
     boolean existsByBuyerIdAndCompanyIdAndStatusNot(Long buyerId,
             Long companyId, InvoiceStatus status);

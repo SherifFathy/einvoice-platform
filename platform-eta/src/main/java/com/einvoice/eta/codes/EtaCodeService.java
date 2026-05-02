@@ -321,8 +321,12 @@ public class EtaCodeService {
         return configs.stream()
                 .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
                 .min((a, b) -> {
-                    if (a.getEnvironment() == Environment.ETA_PREPRODUCTION) { return -1; }
-                    if (b.getEnvironment() == Environment.ETA_PREPRODUCTION) { return 1; }
+                    if (a.getEnvironment() == Environment.ETA_PREPRODUCTION) {
+                        return -1;
+                    }
+                    if (b.getEnvironment() == Environment.ETA_PREPRODUCTION) {
+                        return 1;
+                    }
                     return 0;
                 });
     }

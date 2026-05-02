@@ -1,0 +1,310 @@
+openapi: 3.0.3
+info:
+  title: Wave 5 — Auth & Session Context API
+  version: 1.0.0
+  description: |
+    Login, environment/company discovery, logout, and the session-context
+    endpoint that drives Angular sidebar and action-button gating. Aligned
+    with spec.md FR-013..FR-031a, FR-046..FR-047 and Constitution XV.8.
+
+    Notes:
+    - **No `/api/auth/refresh` endpoint** — single ~8h token, no refresh
+      (per spec Clarification 2 / FR-023a).
+    - JWT carries no permissions; clients call `/api/session/context`
+      after login (FR-022 / Constitution XV.8).
+
+servers:
+  - url: /
+
+tags:
+  - name: auth
+  - name: session
+
+paths:
+  /api/auth/environments:
+    post:
+      tags: [auth]
+      summary: List environments valid for an authority
+      description: |
+        Returns the active environments configured for the given authority,
+        from the `authority_environments` catalogue. Public (no auth) — used
+        by the cascading login dropdowns.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [authority]
+              properties:
+                authority:
+                  type: string
+                  enum: [ETA, ZATCA]
+      responses:
+        '200':
+          description: Environment list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  environments:
+                    type: array
+                    items: { $ref: '#/components/schemas/AuthorityEnvironment' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/companies:
+    post:
+      tags: [auth]
+      summary: List companies the user may select for the chosen authority+environment
+      description: |
+        For a regular user, returns companies for which the user has at least
+        one active `user_company_transaction_role` row in the chosen
+        `(authority, environment)`. For a Super User, returns all active
+        companies for that pair. Public (no auth) — credentials are
+        re-validated at `/api/auth/login`.
+
+        Implementation note: this endpoint takes `email` (not credentials)
+        because it pre-populates the Company dropdown after credential entry
+        but before the Login click. To prevent enumeration, the response is
+        always 200 with `companies: []` when the email is unknown — same as
+        for a real user with no assignments.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [authority, environment, email]
+              properties:
+                authority:    { type: string, enum: [ETA, ZATCA] }
+                environment:  { type: string, enum: [PRODUCTION, PREPROD, SIMULATION, SANDBOX] }
+                email:        { type: string, format: email }
+      responses:
+        '200':
+          description: Selectable companies (possibly empty). For Super Users, the client renders the additional "Continue without company (Admin Mode)" entry — backend does not include it explicitly.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isSuperUser: { type: boolean }
+                  companies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        companyId:    { type: string, format: uuid }
+                        nameEn:       { type: string }
+                        nameAr:       { type: string }
+                        taxNumber:    { type: string }
+                        isActive:     { type: boolean }
+
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Authenticate and acquire a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials, inactive user, or context-related rejection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                badCredentials:
+                  value: { code: BAD_CREDENTIALS, message: "Invalid email or password" }
+                companyContextRequired:
+                  value: { code: COMPANY_CONTEXT_REQUIRED, message: "A company selection is required for non-administrator users" }
+                unauthorizedContext:
+                  value: { code: UNAUTHORIZED_CONTEXT, message: "You have no active assignments for the selected authority and environment" }
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: Acknowledge logout (stateless)
+      description: |
+        The server acknowledges the logout. Tokens are not actively
+        invalidated (no blocklist in Wave 5 — Decision 1 in research.md).
+        The client MUST discard its locally-held token.
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Logout acknowledged
+
+  /api/session/context:
+    get:
+      tags: [session]
+      summary: Authoritative session permissions used to render the Angular shell
+      description: |
+        FR-025 / FR-026 / FR-027. Returns the active user, mode, login
+        context, and per-company per-module permissions derived from
+        `user_company_transaction_roles` + `transaction_role_permissions`.
+        Module keys are authority-specific:
+        - ETA   → `invoice`, `receipt`, `customers`, `items`, `configuration`
+        - ZATCA → `standard`, `simplified`, `customers`, `items`, `configuration`
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Session context payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContextResponse'
+        '401':
+          description: Token missing, invalid, or expired (token-expiry → re-login)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    ValidationError:
+      description: Request body invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    AuthorityEnvironment:
+      type: object
+      properties:
+        id:           { type: integer, minimum: 1, maximum: 5 }
+        authority:    { type: string, enum: [ETA, ZATCA] }
+        environment:  { type: string, enum: [PRODUCTION, PREPROD, SIMULATION, SANDBOX] }
+        label:        { type: string }
+        isActive:     { type: boolean }
+
+    LoginRequest:
+      type: object
+      required: [email, password, authority, environment]
+      properties:
+        email:        { type: string, format: email }
+        password:     { type: string }
+        authority:    { type: string, enum: [ETA, ZATCA] }
+        environment:  { type: string, enum: [PRODUCTION, PREPROD, SIMULATION, SANDBOX] }
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Required for regular users. Optional for Super Users — if omitted,
+            the session enters ADMIN_MODE.
+
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresInSeconds, mode]
+      properties:
+        accessToken:
+          type: string
+          description: JWT (HS256). TTL fixed at ~8h (Decision 1).
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresInSeconds:
+          type: integer
+          example: 28800
+          description: |
+            Reflects the server-configured `JWT_TTL_SECONDS` at issuance time.
+            Default 28800 (8 hours); valid configured range `[60, 86400]` per
+            tasks.md T024. Clients MUST use this runtime value (not the example)
+            when scheduling re-authentication, since deployments may set lower
+            values for testing (e.g., quickstart Phase H uses 90).
+        mode:
+          type: string
+          enum: [ADMIN_MODE, OPERATIONAL_MODE]
+
+    SessionContextResponse:
+      type: object
+      required: [userId, isSuperUser, mode, loginContext, companies]
+      properties:
+        userId:       { type: string, format: uuid }
+        isSuperUser:  { type: boolean }
+        mode:
+          type: string
+          enum: [ADMIN_MODE, OPERATIONAL_MODE]
+        loginContext:
+          type: object
+          required: [authority, environment, authorityEnvironmentId]
+          properties:
+            authority:               { type: string, enum: [ETA, ZATCA] }
+            environment:             { type: string, enum: [PRODUCTION, PREPROD, SIMULATION, SANDBOX] }
+            authorityEnvironmentId:  { type: integer }
+        companies:
+          type: array
+          description: |
+            For regular users: companies the user has active assignments for in the active authority+environment.
+            For Super Users in OPERATIONAL_MODE: all active companies in the active authority+environment (with all permissions = true).
+            For Super Users in ADMIN_MODE: empty array.
+          items:
+            type: object
+            required: [companyId, companyNameEn, companyNameAr, isActive, modules]
+            properties:
+              companyId:      { type: string, format: uuid }
+              companyNameEn:  { type: string }
+              companyNameAr:  { type: string }
+              isActive:       { type: boolean }
+              modules:
+                type: object
+                description: |
+                  Keys are authority-specific. ETA: invoice, receipt, customers, items, configuration.
+                  ZATCA: standard, simplified, customers, items, configuration.
+                additionalProperties:
+                  $ref: '#/components/schemas/ModulePermissions'
+
+    ModulePermissions:
+      type: object
+      required: [visible, permissions]
+      properties:
+        visible:
+          type: boolean
+          description: True iff the user has at least the VIEW permission on this module
+        permissions:
+          type: object
+          description: |
+            All flag keys present for typing consistency. Document modules
+            (invoice/receipt/standard/simplified) populate cancel/transfer/submit;
+            master-data modules leave them false.
+          properties:
+            view:     { type: boolean }
+            create:   { type: boolean }
+            edit:     { type: boolean }
+            delete:   { type: boolean }
+            cancel:   { type: boolean }
+            transfer: { type: boolean }
+            refresh:  { type: boolean }
+            submit:   { type: boolean }
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: See `error-codes.md` in this contracts/ folder
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

@@ -1,7 +1,7 @@
-# Implementation Plan — E-Invoicing Compliance Platform
+# Implementation Plan — Global E-Invoicing Gateway
 
-**Version**: 1.0 | **Date**: 2026-04-07 | **Status**: Approved
-**Inputs**: PRD v1.2, API Reference Map v1.0, Constitution v1.0.0
+**Version**: 2.0 | **Date**: 2026-04-29 | **Status**: Approved
+**Inputs**: PRD v1.2, API Reference Map v1.0, Constitution v2.0.0
 
 ## Context
 
@@ -32,7 +32,7 @@ from both authorities, and enforces every Constitution principle.
 | ETA webhooks | Deferred to post-MVP. Use polling for status checks |
 | Oracle support | Deferred to post-MVP |
 
-## Delivery Strategy — 4 Waves
+## Delivery Strategy — 10 Waves
 
 | Wave | Focus | Deliverable |
 |------|-------|-------------|
@@ -40,6 +40,12 @@ from both authorities, and enforces every Constitution principle.
 | 1 | Platform foundation + tenant onboarding + master data | Login, RBAC, company/branch config, customers, items, draft invoices |
 | 2 | Authority engines + submission + invoice UI | ZATCA+ETA signing, submission, lifecycle, smart form, single+retry submit |
 | 3 | Bulk ops, dashboard, logs, deployment, hardening | Bulk submission, jobs, dashboards, logs, Docker, install scripts |
+| 4 | Pre-final corrections (superseded by W5) | 3-LOV login, lov_contexts, 14 permissions — replaced under Constitution v2.0.0 |
+| 5 | Foundation refactor: 2-LOV auth, Admin Mode, RBAC v2 | authority_environments, global companies/branches/users, session context API, Admin APIs |
+| 6 | Operational tables: per-authority master data + cert configs | eta_customers/items/configs, zatca_customers/items/configs, zatca_chain_state |
+| 7 | ETA document tables + submission engine refactor | eta_invoice/receipt header+line+tax tables, ETA engine on new schema |
+| 8 | ZATCA document tables + submission engine refactor | zatca_standard/simplified header+line tables, chain pessimistic locking |
+| 9 | Dashboard, logs, hardening, deployment update | Company cards, log viewers updated, V36→V55 upgrade path, regression suite |
 
 ---
 
@@ -877,6 +883,1569 @@ If the spike confirms PDF generation is needed:
 
 ---
 
+## Wave 4 — Pre-Final Phase Review: LOV Context, Auth, Permissions & UI Fixes
+
+> **⚠ Superseded by Wave 5 under Constitution v2.0.0.**
+> Wave 4 introduced the 3-LOV login (Authority + DocType + SubEnvironment), the
+> `lov_contexts` table, `user_context_permissions`, and the 14 fine-grained permissions
+> baked into the JWT. Wave 5 replaces this entire model with the 2-LOV (Authority +
+> Environment) login plus post-login company selection, the `authority_environments`
+> registry, Admin Mode / Operational Mode separation, and 8 action permissions (plus
+> 5 master-data permissions) loaded on demand via `GET /api/session/context` rather
+> than embedded in the JWT. Wave 4 remains documented below for historical traceability
+> of the pre-final review only — see Wave 5 onward for the current model. Wave 5's V37
+> migration explicitly drops every Wave 0–4 operational table before rebuilding.
+
+### Goals
+
+- Enforce 3 mandatory LOV dropdowns at login (Authority, Document Type, Sub-Environment)
+- Isolate all tenant data per LOV context combination
+- Move address management from Company to Branch level
+- Add Company Edit button and Branches navigation to Company list
+- Fix Customer and Item creation bugs (BF-01, BF-02)
+- Add User Management screen (Super User only) with user CRUD + role assignment
+- Replace company-level user assignment with user-level assignment
+- Implement 14 fine-grained permissions per user/company/LOV context
+- Add Super User role with full system bypass
+- Add bulk upload template actions to Items and Customers screens
+
+### Scope
+
+#### 4.1 Database Migrations (Flyway V30–V34)
+
+- **V30**: Create `lov_contexts` table with 7 seed rows for all valid (authority, doc_type, sub_env) combinations.
+- **V31**: Add `lov_context_id FK` to `customers`, `items`, `invoices`, `branches`.
+- **V32**: Move address fields from `companies` to `branches` (migrate existing data to first branch).
+- **V33**: Create `user_context_permissions` table with UNIQUE on (user_id, company_id, lov_context_id, permission).
+- **V34**: Add `SUPER_USER` to role enum; add `is_super_user BOOLEAN DEFAULT FALSE` to `users`.
+
+#### 4.2 LOV Context & Tenant Isolation (platform-security + platform-core)
+
+- Extend `TenantContext` to carry `lovContextId` alongside `companyId`.
+- Update `TenantFilter` to extract `lov_context_id` from JWT.
+- Update all `@TenantScoped` base queries to append `AND lov_context_id = :lovContextId`.
+- Super User bypass: omit LOV context filter when `is_super_user = true`.
+
+#### 4.3 Login Endpoint & JWT (platform-security + platform-api)
+
+- `LoginRequest` gains: `authority` (ZATCA|ETA), `docType` (INVOICE|RECEIPT), `subEnvironment`.
+- `AuthService.login(...)` validates the combination against `lov_contexts`, resolves `lov_context_id`, loads permission set, embeds all 3 LOV values + `lov_context_id` + `permissions[]` + `is_super_user` in JWT.
+
+#### 4.4 Permissions System (platform-security)
+
+- `Permission` enum with 14 values.
+- `PermissionService.getPermissions(userId, companyId, lovContextId)` → `Set<Permission>`.
+- `@RequiresPermission` annotation + AOP aspect for all 14 gated service methods.
+
+#### 4.5 User Management APIs (platform-api)
+
+- `GET/POST /api/admin/users` — Super User only.
+- `PUT /api/admin/users/{id}`, `/password`, `/activate`, `/deactivate`.
+- `POST /api/admin/users/{id}/companies` — assign user to company with role.
+- `DELETE /api/admin/users/{id}/companies/{companyId}`.
+- `POST /api/admin/users/{id}/permissions` — bulk set permissions.
+- Remove `POST /api/admin/companies/{id}/assign-user`.
+
+#### 4.6 Address Restructuring (platform-api)
+
+- Remove address fields from `CompanyDto` / `CompanyService`.
+- Add address fields to `BranchDto` / `BranchService`.
+
+#### 4.7 Bulk Upload Templates (platform-api)
+
+- `POST /api/items/bulk-upload` — validate template headers, row-by-row insert, return `BulkUploadResult`.
+- `POST /api/customers/bulk-upload` — same pattern.
+
+#### 4.8 Angular — Wave 4 Screens
+
+- **Login form**: 3 reactive LOV dropdowns; login button disabled until all selected; sidebar hidden on `/login`.
+- **Company list**: Edit button + Branches navigation button per row.
+- **Branch list screen**: per-company branch CRUD with address fields.
+- **User Management screen** (`/admin/users`): Super User only; user CRUD + company/role assignment.
+- **Permission directive** (`*appHasPermission`): applied to all 14 action buttons.
+- **Bulk upload** on Items + Customers screens: Download Template + Upload Template buttons.
+
+### Deliverables
+
+- Login LOV enforcement and sidebar visibility fix
+- Data isolation per LOV context (integration-test verified)
+- Branch-level address management
+- Company/branch list with edit and navigation
+- User Management screen with role + permission assignment
+- 14 fine-grained permissions enforced at service + UI level
+- Super User role with bypass and promotion guard
+- Customer and Item creation bugs fixed
+- Bulk upload template actions on Items and Customers screens
+
+### Exit Criteria
+
+- Login with wrong LOV combination returns 400.
+- Customer created in ZATCA/INVOICE/SANDBOX not visible when logged in under ETA/INVOICE/PREPROD.
+- Company edit form has no address fields; branch edit form has all address fields.
+- Super User can create users and assign them to companies.
+- User with `CREATE_INVOICE` revoked gets 403 on POST /api/invoices and sees no New Invoice button.
+- Only Super User can promote another to Super User; last Super User cannot be deactivated.
+- Bulk upload: valid `.xlsx` imports all rows; structure mismatch rejects before any row insert.
+- All Flyway migrations run cleanly; `mvn clean verify` and `ng test` green.
+
+---
+
+# Constitution v2.0.0 Refactor — Waves 5–9
+
+> All work below is NEW. Waves 0–4 above are complete.
+> Constitution reference: v2.0.0
+> Flyway migrations start at: V37
+> Schema policy: Fresh database — V37 begins by dropping all Wave 0–4 operational
+> tables. No data migration is performed.
+
+---
+
+## Wave 5 — Foundation Refactoring: Auth, Session, Global Entities & RBAC
+
+### Goals
+
+- Replace the existing login and session model with the new 2-LOV
+  Authority + Environment login flow
+- Introduce Admin Mode and Operational Mode
+- Replace `lov_contexts` with `authority_environments` (5 rows)
+- Create global entity tables: companies, branches, users (refactored)
+- Create the new 3-table RBAC model
+- Introduce `TenantContext` v2 carrying `authority_environment_id`
+- Update Angular login screen, dashboard shell, and sidebar structure
+- Deliver session context API
+
+### Scope
+
+#### 5.1 Database Migrations (Flyway V37–V43)
+
+**V37 — Wave 5 prelude (drop Wave 0–4 tables) + authority_environments**
+
+```sql
+-- Wave 5 prelude: drop every Wave 0–4 operational table superseded by the
+-- new schema. Fresh-DB intent; no data migration. Subsequent V37–V55
+-- migrations rebuild the schema per Constitution v2.0.0 (multi-tenant by
+-- company_id + authority_environment_id, physical table per transaction
+-- module, plain-text certificate storage in dedicated config tables).
+DROP TABLE IF EXISTS submission_attempts          CASCADE;
+DROP TABLE IF EXISTS invoice_artifacts            CASCADE;
+DROP TABLE IF EXISTS invoice_vat_breakdown        CASCADE;
+DROP TABLE IF EXISTS invoice_lines                CASCADE;
+DROP TABLE IF EXISTS invoices                     CASCADE;
+DROP TABLE IF EXISTS eta_item_codes               CASCADE;
+DROP TABLE IF EXISTS job_items                    CASCADE;
+DROP TABLE IF EXISTS jobs                         CASCADE;
+DROP TABLE IF EXISTS customers                    CASCADE;
+DROP TABLE IF EXISTS items                        CASCADE;
+DROP TABLE IF EXISTS authority_configs            CASCADE;
+DROP TABLE IF EXISTS user_environment_permissions CASCADE;
+DROP TABLE IF EXISTS user_context_permissions     CASCADE;
+DROP TABLE IF EXISTS user_company_roles           CASCADE;
+DROP TABLE IF EXISTS lov_contexts                 CASCADE;
+DROP TABLE IF EXISTS audit_logs                   CASCADE;
+DROP TABLE IF EXISTS branches                     CASCADE;
+DROP TABLE IF EXISTS users                        CASCADE;
+DROP TABLE IF EXISTS companies                    CASCADE;
+
+CREATE TABLE authority_environments (
+    id          SMALLINT PRIMARY KEY,
+    authority   VARCHAR(10) NOT NULL,
+    environment VARCHAR(20) NOT NULL,
+    label       VARCHAR(100) NOT NULL,
+    is_active   BOOLEAN DEFAULT TRUE,
+    CONSTRAINT uq_authority_environment UNIQUE (authority, environment)
+);
+
+INSERT INTO authority_environments (id, authority, environment, label) VALUES
+    (1, 'ETA',   'PRODUCTION', 'ETA Production'),
+    (2, 'ETA',   'PREPROD',    'ETA Pre-Production'),
+    (3, 'ZATCA', 'PRODUCTION', 'ZATCA Production'),
+    (4, 'ZATCA', 'SIMULATION', 'ZATCA Simulation'),
+    (5, 'ZATCA', 'SANDBOX',    'ZATCA Sandbox');
+```
+
+**V38 — companies (global, no authority_environment_id)**
+
+```sql
+CREATE TABLE companies (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name_ar     VARCHAR(255) NOT NULL,
+    name_en     VARCHAR(255) NOT NULL,
+    tax_number  VARCHAR(100) NOT NULL,
+    cr_number   VARCHAR(100),
+    logo_path   VARCHAR(500),
+    is_active   BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    -- No unique constraint on tax_number at DB level.
+    -- Application validates uniqueness by authority+environment context.
+);
+CREATE INDEX idx_companies_tax    ON companies(tax_number);
+CREATE INDEX idx_companies_active ON companies(is_active);
+```
+
+**V39 — branches (global under company, no authority_environment_id)**
+
+```sql
+CREATE TABLE branches (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id              UUID NOT NULL REFERENCES companies(id),
+    name_ar                 VARCHAR(255) NOT NULL,
+    name_en                 VARCHAR(255) NOT NULL,
+    branch_code             VARCHAR(50),
+    address_line_1          VARCHAR(255),
+    address_line_2          VARCHAR(255),
+    city                    VARCHAR(100),
+    region                  VARCHAR(100),
+    postal_code             VARCHAR(20),
+    country                 VARCHAR(10) DEFAULT 'EG',
+    building_number         VARCHAR(20),
+    additional_no           VARCHAR(20),
+    taxpayer_activity_code  VARCHAR(50),  -- ETA only, nullable
+    is_active               BOOLEAN DEFAULT TRUE,
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_branch_code UNIQUE (company_id, branch_code)
+);
+CREATE INDEX idx_branches_company ON branches(company_id);
+```
+
+**V40 — users (refactored, global)**
+
+```sql
+CREATE TABLE users (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(255) NOT NULL,
+    email           VARCHAR(255) NOT NULL UNIQUE,
+    password_hash   TEXT NOT NULL,
+    is_super_user   BOOLEAN DEFAULT FALSE,
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**V41 — transaction_roles (system-level seed)**
+
+```sql
+CREATE TABLE transaction_roles (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    authority        VARCHAR(10) NOT NULL,
+    transaction_type VARCHAR(20) NOT NULL,
+    role_code        VARCHAR(30) NOT NULL,
+    description      VARCHAR(255),
+    CONSTRAINT uq_transaction_role UNIQUE (authority, transaction_type, role_code)
+);
+
+INSERT INTO transaction_roles (authority, transaction_type, role_code, description) VALUES
+    ('ETA',   'INVOICE',    'COMPANY_ADMIN', 'Full access to ETA Invoices'),
+    ('ETA',   'INVOICE',    'ACCOUNTANT',    'Create and submit ETA Invoices'),
+    ('ETA',   'INVOICE',    'VIEWER',        'Read-only ETA Invoices'),
+    ('ETA',   'RECEIPT',    'COMPANY_ADMIN', 'Full access to ETA Receipts'),
+    ('ETA',   'RECEIPT',    'ACCOUNTANT',    'Create and submit ETA Receipts'),
+    ('ETA',   'RECEIPT',    'VIEWER',        'Read-only ETA Receipts'),
+    ('ZATCA', 'STANDARD',   'COMPANY_ADMIN', 'Full access to ZATCA Standard'),
+    ('ZATCA', 'STANDARD',   'ACCOUNTANT',    'Create and submit ZATCA Standard'),
+    ('ZATCA', 'STANDARD',   'VIEWER',        'Read-only ZATCA Standard'),
+    ('ZATCA', 'SIMPLIFIED', 'COMPANY_ADMIN', 'Full access to ZATCA Simplified'),
+    ('ZATCA', 'SIMPLIFIED', 'ACCOUNTANT',    'Create and submit ZATCA Simplified'),
+    ('ZATCA', 'SIMPLIFIED', 'VIEWER',        'Read-only ZATCA Simplified'),
+    -- Master data roles (apply across all modules for the authority)
+    ('ETA',   'CUSTOMERS',  'COMPANY_ADMIN', 'Full access to ETA Customers'),
+    ('ETA',   'CUSTOMERS',  'ACCOUNTANT',    'View and create ETA Customers'),
+    ('ETA',   'ITEMS',      'COMPANY_ADMIN', 'Full access to ETA Items'),
+    ('ETA',   'ITEMS',      'ACCOUNTANT',    'View and create ETA Items'),
+    ('ETA',   'CONFIG',     'COMPANY_ADMIN', 'Full access to ETA Configuration'),
+    ('ZATCA', 'CUSTOMERS',  'COMPANY_ADMIN', 'Full access to ZATCA Customers'),
+    ('ZATCA', 'CUSTOMERS',  'ACCOUNTANT',    'View and create ZATCA Customers'),
+    ('ZATCA', 'ITEMS',      'COMPANY_ADMIN', 'Full access to ZATCA Items'),
+    ('ZATCA', 'ITEMS',      'ACCOUNTANT',    'View and create ZATCA Items'),
+    ('ZATCA', 'CONFIG',     'COMPANY_ADMIN', 'Full access to ZATCA Configuration');
+```
+
+**V42 — transaction_role_permissions (seeded)**
+
+```sql
+CREATE TABLE transaction_role_permissions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    role_id         UUID NOT NULL REFERENCES transaction_roles(id) ON DELETE CASCADE,
+    permission_code VARCHAR(20) NOT NULL,
+    -- Document permissions: VIEW, CREATE, EDIT, DELETE, CANCEL,
+    --                       TRANSFER, REFRESH, SUBMIT
+    -- Master data permissions: VIEW, CREATE, EDIT, DELETE, REFRESH
+    CONSTRAINT uq_role_permission UNIQUE (role_id, permission_code)
+);
+
+-- Seeding logic (application startup or migration script):
+-- COMPANY_ADMIN on any transaction_type:
+--   VIEW, CREATE, EDIT, DELETE, CANCEL, TRANSFER, REFRESH, SUBMIT
+-- ACCOUNTANT on document transaction_types:
+--   VIEW, CREATE, REFRESH, SUBMIT
+-- ACCOUNTANT on CUSTOMERS/ITEMS:
+--   VIEW, CREATE, REFRESH
+-- COMPANY_ADMIN on CUSTOMERS/ITEMS/CONFIG:
+--   VIEW, CREATE, EDIT, DELETE, REFRESH
+-- VIEWER on any:
+--   VIEW only
+```
+
+**V43 — user_company_transaction_roles**
+
+```sql
+CREATE TABLE user_company_transaction_roles (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id                  UUID NOT NULL REFERENCES users(id),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    transaction_type         VARCHAR(20) NOT NULL,
+    role_code                VARCHAR(30) NOT NULL,
+    is_active                BOOLEAN DEFAULT TRUE,
+    granted_by               UUID REFERENCES users(id),
+    granted_at               TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_user_company_env_tx UNIQUE (
+        user_id, company_id, authority_environment_id, transaction_type
+    )
+);
+CREATE INDEX idx_uctr_user_env
+    ON user_company_transaction_roles(user_id, authority_environment_id);
+CREATE INDEX idx_uctr_company_env
+    ON user_company_transaction_roles(company_id, authority_environment_id);
+```
+
+#### 5.2 TenantContext v2 (platform-security)
+
+Replace existing TenantContext with:
+
+```java
+public class TenantContext {
+    private UUID    userId;
+    private UUID    companyId;              // null in ADMIN_MODE
+    private Integer authorityEnvironmentId;
+    private String  authority;              // ETA | ZATCA
+    private String  environment;            // PRODUCTION | PREPROD | SANDBOX | SIMULATION
+    private String  mode;                   // ADMIN_MODE | OPERATIONAL_MODE
+    private boolean isSuperUser;
+    // Permissions loaded from session context, not JWT
+}
+```
+
+Rules:
+- All operational repository queries MUST append:
+  `AND company_id = :companyId AND authority_environment_id = :authorityEnvironmentId`
+- Super User in `ADMIN_MODE`: `company_id = null`, queries return all
+  companies for that `authority_environment_id`
+- All operational APIs check `mode = OPERATIONAL_MODE` before executing
+
+#### 5.3 Login Refactoring (platform-security + platform-api)
+
+**New login request:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "...",
+  "authority": "ETA",
+  "environment": "PREPROD",
+  "companyId": "uuid-or-null"
+}
+```
+
+**Login validation sequence:**
+
+1. Validate email + password. Load user. Check `is_active`.
+2. Validate `(authority, environment)` exists in `authority_environments`.
+   Resolve `authority_environment_id`.
+3. If Super User AND `companyId = null` → mode = `ADMIN_MODE` → issue JWT.
+4. If Super User AND companyId provided → validate company exists,
+   mode = `OPERATIONAL_MODE` → issue JWT.
+5. If regular user AND `companyId = null` → reject with
+   `COMPANY_CONTEXT_REQUIRED`.
+6. If regular user AND companyId provided → validate user has at least
+   one active row in `user_company_transaction_roles` for
+   `(user_id, companyId, authority_environment_id)`. Reject with
+   `UNAUTHORIZED_CONTEXT` if none found.
+7. Issue JWT with: `user_id, email, is_super_user, authority,
+   environment, authority_environment_id, company_id (nullable), mode`.
+
+**Note**: permissions are NOT in the JWT. They are loaded on demand
+via `GET /api/session/context` to keep JWT small and permissions fresh.
+
+**New API endpoints:**
+
+- `POST /api/auth/environments` — given `{authority}`, return valid
+  environments from `authority_environments`
+- `POST /api/auth/companies` — given `{authority, environment, email}`,
+  return accessible company list:
+  - Super User: all active companies for that authority+environment
+  - Regular user: companies where user has active assignments
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `POST /api/auth/logout`
+
+#### 5.4 Session Context API (platform-api)
+
+```
+GET /api/session/context
+```
+
+Returns full permissions object. Called by Angular after login to build
+the sidebar and gate all action buttons.
+
+Response structure:
+
+```json
+{
+  "userId": "uuid",
+  "isSuperUser": false,
+  "mode": "OPERATIONAL_MODE",
+  "loginContext": {
+    "authority": "ETA",
+    "environment": "PREPROD",
+    "authorityEnvironmentId": 2
+  },
+  "companies": [
+    {
+      "companyId": "uuid",
+      "companyNameEn": "ABC Company",
+      "companyNameAr": "شركة ABC",
+      "modules": {
+        "invoice": {
+          "visible": true,
+          "permissions": {
+            "view": true, "create": true, "edit": true,
+            "delete": false, "cancel": false,
+            "transfer": true, "refresh": true, "submit": true
+          }
+        },
+        "receipt":  { "visible": false, "permissions": { "...": "..." } },
+        "customers": {
+          "visible": true,
+          "permissions": {
+            "view": true, "create": true, "edit": false,
+            "delete": false, "refresh": true
+          }
+        },
+        "items":         { "visible": true,  "permissions": { "...": "..." } },
+        "configuration": { "visible": false, "permissions": { "...": "..." } }
+      }
+    }
+  ]
+}
+```
+
+For ZATCA, module keys are: `standard, simplified, customers, items,
+configuration`.
+
+#### 5.5 Admin APIs (platform-api)
+
+All under `/api/admin` — requires `is_super_user = true`.
+
+```
+POST   /api/admin/companies
+PUT    /api/admin/companies/{id}
+PUT    /api/admin/companies/{id}/deactivate
+GET    /api/admin/companies
+
+POST   /api/admin/companies/{id}/branches
+PUT    /api/admin/branches/{id}
+GET    /api/admin/companies/{id}/branches
+
+POST   /api/admin/users
+PUT    /api/admin/users/{id}
+PUT    /api/admin/users/{id}/activate
+PUT    /api/admin/users/{id}/deactivate
+GET    /api/admin/users
+
+POST   /api/admin/users/{id}/assignments
+DELETE /api/admin/users/{id}/assignments/{assignmentId}
+GET    /api/admin/users/{id}/assignments
+```
+
+Assignment body:
+
+```json
+{
+  "companyId": "uuid",
+  "authorityEnvironmentId": 2,
+  "transactionType": "INVOICE",
+  "roleCode": "ACCOUNTANT"
+}
+```
+
+#### 5.6 Angular — Wave 5 Screens
+
+**Login screen:**
+
+- Header: "Global E-Invoicing Gateway"
+- Step 1: Email + Password fields
+- Step 2: Authority dropdown (ETA | ZATCA) — loads on credential
+  validation success
+- Step 3: Environment dropdown — cascades from Authority selection,
+  calls `POST /api/auth/environments`
+- Step 4: Company dropdown — calls `POST /api/auth/companies` with
+  authority+environment+email. For Super User, shows all companies
+  plus "Continue without company (Admin Mode)" option at top.
+  For regular user, shows only assigned companies.
+- Login button disabled until all required fields filled.
+- Error states: `UNAUTHORIZED_CONTEXT`, `COMPANY_CONTEXT_REQUIRED`,
+  invalid credentials.
+
+**Dashboard:**
+
+- Header chips (read-only): `[Authority] [Environment] [Mode or Company Name]`
+- Dynamic title: "ETA Platform" or "ZATCA Platform"
+- Company cards/tiles grid: one card per assigned company showing
+  company name, tax number, active status, quick submission stats.
+  Cards are informational — no click-to-select needed.
+- Super User in Admin Mode sees all companies in context with
+  Create Company button and Edit/Manage actions per card.
+
+**Sidebar (OPERATIONAL_MODE):**
+
+ETA session:
+- Dashboard
+- Invoices (hidden if no INVOICE permissions)
+- Receipts (hidden if no RECEIPT permissions)
+- Customers (hidden if no CUSTOMERS permissions)
+- Items (hidden if no ITEMS permissions)
+- Configuration (hidden if no CONFIG permissions)
+- Logs
+- Admin (Super User only)
+
+ZATCA session:
+- Dashboard
+- Standard (hidden if no STANDARD permissions)
+- Simplified (hidden if no SIMPLIFIED permissions)
+- Customers (hidden if no CUSTOMERS permissions)
+- Items (hidden if no ITEMS permissions)
+- Configuration (hidden if no CONFIG permissions)
+- Logs
+- Admin (Super User only)
+
+**Sidebar (ADMIN_MODE):**
+
+- Dashboard
+- Companies
+- Branches
+- Users
+- Assignments
+- Logs
+- Banner: "Admin Mode — No company selected. Operational features
+  require logout and re-login with a company selected."
+
+**Session context service (Angular):**
+
+- Calls `GET /api/session/context` after login
+- Stores permissions in a singleton `SessionContextService`
+- All components subscribe to permissions from this service
+- `PermissionDirective` (`*appHasPermission="'CREATE'"`) controls
+  button visibility
+- Sidebar driven by `module.visible` from session context response
+
+### Deliverables
+
+- New login screen with 2-LOV + company selection flow
+- Admin Mode and Operational Mode distinction enforced in UI and backend
+- `authority_environments` table with 5 seed rows
+- Global `companies`, `branches`, `users` tables
+- 3-table RBAC model with seeded roles and permissions
+- `TenantContext` v2 carrying `authority_environment_id`
+- Session context API returning full permissions object
+- Admin APIs for company/branch/user/assignment management
+- Dynamic sidebar per mode and per authority
+- Company cards dashboard
+
+### Exit Criteria
+
+- Super User login without company → Admin Mode sidebar shown,
+  operational APIs return `COMPANY_CONTEXT_REQUIRED`
+- Regular user login with no assigned companies → `UNAUTHORIZED_CONTEXT`
+- Regular user login with assigned company → Operational Mode,
+  only permitted modules visible in sidebar
+- ZATCA session: Standard/Simplified items in sidebar
+- ETA session: Invoices/Receipts items in sidebar
+- Permissions object from `/api/session/context` matches what backend
+  enforces on API calls
+- All Flyway migrations V37–V43 run cleanly on fresh DB
+- `mvn clean verify` and `ng test` pass
+
+---
+
+## Wave 6 — Operational Tables: Master Data & Certificate Configs
+
+### Goals
+
+- Create authority-separated master data tables:
+  `eta_customers`, `eta_items`, `zatca_customers`, `zatca_items`
+- Create certificate config tables:
+  `eta_configs`, `zatca_configs`, `zatca_chain_state`
+- Implement CRUD APIs for all master data per authority
+- Implement certificate config APIs per company+environment
+- Angular screens for customers, items, and configuration per authority
+
+### Scope
+
+#### 6.1 Database Migrations (Flyway V44–V46)
+
+**V44 — ETA master data and config**
+
+```sql
+-- ETA Config (one row per company + authority_environment_id)
+CREATE TABLE eta_configs (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    branch_id                UUID REFERENCES branches(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    -- Auth credentials
+    client_id        TEXT NOT NULL,
+    client_secret_1  TEXT NOT NULL,
+    client_secret_2  TEXT NOT NULL,
+    token_name       TEXT,                -- optional for Pre-prod
+    token_pass       TEXT,                -- optional for Pre-prod
+    submission_url   TEXT NOT NULL,
+    token_url        TEXT NOT NULL,
+    -- POS device info (receipt-specific, nullable)
+    pos_serial       TEXT,
+    pos_os_version   TEXT,
+    pos_model        TEXT,
+    -- Metadata
+    is_active        BOOLEAN DEFAULT TRUE,
+    created_at       TIMESTAMPTZ DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_eta_config UNIQUE (company_id, authority_environment_id)
+);
+
+-- ETA Customers
+CREATE TABLE eta_customers (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    customer_type   VARCHAR(30),
+    name_ar         VARCHAR(255),
+    name_en         VARCHAR(255) NOT NULL,
+    tax_number      VARCHAR(100),
+    id_type         VARCHAR(50),
+    id_value        VARCHAR(100),
+    address_data    JSONB,
+    contact_email   VARCHAR(255),
+    contact_phone   VARCHAR(50),
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_eta_customer_tax UNIQUE (
+        company_id, authority_environment_id, tax_number
+    )
+);
+CREATE INDEX idx_eta_customers_ctx
+    ON eta_customers(company_id, authority_environment_id);
+
+-- ETA Items
+CREATE TABLE eta_items (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    internal_code   VARCHAR(100) NOT NULL,
+    item_type       VARCHAR(10) NOT NULL,        -- GS1 or EGS
+    item_code       VARCHAR(100) NOT NULL,
+    name_ar         VARCHAR(255),
+    name_en         VARCHAR(255) NOT NULL,
+    unit_type       VARCHAR(50),
+    unit_price      NUMERIC(18,5),
+    tax_type        VARCHAR(30),
+    tax_subtype     VARCHAR(30),
+    tax_rate        NUMERIC(8,5),
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_eta_item_code UNIQUE (
+        company_id, authority_environment_id, internal_code
+    )
+);
+CREATE INDEX idx_eta_items_ctx
+    ON eta_items(company_id, authority_environment_id);
+```
+
+**V45 — ZATCA master data and config**
+
+```sql
+-- ZATCA Config (one row per company + authority_environment_id)
+CREATE TABLE zatca_configs (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    branch_id                UUID REFERENCES branches(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    private_key             TEXT NOT NULL,
+    device_uuid             TEXT NOT NULL,
+    csr                     TEXT NOT NULL,
+    compliance_certificate  TEXT NOT NULL,
+    compliance_api_secret   TEXT NOT NULL,
+    production_certificate  TEXT,                -- null until prod onboarding
+    production_api_secret   TEXT,
+    certificate_expiry_date DATE,
+    is_active               BOOLEAN DEFAULT TRUE,
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_zatca_config UNIQUE (company_id, authority_environment_id)
+);
+
+-- ZATCA Chain State (shared between Standard and Simplified)
+CREATE TABLE zatca_chain_state (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    invoice_counter         BIGINT NOT NULL DEFAULT 0,
+    previous_invoice_hash   TEXT,
+    last_updated_at         TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_zatca_chain UNIQUE (company_id, authority_environment_id)
+);
+
+-- ZATCA Customers
+CREATE TABLE zatca_customers (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    customer_type   VARCHAR(30),
+    name_ar         VARCHAR(255),
+    name_en         VARCHAR(255) NOT NULL,
+    vat_number      VARCHAR(100),
+    id_type         VARCHAR(50),
+    id_value        VARCHAR(100),
+    address_data    JSONB,
+    contact_email   VARCHAR(255),
+    contact_phone   VARCHAR(50),
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_zatca_customer_vat UNIQUE (
+        company_id, authority_environment_id, vat_number
+    )
+);
+CREATE INDEX idx_zatca_customers_ctx
+    ON zatca_customers(company_id, authority_environment_id);
+
+-- ZATCA Items
+CREATE TABLE zatca_items (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    internal_code   VARCHAR(100) NOT NULL,
+    item_code       VARCHAR(100),
+    name_ar         VARCHAR(255),
+    name_en         VARCHAR(255) NOT NULL,
+    unit_type       VARCHAR(50),
+    unit_price      NUMERIC(18,5),
+    vat_category    VARCHAR(10),                 -- S, Z, E, O
+    vat_rate        NUMERIC(8,2),
+    is_active       BOOLEAN DEFAULT TRUE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_zatca_item_code UNIQUE (
+        company_id, authority_environment_id, internal_code
+    )
+);
+CREATE INDEX idx_zatca_items_ctx
+    ON zatca_items(company_id, authority_environment_id);
+```
+
+**V46 — Indexes**
+
+```sql
+CREATE INDEX idx_eta_configs_ctx
+    ON eta_configs(company_id, authority_environment_id);
+CREATE INDEX idx_zatca_configs_ctx
+    ON zatca_configs(company_id, authority_environment_id);
+CREATE INDEX idx_zatca_chain_ctx
+    ON zatca_chain_state(company_id, authority_environment_id);
+```
+
+#### 6.2 Master Data APIs (platform-api)
+
+All paths include `company_id`. Backend validates user has permissions
+for that company under current `authority_environment_id` from JWT.
+
+**ETA:**
+
+```
+GET/POST   /api/companies/{id}/eta/customers
+GET/PUT    /api/companies/{id}/eta/customers/{customerId}
+DELETE     /api/companies/{id}/eta/customers/{customerId}
+GET/POST   /api/companies/{id}/eta/items
+GET/PUT    /api/companies/{id}/eta/items/{itemId}
+DELETE     /api/companies/{id}/eta/items/{itemId}
+```
+
+**ZATCA:**
+
+```
+GET/POST   /api/companies/{id}/zatca/customers
+GET/PUT    /api/companies/{id}/zatca/customers/{customerId}
+GET/POST   /api/companies/{id}/zatca/items
+GET/PUT    /api/companies/{id}/zatca/items/{itemId}
+```
+
+#### 6.3 Certificate Config APIs (platform-api)
+
+```
+GET /api/companies/{id}/eta/config
+PUT /api/companies/{id}/eta/config
+GET /api/companies/{id}/zatca/config
+PUT /api/companies/{id}/zatca/config
+```
+
+Requires `MANAGE_CONFIG` permission (`COMPANY_ADMIN` role on `CONFIG`
+transaction type).
+
+#### 6.4 Angular — Wave 6 Screens
+
+**Customers screen (ETA and ZATCA, same component, different service):**
+
+- Unified list showing customers from all assigned companies
+- Company column + filter dropdown
+- CRUD form gated by CREATE/EDIT/DELETE permissions
+- Search by name, tax number
+
+**Items screen (ETA and ZATCA, same pattern):**
+
+- List with company column + filter
+- CRUD form with item type, code, VAT category
+- ZATCA items: `vat_category` dropdown (S/Z/E/O)
+- ETA items: `tax_type` + `tax_subtype` + `tax_rate` fields
+
+**Configuration screen:**
+
+- ETA tab: Client ID, Secrets, Token fields, URLs, POS device fields
+- ZATCA tab: Private Key, UUID, CSR, Compliance Certificate, API Secret,
+  Production Certificate fields, expiry date
+- Save button gated by CONFIG permissions
+- Fields displayed as plain text (no masking in Phase 1)
+
+### Deliverables
+
+- All master data tables created with correct indexes
+- Certificate config tables created (plain text, Phase 1)
+- ZATCA chain state table created
+- Full CRUD APIs for `eta_customers`, `eta_items`, `zatca_customers`,
+  `zatca_items`
+- Config read/write APIs for `eta_configs` and `zatca_configs`
+- Angular Customers, Items, and Configuration screens
+- All screens respect permissions from session context
+
+### Exit Criteria
+
+- ETA customer created under `authority_environment_id=1` is NOT visible
+  when logged in under `authority_environment_id=2`
+- ZATCA customer and ETA customer tables are separate — no data mixing
+- ZATCA config for Sandbox (id=5) is a separate row from ZATCA config
+  for Production (id=3) for the same company
+- User without CONFIG permissions cannot access configuration screen
+  or `PUT /api/companies/{id}/eta/config`
+- All Flyway migrations V44–V46 run cleanly
+- `mvn clean verify` and `ng test` pass
+
+---
+
+## Wave 7 — ETA Document Tables & Submission Engine
+
+### Goals
+
+- Create ETA invoice and receipt table groups with correct schemas
+  derived from official ETA SDK specification
+- Create shared `submission_attempts`, `invoice_artifacts`, `audit_logs`
+- Refactor ETA authority engine to work with new table structure
+- Implement ETA invoice and receipt CRUD and submission APIs
+- Angular document list and detail screens for ETA
+
+### Scope
+
+#### 7.1 Database Migrations (Flyway V47–V52)
+
+**V47 — eta_invoice_headers**
+
+```sql
+CREATE TABLE eta_invoice_headers (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id                  UUID NOT NULL REFERENCES companies(id),
+    branch_id                   UUID REFERENCES branches(id),
+    authority_environment_id    SMALLINT NOT NULL
+                                REFERENCES authority_environments(id),
+    -- Document identification
+    invoice_number              VARCHAR(100) NOT NULL,
+    document_type               VARCHAR(10) NOT NULL,
+    -- i=Invoice, c=Credit Note, d=Debit Note,
+    -- ei=Export Invoice, ec=Export Credit Note, ed=Export Debit Note
+    document_type_version       VARCHAR(10) NOT NULL DEFAULT '1.0',
+    -- Dates
+    issue_datetime              TIMESTAMPTZ NOT NULL,
+    service_delivery_date       DATE,
+    -- Parties (full ETA address structure stored as JSONB)
+    seller_data                 JSONB NOT NULL,
+    buyer_data                  JSONB NOT NULL,
+    -- Activity
+    taxpayer_activity_code      VARCHAR(50),
+    -- References (all optional)
+    purchase_order_reference    VARCHAR(100),
+    purchase_order_description  TEXT,
+    sales_order_reference       VARCHAR(100),
+    sales_order_description     TEXT,
+    proforma_invoice_number     VARCHAR(50),
+    -- Payment info (optional JSONB)
+    payment_data                JSONB,
+    -- Delivery info (optional JSONB — for export invoices)
+    delivery_data               JSONB,
+    -- Currency
+    currency                    VARCHAR(3) NOT NULL DEFAULT 'EGP',
+    -- Totals (5 decimal places per ETA spec)
+    total_sales_amount          NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total_discount_amount       NUMERIC(18,5) NOT NULL DEFAULT 0,
+    extra_discount_amount       NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total_items_discount_amount NUMERIC(18,5) NOT NULL DEFAULT 0,
+    net_amount                  NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total_amount                NUMERIC(18,5) NOT NULL DEFAULT 0,
+    -- ETA response fields
+    eta_uuid                    VARCHAR(255),
+    eta_long_id                 VARCHAR(255),
+    eta_submission_id           VARCHAR(255),
+    -- Reference to original (credit/debit notes)
+    original_document_id        UUID REFERENCES eta_invoice_headers(id),
+    -- Lifecycle
+    status                      VARCHAR(40) NOT NULL DEFAULT 'DRAFT',
+    -- Audit
+    created_by                  UUID REFERENCES users(id),
+    created_at                  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_eta_invoice_number UNIQUE (
+        company_id, authority_environment_id, invoice_number
+    )
+);
+CREATE INDEX idx_eta_inv_ctx_status
+    ON eta_invoice_headers(company_id, authority_environment_id, status);
+CREATE INDEX idx_eta_inv_ctx_date
+    ON eta_invoice_headers(company_id, authority_environment_id, issue_datetime);
+```
+
+**V48 — eta_invoice_lines and eta_invoice_line_taxes**
+
+```sql
+CREATE TABLE eta_invoice_lines (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    header_id           UUID NOT NULL
+                        REFERENCES eta_invoice_headers(id) ON DELETE CASCADE,
+    line_number         INT NOT NULL,
+    item_id             UUID REFERENCES eta_items(id),
+    internal_code       VARCHAR(100),
+    item_type           VARCHAR(10) NOT NULL,    -- GS1 or EGS
+    item_code           VARCHAR(100) NOT NULL,
+    description         TEXT NOT NULL,
+    unit_type           VARCHAR(50) NOT NULL,
+    quantity            NUMERIC(18,5) NOT NULL,
+    -- unit_value is a JSONB structure per ETA spec:
+    -- { currencySold, amountEGP, amountSold, currencyExchangeRate }
+    unit_value          JSONB NOT NULL,
+    sales_total         NUMERIC(18,5) NOT NULL DEFAULT 0,
+    discount_rate       NUMERIC(8,5),
+    discount_amount     NUMERIC(18,5) NOT NULL DEFAULT 0,
+    items_discount      NUMERIC(18,5) NOT NULL DEFAULT 0,
+    value_difference    NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total_taxable_fees  NUMERIC(18,5) NOT NULL DEFAULT 0,
+    net_total           NUMERIC(18,5) NOT NULL DEFAULT 0,
+    tax_amount          NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total               NUMERIC(18,5) NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_eta_invoice_line UNIQUE (header_id, line_number)
+);
+
+CREATE TABLE eta_invoice_line_taxes (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    line_id     UUID NOT NULL
+                REFERENCES eta_invoice_lines(id) ON DELETE CASCADE,
+    -- tax_type from ETA codes: T1=VAT, T2=WHT, etc.
+    tax_type    VARCHAR(30) NOT NULL,
+    sub_type    VARCHAR(30),
+    tax_rate    NUMERIC(8,5),
+    tax_amount  NUMERIC(18,5) NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**V49 — eta_receipt_headers**
+
+```sql
+CREATE TABLE eta_receipt_headers (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id                  UUID NOT NULL REFERENCES companies(id),
+    branch_id                   UUID REFERENCES branches(id),
+    authority_environment_id    SMALLINT NOT NULL
+                                REFERENCES authority_environments(id),
+    receipt_number              VARCHAR(100) NOT NULL,
+    -- document_type stores full ETA receipt type code:
+    -- r, rr, rrwr, cr, crr, gs, gsr, rt, rtr,
+    -- tr, trr, bk, bkr, ed, edr, pr, prr, sh, shr, en, enr, ut, utr
+    document_type               VARCHAR(10) NOT NULL,
+    -- Stored flexibly for future ETA version upgrades
+    document_type_version       VARCHAR(10) NOT NULL DEFAULT '1.2',
+    issue_datetime              TIMESTAMPTZ NOT NULL,
+    seller_data                 JSONB NOT NULL,
+    buyer_data                  JSONB,                  -- optional for B2C
+    pos_serial                  VARCHAR(100),
+    payment_method              VARCHAR(50),
+    currency                    VARCHAR(3) NOT NULL DEFAULT 'EGP',
+    total_sales_amount          NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total_discount_amount       NUMERIC(18,5) NOT NULL DEFAULT 0,
+    net_amount                  NUMERIC(18,5) NOT NULL DEFAULT 0,
+    total_amount                NUMERIC(18,5) NOT NULL DEFAULT 0,
+    eta_receipt_uuid            VARCHAR(255),
+    eta_submission_id           VARCHAR(255),
+    original_receipt_id         UUID REFERENCES eta_receipt_headers(id),
+    status                      VARCHAR(40) NOT NULL DEFAULT 'DRAFT',
+    created_by                  UUID REFERENCES users(id),
+    created_at                  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_eta_receipt_number UNIQUE (
+        company_id, authority_environment_id, receipt_number
+    )
+);
+CREATE INDEX idx_eta_rec_ctx_status
+    ON eta_receipt_headers(company_id, authority_environment_id, status);
+CREATE INDEX idx_eta_rec_ctx_date
+    ON eta_receipt_headers(company_id, authority_environment_id, issue_datetime);
+```
+
+**V50 — eta_receipt_lines and eta_receipt_line_taxes**
+
+Same structure as `eta_invoice_lines` and `eta_invoice_line_taxes`
+but referencing `eta_receipt_headers`.
+
+**V51 — Shared operational tables**
+
+```sql
+-- Submission attempts (shared across all 4 transaction types)
+CREATE TABLE submission_attempts (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    transaction_type         VARCHAR(20) NOT NULL,
+    -- INVOICE | RECEIPT | STANDARD | SIMPLIFIED
+    document_id              UUID NOT NULL,
+    -- References the header table for the transaction_type.
+    -- No FK — enforced at application layer.
+    attempt_number           INT NOT NULL,
+    result                   VARCHAR(20),
+    -- SUCCESS | REJECTED | ERROR | TIMEOUT | AMBIGUOUS
+    status_code              INT,
+    error_summary            TEXT,
+    request_payload_ref      TEXT,                -- artifact id or path
+    response_payload_ref     TEXT,
+    submitted_at             TIMESTAMPTZ DEFAULT NOW(),
+    completed_at             TIMESTAMPTZ,
+    CONSTRAINT uq_submission_attempt UNIQUE (document_id, attempt_number)
+);
+CREATE INDEX idx_submission_doc
+    ON submission_attempts(document_id, transaction_type);
+
+-- Invoice artifacts (append-only, immutable)
+CREATE TABLE invoice_artifacts (
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id               UUID NOT NULL REFERENCES companies(id),
+    authority_environment_id SMALLINT NOT NULL
+                             REFERENCES authority_environments(id),
+    transaction_type         VARCHAR(20) NOT NULL,
+    document_id              UUID NOT NULL,
+    artifact_type            VARCHAR(30) NOT NULL,
+    -- SIGNED_JSON | SIGNED_XML | QR_CODE | CLEARED_XML
+    -- ETA_RESPONSE | ZATCA_RESPONSE
+    content                  TEXT NOT NULL,
+    content_hash             TEXT NOT NULL,
+    created_at               TIMESTAMPTZ DEFAULT NOW()
+    -- NO UPDATE OR DELETE EVER
+);
+CREATE INDEX idx_artifacts_doc
+    ON invoice_artifacts(document_id, transaction_type);
+
+-- Audit logs (append-only, immutable)
+CREATE TABLE audit_logs (
+    id                       BIGSERIAL PRIMARY KEY,
+    company_id               UUID,
+    authority_environment_id SMALLINT,
+    user_id                  UUID,
+    action                   VARCHAR(100) NOT NULL,
+    entity_type              VARCHAR(50),
+    entity_id                TEXT,
+    payload_before           JSONB,
+    payload_after            JSONB,
+    ip_address               VARCHAR(50),
+    created_at               TIMESTAMPTZ DEFAULT NOW()
+    -- NO UPDATE OR DELETE EVER
+);
+CREATE INDEX idx_audit_company_env
+    ON audit_logs(company_id, authority_environment_id, created_at);
+```
+
+**V52 — Indexes**
+
+```sql
+CREATE INDEX idx_eta_inv_lines_header   ON eta_invoice_lines(header_id);
+CREATE INDEX idx_eta_inv_taxes_line     ON eta_invoice_line_taxes(line_id);
+CREATE INDEX idx_eta_rec_lines_header   ON eta_receipt_lines(header_id);
+CREATE INDEX idx_eta_rec_taxes_line     ON eta_receipt_line_taxes(line_id);
+```
+
+#### 7.2 ETA Authority Engine Refactoring (platform-eta)
+
+Refactor existing ETA engine to target the new table structure:
+
+- `EtaInvoiceService`: CRUD operations on `eta_invoice_headers/lines/taxes`
+- `EtaReceiptService`: CRUD operations on `eta_receipt_headers/lines/taxes`
+- `EtaInvoiceSerializer`: maps `eta_invoice_headers` entity to ETA JSON
+  payload (document types: i, c, d, ei, ec, ed)
+- `EtaReceiptSerializer`: maps `eta_receipt_headers` entity to ETA receipt
+  payload (all v1.2 receipt document types)
+- ETA submission orchestrator reads from new tables, writes submission
+  artifacts to `invoice_artifacts`
+
+Retain from Wave 2:
+
+- `EtaTokenManager` (OAuth token caching)
+- `EtaSigningService` (CAdES-BES signing)
+- `EtaStatusService` (polling for `IN_REVIEW` documents)
+
+#### 7.3 ETA Document APIs (platform-api)
+
+```
+GET    /api/companies/{id}/eta/invoices
+POST   /api/companies/{id}/eta/invoices
+GET    /api/companies/{id}/eta/invoices/{docId}
+PUT    /api/companies/{id}/eta/invoices/{docId}
+DELETE /api/companies/{id}/eta/invoices/{docId}  -- draft only
+POST   /api/companies/{id}/eta/invoices/{docId}/submit
+POST   /api/companies/{id}/eta/invoices/{docId}/cancel
+POST   /api/companies/{id}/eta/invoices/{docId}/retry
+
+GET    /api/companies/{id}/eta/receipts          -- same pattern
+POST   /api/companies/{id}/eta/receipts
+GET    /api/companies/{id}/eta/receipts/{docId}
+PUT    /api/companies/{id}/eta/receipts/{docId}
+POST   /api/companies/{id}/eta/receipts/{docId}/submit
+POST   /api/companies/{id}/eta/receipts/{docId}/cancel
+
+GET    /api/companies/{id}/eta/invoices/{docId}/submissions
+GET    /api/companies/{id}/eta/invoices/{docId}/artifacts/{type}
+```
+
+List endpoints return records across all companies the user is
+assigned to for the active `authority_environment_id`. Backend
+enforces this by joining `user_company_transaction_roles`.
+
+#### 7.4 Angular — Wave 7 Screens
+
+**Invoices list screen (ETA):**
+
+- Columns: Document Number, Company, Type, Issue Date, Total, Status,
+  Actions
+- Company filter dropdown
+- Status filter
+- Date range filter
+- Per-row actions gated by permissions (View, Edit, Submit, Cancel,
+  Retry)
+- "Invoices" label in sidebar and page title (driven by module name)
+
+**Receipts list screen (ETA):**
+
+- Same structure as Invoices list
+- Label shows "Receipts" throughout
+- `receipt_type` column shown
+
+**Document detail view (shared component, ETA Invoice and Receipt):**
+
+- Read-only header data
+- Line items table
+- Tax breakdown
+- Submission history timeline
+- Artifact download buttons
+- Status badge with color coding
+
+### Deliverables
+
+- ETA invoice and receipt table groups with correct ETA spec schemas
+- Shared `submission_attempts`, `invoice_artifacts`, `audit_logs` tables
+- ETA authority engine refactored to new tables
+- Full CRUD + submission APIs for ETA invoices and receipts
+- Angular list and detail screens for ETA Invoices and Receipts
+- All actions gated by session context permissions
+
+### Exit Criteria
+
+- ETA invoice created under `authority_environment_id=1` not visible
+  when logged in under `authority_environment_id=2`
+- All 6 ETA invoice document types (i, c, d, ei, ec, ed) are
+  creatable and serializable
+- All current ETA receipt document types (v1.2) accepted in
+  `document_type` field
+- Submission creates `submission_attempt` record before calling ETA API
+- On submission success: `eta_uuid` and `eta_submission_id` stored
+- On timeout: `status = SUBMISSION_AMBIGUOUS`
+- `invoice_artifacts` rows cannot be updated or deleted
+- `audit_logs` rows cannot be updated or deleted
+- Golden-file tests pass for ETA invoice JSON serialization
+- `mvn clean verify` and `ng test` pass
+
+---
+
+## Wave 8 — ZATCA Document Tables & Submission Engine
+
+### Goals
+
+- Create ZATCA Standard and Simplified table groups with correct
+  schemas derived from official ZATCA UBL 2.1 specification
+- Refactor ZATCA authority engine to work with new table structure
+  and `zatca_chain_state`
+- Implement ZATCA Standard and Simplified CRUD and submission APIs
+- Angular document list and detail screens for ZATCA
+
+### Scope
+
+#### 8.1 Database Migrations (Flyway V53–V55)
+
+**V53 — zatca_standard_headers and zatca_standard_lines**
+
+```sql
+CREATE TABLE zatca_standard_headers (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id                  UUID NOT NULL REFERENCES companies(id),
+    branch_id                   UUID REFERENCES branches(id),
+    authority_environment_id    SMALLINT NOT NULL
+                                REFERENCES authority_environments(id),
+    invoice_number              VARCHAR(100) NOT NULL,
+    zatca_uuid                  VARCHAR(255),
+    invoice_type_code           VARCHAR(10) NOT NULL DEFAULT '388',
+    -- transaction_type_code first 2 chars = 01 for Standard
+    -- e.g. 0100000 = Standard Tax Invoice
+    --      0100001 = Self-billed
+    --      0100010 = Third party
+    transaction_type_code       VARCHAR(10) NOT NULL,
+    issue_date                  DATE NOT NULL,
+    issue_time                  TIME NOT NULL,
+    supply_date                 DATE,
+    supply_end_date             DATE,
+    -- Full UBL party structure stored as JSONB
+    seller_data                 JSONB NOT NULL,
+    buyer_data                  JSONB NOT NULL,  -- mandatory for B2B
+    currency                    VARCHAR(3) NOT NULL DEFAULT 'SAR',
+    tax_currency                VARCHAR(3) DEFAULT 'SAR',
+    -- Totals (2 decimal places per ZATCA spec)
+    line_extension_amount       NUMERIC(18,2) NOT NULL DEFAULT 0,
+    allowance_total_amount      NUMERIC(18,2) NOT NULL DEFAULT 0,
+    tax_exclusive_amount        NUMERIC(18,2) NOT NULL DEFAULT 0,
+    tax_amount                  NUMERIC(18,2) NOT NULL DEFAULT 0,
+    tax_inclusive_amount        NUMERIC(18,2) NOT NULL DEFAULT 0,
+    prepaid_amount              NUMERIC(18,2) NOT NULL DEFAULT 0,
+    payable_amount              NUMERIC(18,2) NOT NULL DEFAULT 0,
+    -- Chain snapshot at time of submission
+    invoice_counter_value       BIGINT,
+    previous_invoice_hash       TEXT,
+    invoice_hash                TEXT,
+    qr_code_base64              TEXT,
+    -- ZATCA response
+    clearance_status            VARCHAR(50),
+    zatca_response_data         JSONB,
+    -- Reference (credit/debit notes)
+    original_invoice_id         UUID REFERENCES zatca_standard_headers(id),
+    status                      VARCHAR(40) NOT NULL DEFAULT 'DRAFT',
+    created_by                  UUID REFERENCES users(id),
+    created_at                  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at                  TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_zatca_standard_number UNIQUE (
+        company_id, authority_environment_id, invoice_number
+    )
+);
+CREATE INDEX idx_zatca_std_ctx_status
+    ON zatca_standard_headers(company_id, authority_environment_id, status);
+CREATE INDEX idx_zatca_std_ctx_date
+    ON zatca_standard_headers(company_id, authority_environment_id, issue_date);
+
+CREATE TABLE zatca_standard_lines (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    header_id               UUID NOT NULL
+                            REFERENCES zatca_standard_headers(id)
+                            ON DELETE CASCADE,
+    line_number             INT NOT NULL,
+    item_id                 UUID REFERENCES zatca_items(id),
+    item_code               VARCHAR(100),
+    description             TEXT NOT NULL,
+    unit_type               VARCHAR(50),
+    quantity                NUMERIC(18,5) NOT NULL,
+    unit_price              NUMERIC(18,5) NOT NULL,
+    -- Line amounts (2 decimal places per ZATCA spec)
+    line_extension_amount   NUMERIC(18,2) NOT NULL DEFAULT 0,
+    discount_amount         NUMERIC(18,2) NOT NULL DEFAULT 0,
+    allowance_amount        NUMERIC(18,2) NOT NULL DEFAULT 0,
+    net_amount              NUMERIC(18,2) NOT NULL DEFAULT 0,
+    -- VAT on line (no separate taxes table for ZATCA)
+    vat_category_code       VARCHAR(5) NOT NULL,     -- S, Z, E, O
+    vat_rate                NUMERIC(8,2),
+    vat_amount              NUMERIC(18,2) NOT NULL DEFAULT 0,
+    -- Required when vat_category_code = E or O
+    exemption_reason_code   VARCHAR(10),
+    exemption_reason_text   TEXT,
+    created_at              TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_zatca_standard_line UNIQUE (header_id, line_number)
+);
+```
+
+**V54 — zatca_simplified_headers and zatca_simplified_lines**
+
+Same structure as Standard with these differences:
+
+- `buyer_data` is nullable (B2C — buyer optional)
+- `transaction_type_code` first 2 chars = 02
+- `reporting_status` column instead of `clearance_status`
+- `original_invoice_id` references `zatca_simplified_headers`
+
+**V55 — Additional indexes**
+
+```sql
+CREATE INDEX idx_zatca_std_lines_header
+    ON zatca_standard_lines(header_id);
+CREATE INDEX idx_zatca_simp_ctx_status
+    ON zatca_simplified_headers(company_id, authority_environment_id, status);
+CREATE INDEX idx_zatca_simp_lines_header
+    ON zatca_simplified_lines(header_id);
+```
+
+#### 8.2 ZATCA Authority Engine Refactoring (platform-zatca)
+
+Refactor existing ZATCA engine to target new table structure:
+
+- `ZatcaStandardService`: CRUD on `zatca_standard_headers/lines`
+- `ZatcaSimplifiedService`: CRUD on `zatca_simplified_headers/lines`
+- `ZatcaChainService`: manages `zatca_chain_state` with pessimistic
+  locking. Acquires `SELECT FOR UPDATE` on the chain row before every
+  submission. Increments counter even on rejected invoices.
+- `ZatcaUblBuilder`: maps header entity to UBL 2.1 XML (Standard and
+  Simplified share same builder with type code differentiation)
+- `ZatcaQrService`: TLV encoder Tags 1–9 (Phase 2), base64 output
+- `ZatcaHashService`: SHA-256 of canonicalized XML
+
+Retain from Wave 2:
+
+- `ZatcaSigningService` (XAdES-BES signing)
+- `ZatcaClearanceClient` (`POST /invoices/clearance/single`)
+- `ZatcaReportingClient` (`POST /invoices/reporting/single`)
+- `ZatcaOnboardingService` (CSR → compliance → production)
+
+#### 8.3 ZATCA Document APIs (platform-api)
+
+```
+GET    /api/companies/{id}/zatca/standard
+POST   /api/companies/{id}/zatca/standard
+GET    /api/companies/{id}/zatca/standard/{docId}
+PUT    /api/companies/{id}/zatca/standard/{docId}
+DELETE /api/companies/{id}/zatca/standard/{docId}  -- draft only
+POST   /api/companies/{id}/zatca/standard/{docId}/submit
+POST   /api/companies/{id}/zatca/standard/{docId}/cancel
+POST   /api/companies/{id}/zatca/standard/{docId}/retry
+
+GET    /api/companies/{id}/zatca/simplified      -- same pattern
+POST   /api/companies/{id}/zatca/simplified
+...
+
+GET    /api/companies/{id}/zatca/standard/{docId}/submissions
+GET    /api/companies/{id}/zatca/standard/{docId}/artifacts/{type}
+```
+
+#### 8.4 Angular — Wave 8 Screens
+
+**Standard list screen (ZATCA):**
+
+- Columns: Invoice Number, Company, Type Code, Issue Date, Total,
+  Clearance Status, Status, Actions
+- Company filter, status filter, date range
+- Per-row actions gated by STANDARD permissions
+
+**Simplified list screen (ZATCA):**
+
+- Same structure, `reporting_status` column instead of `clearance_status`
+- Label shows "Simplified" throughout
+
+**Document detail (ZATCA):**
+
+- QR code image display
+- Hash chain values display (counter, hash)
+- Clearance/Reporting status from ZATCA
+- Submission history and artifact downloads
+
+### Deliverables
+
+- ZATCA Standard and Simplified table groups with correct ZATCA spec
+  schemas
+- ZATCA chain state management with pessimistic locking
+- Full CRUD + submission APIs for Standard and Simplified
+- Angular list and detail screens for Standard and Simplified
+- Golden-file tests for ZATCA UBL XML and QR TLV
+
+### Exit Criteria
+
+- ZATCA Standard invoice created under `authority_environment_id=3`
+  (Production) not visible under `authority_environment_id=5` (Sandbox)
+- Invoice counter increments correctly in `zatca_chain_state`
+- Chain counter increments even when submission is rejected
+- Pessimistic lock prevents concurrent submissions for same
+  company+environment (integration test)
+- Standard invoice: `buyer_data` is mandatory (validation error if null)
+- Simplified invoice: `buyer_data` is optional
+- QR code TLV encodes all 9 tags correctly (golden-file test)
+- UBL 2.1 XML passes ZATCA SDK validation (golden-file test)
+- `mvn clean verify` and `ng test` pass
+
+---
+
+## Wave 9 — Dashboard, Logs, Hardening & Deployment Update
+
+### Goals
+
+- Update dashboard to show company cards with stats per authority
+- Update audit log and submission log viewers for new table structure
+- Hardening: loading states, error handling, concurrency safety
+- Update Docker Compose and deployment scripts for new schema
+- Full regression testing
+
+### Scope
+
+#### 9.1 Dashboard Updates (platform-api + Angular)
+
+- Company cards grid: one card per company assigned to user in active
+  `authority_environment_id`. Each card shows:
+  - Company name and tax number
+  - Pending submissions count
+  - Failed submissions count
+  - ZATCA certificate expiry warning (< 30 days) if applicable
+  - Edit and Manage action icons
+- KPI section below cards: total documents today/this month by status
+- Recent activity feed: last 10 submission attempts across all
+  assigned companies
+
+**Admin Mode dashboard (Super User):**
+
+- Company cards for ALL companies in active `authority_environment_id`
+- Create Company button (checks license in Phase 2, always enabled
+  in Phase 1)
+- System stats: total companies, total users, total submissions today
+
+#### 9.2 Logs Module Update (platform-api + Angular)
+
+**Audit log viewer:**
+
+- Now filters by `company_id` AND `authority_environment_id` from session
+- All other behavior unchanged from Wave 3
+
+**Submission log viewer:**
+
+- Reads from `submission_attempts` table (new)
+- `transaction_type` column shows which module
+  (INVOICE/RECEIPT/STANDARD/SIMPLIFIED)
+- Links to document detail per transaction type
+
+#### 9.3 Deployment Update
+
+- Update Flyway migration references in Docker Compose
+- Verify `upgrade.sh` runs V37–V55 cleanly on a V36 database
+- Update `Docs/deployment-guide.md` with new schema notes
+- Update `Docs/configuration-reference.md`
+
+#### 9.4 Regression & Hardening
+
+- Full regression against all Wave 5–8 exit criteria
+- Authority isolation tests: verify ETA data never leaks into ZATCA
+  tables and vice versa
+- `authority_environment_id` isolation tests: data in environment 1
+  never visible in environment 2
+- Performance: document list with 1000+ rows returns in < 2 seconds
+  using compound index `(company_id, authority_environment_id)`
+- Concurrency test: simultaneous ZATCA submissions for same company —
+  only one proceeds, other waits or fails gracefully
+
+### Deliverables
+
+- Updated dashboard with company cards and authority-aware KPIs
+- Updated audit and submission log viewers
+- Deployment documentation updated
+- Full regression test suite passing
+- Performance benchmarks documented
+
+### Exit Criteria
+
+- Dashboard loads and shows correct company cards for logged-in user
+- Admin Mode dashboard shows all companies in context
+- Submission logs correctly link to documents across all 4 transaction
+  types
+- Upgrade script runs cleanly on a DB at V36 → reaches V55
+- All golden-file tests pass (ETA JSON, ZATCA UBL XML, QR TLV)
+- Tenant isolation integration tests pass for all new tables
+- `mvn clean verify` and `ng test` pass
+
+---
+
+## Wave 5–9 Cross-Wave Standards
+
+### Architecture (Constitution v2.0.0 Principles XI, XII, XV)
+
+- Physical table group per transaction type — no unified `invoices` table
+- All operational queries filter on `(company_id, authority_environment_id)`
+- `zatca_chain_state` always acquired with `SELECT FOR UPDATE`
+- Session context API is authoritative for all permission checks
+- No authority-specific logic in shared orchestration layer
+
+### Security (Constitution v2.0.0 Principles II, VII, XVIII)
+
+- Plain text certificate storage in Phase 1 — by explicit decision
+- Admin Mode APIs reject operational data requests
+- Operational APIs reject requests with null `company_id`
+- No secrets in API responses or logs
+
+### Testing (Constitution v2.0.0 Principle XXIV)
+
+- Golden-file tests: ETA invoice JSON, ETA receipt JSON, ZATCA UBL XML,
+  ZATCA QR TLV
+- `authority_environment` isolation tests: data in env 1 invisible in env 2
+- Authority isolation tests: ETA data invisible in ZATCA and vice versa
+- Permission enforcement tests: every action tested with and without
+  required permission
+- ZATCA chain concurrency test
+
+### Quality Gates
+
+- No Flyway migration without a matching schema change
+- No operational API without `(company_id, authority_environment_id)`
+  validation
+- No submission without a persisted `submission_attempt` record first
+- No update or delete on `invoice_artifacts` or `audit_logs`
+- No secrets in logs
+
+---
+
+## Deferred to Future Phases
+
+| Item | Phase |
+|------|-------|
+| Signed license mechanism (.lic + RSA) | Phase 2 |
+| AES-256-GCM credential encryption | Phase 2 |
+| Machine fingerprint verification | Phase 2 |
+| License file tracking table | Phase 2 |
+| Document creation UX (company selection in form) | Separate discussion |
+| Excel invoice/receipt upload | Next phase |
+| ZATCA PDF generation | Already deferred per ADR |
+| Email/SMTP notifications | Post-MVP |
+| Oracle database support | Post-MVP |
+
+---
+
 ## Post-MVP Backlog
 
 Items explicitly deferred from MVP:
@@ -913,6 +2482,15 @@ Items explicitly deferred from MVP:
 | Docs/deployment-guide.md | 3 | On-prem installation |
 | Docs/backup-recovery.md | 3 | Backup procedures |
 | Docs/zatca-pdf-decision.md | 2 | PDF spike findings |
+| src/main/resources/db/migration/V37__*.sql through V55__*.sql | 5–8 | Refactor migrations: drop W0–4 tables, authority_environments, RBAC v2, per-authority master data, per-module document tables |
+| platform-security TenantContext v2 | 5 | Carry authority_environment_id, mode, is_super_user; permissions loaded out-of-band |
+| platform-api session context endpoint | 5 | GET /api/session/context returns full per-company/per-module permissions |
+| platform-api admin endpoints | 5 | Companies, branches, users, assignments under /api/admin |
+| platform-eta refactor for new tables | 7 | EtaInvoiceService/EtaReceiptService on new schema, retains Wave 2 token/sign/status services |
+| platform-zatca refactor for new tables | 8 | ZatcaStandardService/ZatcaSimplifiedService + ZatcaChainService with SELECT FOR UPDATE |
+| Angular login (2-LOV + company) | 5 | Authority + Environment + Company cascade, error states for COMPANY_CONTEXT_REQUIRED / UNAUTHORIZED_CONTEXT |
+| Angular SessionContextService + PermissionDirective | 5 | Sidebar visibility and action button gating |
+| Angular per-authority list/detail screens | 7–8 | ETA Invoices/Receipts, ZATCA Standard/Simplified |
 
 ---
 

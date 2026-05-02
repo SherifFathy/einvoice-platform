@@ -38,6 +38,9 @@ public class Customer {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
+    @Column(name = "lov_context_id", nullable = false)
+    private Long lovContextId;
+
     @Column(name = "name_ar")
     private String nameAr;
 

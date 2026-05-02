@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from '../../shared/services/auth.service';
-import { CompanyConfigService, CompanyProfile } from '../../shared/services/company-config.service';
+import { CompanyConfigService } from '../../shared/services/company-config.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 
 @Component({
@@ -43,13 +43,6 @@ export class CompanyProfileComponent implements OnInit {
       nameEn: ['', Validators.required],
       vatNumber: ['', [Validators.required, Validators.minLength(10)]],
       crNumber: [''],
-      street: [''],
-      buildingNumber: [''],
-      city: [''],
-      district: [''],
-      postalCode: [''],
-      countryCode: ['SA'],
-      additionalId: [''],
     });
   }
 
@@ -65,13 +58,6 @@ export class CompanyProfileComponent implements OnInit {
           nameEn: company.nameEn,
           vatNumber: company.vatNumber,
           crNumber: company.crNumber,
-          street: company.street,
-          buildingNumber: company.buildingNumber,
-          city: company.city,
-          district: company.district,
-          postalCode: company.postalCode,
-          countryCode: company.countryCode,
-          additionalId: company.additionalId,
         });
         this.loading = false;
       },

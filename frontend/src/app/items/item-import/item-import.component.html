@@ -5,7 +5,7 @@
       (dragleave)="onDragLeave()"
       (drop)="onDrop($event)"
       (click)="fileInput.click()">
-    <input type="file" #fileInput accept=".xlsx,.xls" (change)="onFileSelected($event)" hidden>
+    <input type="file" #fileInput accept=".xlsx" (change)="onFileSelected($event)" hidden>
     <mat-icon style="font-size: 48px; width: 48px; height: 48px;">cloud_upload</mat-icon>
     <p>Drag &amp; drop an Excel file here, or click to browse</p>
     @if (selectedFile) {
@@ -26,15 +26,15 @@
     <mat-card-content>
       <div class="stats">
         <div class="stat">
-          <div class="stat-value">{{ result.totalRows }}</div>
+          <div class="stat-value">{{ result.processed + result.failed }}</div>
           <div class="stat-label">Total Rows</div>
         </div>
         <div class="stat">
-          <div class="stat-value" style="color: green;">{{ result.importedCount }}</div>
+          <div class="stat-value" style="color: green;">{{ result.processed }}</div>
           <div class="stat-label">Imported</div>
         </div>
         <div class="stat">
-          <div class="stat-value" style="color: red;">{{ result.errorCount }}</div>
+          <div class="stat-value" style="color: red;">{{ result.failed }}</div>
           <div class="stat-label">Errors</div>
         </div>
       </div>

@@ -1,15 +1,22 @@
 package com.einvoice.core.service;
 
 import com.einvoice.core.audit.Audited;
+import com.einvoice.core.context.LovContextResolver;
 import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.Company;
 import com.einvoice.core.domain.Item;
 import com.einvoice.core.domain.enums.AuthorityScope;
+import com.einvoice.core.domain.enums.Permission;
 import com.einvoice.core.repository.CompanyRepository;
 import com.einvoice.core.repository.ItemRepository;
+import com.einvoice.core.security.RequiresPermission;
+import com.einvoice.core.service.importing.BulkUploadResult;
+import com.einvoice.core.service.importing.ParsedRow;
+import com.einvoice.core.service.importing.RowError;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,16 +28,21 @@ public class ItemService {
 
     private final CompanyRepository companyRepository;
 
+    private final LovContextResolver lovContextResolver;
+
     /**
      * Creates the item service.
      *
      * @param itemRepository the item repository
      * @param companyRepository the company repository
+     * @param lovContextResolver resolves effective LOV context (super-user bypass)
      */
     public ItemService(ItemRepository itemRepository,
-            CompanyRepository companyRepository) {
+            CompanyRepository companyRepository,
+            LovContextResolver lovContextResolver) {
         this.itemRepository = itemRepository;
         this.companyRepository = companyRepository;
+        this.lovContextResolver = lovContextResolver;
     }
 
     /**
@@ -40,16 +52,21 @@ public class ItemService {
      * @return the saved item
      */
     @Transactional
-    @PreAuthorize("hasAuthority('CREATE')")
+    @RequiresPermission(Permission.CREATE_ITEM)
     @Audited(action = "item.create", entityType = "Item",
             entityClass = Item.class)
     public Item create(Item item) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = TenantContext.getLovContextId();
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new CompanyService.CompanyNotFoundException(
                         "Company not found: " + companyId));
         item.setCompany(company);
-        validateDuplicateCode(companyId, item.getCode(), null);
+        if (lovContextId == null) {
+            throw new IllegalStateException("No active LOV context for create operation");
+        }
+        item.setLovContextId(lovContextId);
+        validateDuplicateCode(companyId, lovContextId, item.getCode(), null);
         return itemRepository.save(item);
     }
 
@@ -61,16 +78,17 @@ public class ItemService {
      * @return the updated item
      */
     @Transactional
-    @PreAuthorize("hasAuthority('UPDATE')")
+    @RequiresPermission(Permission.EDIT_ITEM)
     @Audited(action = "item.update", entityType = "Item", entityClass = Item.class)
     public Item update(Long id, Item updates) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Item existing = itemRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Item existing = itemRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new ItemNotFoundException(
                         "Item not found: " + id));
         String resolvedCode = updates.getCode() != null ? updates.getCode()
                 : existing.getCode();
-        validateDuplicateCode(companyId, resolvedCode, id);
+        validateDuplicateCode(companyId, lovContextId, resolvedCode, id);
         applyUpdates(existing, updates);
         return itemRepository.save(existing);
     }
@@ -81,11 +99,12 @@ public class ItemService {
      * @param id the item id
      */
     @Transactional
-    @PreAuthorize("hasAuthority('DELETE')")
+    @RequiresPermission(Permission.DELETE_ITEM)
     @Audited(action = "item.delete", entityType = "Item", entityClass = Item.class)
     public void softDelete(Long id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Item item = itemRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Item item = itemRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new ItemNotFoundException(
                         "Item not found: " + id));
         item.setIsActive(false);
@@ -102,20 +121,21 @@ public class ItemService {
      * @return the page of matching items
      */
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAuthority('READ')")
+    @RequiresPermission(Permission.VIEW_ITEM_LIST)
     public Page<Item> list(String search, AuthorityScope authorityScope,
             Pageable pageable) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
         if (search != null && !search.isBlank()) {
-            return itemRepository.searchByCompanyId(companyId, search,
+            return itemRepository.searchByCompanyId(companyId, lovContextId, search,
                     pageable);
         }
         if (authorityScope != null) {
             return itemRepository
                     .findByCompanyIdAndIsActiveTrueAndAuthorityScope(
-                            companyId, authorityScope, pageable);
+                            companyId, lovContextId, authorityScope, pageable);
         }
-        return itemRepository.findByCompanyIdAndIsActiveTrue(companyId,
+        return itemRepository.findByCompanyIdAndIsActiveTrue(companyId, lovContextId,
                 pageable);
     }
 
@@ -126,20 +146,21 @@ public class ItemService {
      * @return the item
      */
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAuthority('READ')")
+    @RequiresPermission(Permission.VIEW_ITEM_LIST)
     public Item getById(Long id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        return itemRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        return itemRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new ItemNotFoundException(
                         "Item not found: " + id));
     }
 
-    private void validateDuplicateCode(Long companyId, String code,
+    private void validateDuplicateCode(Long companyId, Long lovContextId, String code,
             Long excludeId) {
         if (code == null || code.isBlank()) {
             return;
         }
-        itemRepository.findByCompanyIdAndCodeAndIsActiveTrue(companyId, code)
+        itemRepository.findByCompanyIdAndCodeAndIsActiveTrue(companyId, lovContextId, code)
                 .ifPresent(existing -> {
                     if (excludeId == null
                             || !existing.getId().equals(excludeId)) {
@@ -148,6 +169,49 @@ public class ItemService {
                                         + " already exists for this company");
                     }
                 });
+    }
+
+    /**
+     * Bulk-creates or updates items with upsert semantics.
+     * Matches on (companyId, lovContextId, code); updates existing, creates new.
+     *
+     * @param rows parsed rows each carrying a row number and item entity
+     * @param companyId the owning company
+     * @param lovContextId the LOV context for tenant isolation
+     * @return summary of processed / failed counts and per-row errors
+     */
+    @Transactional
+    @RequiresPermission(Permission.CREATE_ITEM)
+    @Audited(action = "item.bulk_import", entityType = "Item")
+    public BulkUploadResult createBatch(List<ParsedRow<Item>> rows,
+            Long companyId, Long lovContextId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new CompanyService.CompanyNotFoundException(
+                        "Company not found: " + companyId));
+        List<RowError> errors = new ArrayList<>();
+        int processed = 0;
+
+        for (ParsedRow<Item> parsed : rows) {
+            Item item = parsed.entity();
+            int rowNum = parsed.rowNum();
+            try {
+                item.setCompany(company);
+                item.setLovContextId(lovContextId);
+                itemRepository.findByCompanyIdAndCodeAndIsActiveTrue(
+                        companyId, lovContextId, item.getCode())
+                        .ifPresentOrElse(existing -> {
+                            applyUpdates(existing, item);
+                            itemRepository.save(existing);
+                        }, () -> itemRepository.save(item));
+                processed++;
+            } catch (Exception e) {
+                errors.add(new RowError(rowNum, "persistence",
+                        "Failed to save item '" + item.getNameEn() + "': "
+                                + e.getMessage()));
+            }
+        }
+
+        return new BulkUploadResult(processed, errors.size(), errors);
     }
 
     private void applyUpdates(Item existing, Item updates) {

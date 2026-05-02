@@ -11,6 +11,12 @@ export interface UserInfo {
   permittedEnvironments: string[];
   availableCompanies: { id: number; name: string }[];
   activeEnvironment: string | null;
+  activeAuthority: string | null;
+  activeDocType: string | null;
+  activeSubEnv: string | null;
+  lovContextId: number | null;
+  permissions: string[];
+  isSuperUser: boolean;
 }
 
 export interface AuthResponse {
@@ -37,9 +43,12 @@ export class AuthService {
     this.loadStoredAuth();
   }
 
-  login(email: string, password: string): Observable<AuthResponse> {
+  login(email: string, password: string,
+        authority: string, docType: string, subEnvironment: string): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.apiUrl}/login`, { email, password })
+      .post<AuthResponse>(`${this.apiUrl}/login`, {
+        email, password, authority, docType, subEnvironment,
+      })
       .pipe(tap((res) => this.handleAuthResponse(res)));
   }
 
@@ -85,6 +94,10 @@ export class AuthService {
       ?? localStorage.getItem(this.environmentKey);
   }
 
+  getLovContextId(): number | null {
+    return this.currentUserSubject.value?.lovContextId ?? null;
+  }
+
   getCurrentUser(): UserInfo | null {
     return this.currentUserSubject.value;
   }
@@ -107,6 +120,13 @@ export class AuthService {
     localStorage.removeItem(this.environmentKey);
     this.currentUserSubject.next(null);
     this.isLoggedIn.set(false);
+  }
+
+  hasPermission(key: string): boolean {
+    const user = this.currentUserSubject.value;
+    if (!user) return false;
+    if (user.isSuperUser) return true;
+    return user.permissions.includes(key);
   }
 
   private handleAuthResponse(response: AuthResponse): void {
@@ -159,6 +179,12 @@ export class AuthService {
         }),
       ),
       activeEnvironment: (payload['activeEnvironment'] as string) ?? null,
+      activeAuthority: (payload['active_authority'] as string) ?? null,
+      activeDocType: (payload['active_doc_type'] as string) ?? null,
+      activeSubEnv: (payload['active_sub_env'] as string) ?? null,
+      lovContextId: (payload['lov_context_id'] as number) ?? null,
+      permissions: (payload['permissions'] as string[]) ?? [],
+      isSuperUser: (payload['is_super_user'] as boolean) ?? false,
     });
     this.isLoggedIn.set(true);
   }

@@ -50,6 +50,9 @@ public class Invoice {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
+    @Column(name = "lov_context_id", nullable = false)
+    private Long lovContextId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;

@@ -4,6 +4,7 @@ import com.einvoice.api.invoice.dto.SubmissionAttemptResponse;
 import com.einvoice.api.invoice.dto.SubmitResponse;
 import com.einvoice.api.invoice.dto.ValidationResultResponse;
 import com.einvoice.api.invoice.dto.ValidationResultResponse.ValidationItem;
+import com.einvoice.core.context.LovContextResolver;
 import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.AuthorityConfig;
 import com.einvoice.core.domain.Invoice;
@@ -46,6 +47,7 @@ public class InvoiceSubmissionController {
     private final EtaStatusPollingService etaPollingService;
     private final EtaDocumentClient etaDocumentClient;
     private final AuthorityConfigRepository authorityConfigRepository;
+    private final LovContextResolver lovContextResolver;
 
     /**
      * Creates the controller with its required collaborators.
@@ -58,6 +60,7 @@ public class InvoiceSubmissionController {
      * @param etaPollingService ETA polling service
      * @param etaDocumentClient ETA document client
      * @param authorityConfigRepository authority configuration repository
+     * @param lovContextResolver resolves effective LOV context (super-user bypass)
      */
     public InvoiceSubmissionController(InvoiceRepository invoiceRepository,
             InvoiceStateMachine stateMachine,
@@ -66,7 +69,8 @@ public class InvoiceSubmissionController {
             ValidationService validationService,
             EtaStatusPollingService etaPollingService,
             EtaDocumentClient etaDocumentClient,
-            AuthorityConfigRepository authorityConfigRepository) {
+            AuthorityConfigRepository authorityConfigRepository,
+            LovContextResolver lovContextResolver) {
         this.invoiceRepository = invoiceRepository;
         this.stateMachine = stateMachine;
         this.submissionOrchestrator = submissionOrchestrator;
@@ -75,6 +79,7 @@ public class InvoiceSubmissionController {
         this.etaPollingService = etaPollingService;
         this.etaDocumentClient = etaDocumentClient;
         this.authorityConfigRepository = authorityConfigRepository;
+        this.lovContextResolver = lovContextResolver;
     }
 
     /**
@@ -87,7 +92,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('UPDATE')")
     public ResponseEntity<ValidationResultResponse> validate(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.DRAFT
@@ -128,7 +134,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('UPDATE')")
     public ResponseEntity<Map<String, String>> confirmSubmission(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.VALIDATED) {
@@ -154,7 +161,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('CREATE')")
     public ResponseEntity<SubmitResponse> submit(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.READY_FOR_SUBMISSION) {
@@ -168,9 +176,9 @@ public class InvoiceSubmissionController {
 
         SubmissionResultDto result = submissionOrchestrator.submit(id);
 
-        invoiceRepository.findByIdAndCompanyId(id, companyId)
+        invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .ifPresent(updated -> invoice.setStatus(updated.getStatus()));
-        Invoice updated = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Invoice updated = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow();
         List<SubmissionAttempt> attempts = attemptService.getAttempts(id);
         if (attempts.isEmpty()) {
@@ -206,7 +214,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('READ')")
     public ResponseEntity<Map<String, Object>> getSubmissions(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         List<SubmissionAttempt> attempts = attemptService.getAttempts(id);
@@ -249,7 +258,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('READ')")
     public ResponseEntity<Map<String, Object>> checkStatus(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.IN_REVIEW) {
@@ -289,7 +299,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('CREATE')")
     public ResponseEntity<SubmitResponse> retry(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.FAILED_RETRYABLE) {
@@ -303,7 +314,7 @@ public class InvoiceSubmissionController {
 
         SubmissionResultDto result = submissionOrchestrator.retry(id);
 
-        Invoice updated = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Invoice updated = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow();
         List<SubmissionAttempt> attempts = attemptService.getAttempts(id);
         SubmissionAttempt latest = attempts.get(attempts.size() - 1);
@@ -331,7 +342,8 @@ public class InvoiceSubmissionController {
     @PreAuthorize("hasAuthority('UPDATE')")
     public ResponseEntity<Map<String, String>> returnToDraft(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.REJECTED) {
@@ -359,7 +371,8 @@ public class InvoiceSubmissionController {
     public ResponseEntity<Map<String, Object>> cancelEta(@PathVariable UUID id,
             @RequestBody(required = false) Map<String, String> body) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getStatus() != InvoiceStatus.ACCEPTED) {

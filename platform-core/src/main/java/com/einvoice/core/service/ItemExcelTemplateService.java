@@ -17,6 +17,20 @@ import org.springframework.stereotype.Service;
 @Service
 public class ItemExcelTemplateService {
 
+    static final String[] EXPECTED_HEADERS = {
+        "Item Code*", "Name (Arabic)*", "Name (English)*",
+        "Unit of Measure*", "Unit Price*", "VAT Category*",
+        "VAT Rate (%)*", "Authority Scope*", "Description"
+    };
+
+    /** Returns the expected header labels for validation.
+     *
+     * @return a copy of the expected header labels
+     */
+    public String[] getExpectedHeaders() {
+        return EXPECTED_HEADERS.clone();
+    }
+
     /**
      * Generates an .xlsx template with headers and an example row.
      *
@@ -29,9 +43,9 @@ public class ItemExcelTemplateService {
             Sheet sheet = workbook.createSheet("Items");
 
             String[] headers = {
-                "Code*", "Name (English)*", "Name (Arabic)",
-                "Unit of Measure*", "Unit Price*", "VAT Category* (S/Z/E/O)",
-                "VAT Rate*", "Description", "Authority Scope (ZATCA/ETA/BOTH)"
+                "Item Code*", "Name (Arabic)*", "Name (English)*",
+                "Unit of Measure*", "Unit Price*", "VAT Category*",
+                "VAT Rate (%)*", "Authority Scope*", "Description"
             };
 
             CellStyle headerStyle = workbook.createCellStyle();
@@ -49,15 +63,15 @@ public class ItemExcelTemplateService {
 
             Row exampleRow = sheet.createRow(1);
             exampleRow.createCell(0).setCellValue("SRV-001");
-            exampleRow.createCell(1).setCellValue("Consulting Service");
-            exampleRow.createCell(2).setCellValue("خدمة استشارية");
+            exampleRow.createCell(1).setCellValue("خدمة استشارية");
+            exampleRow.createCell(2).setCellValue("Consulting Service");
             exampleRow.createCell(3).setCellValue("HR");
             exampleRow.createCell(4).setCellValue("500.0000");
             exampleRow.createCell(5).setCellValue("S");
             exampleRow.createCell(6).setCellValue("15.00");
-            exampleRow.createCell(7).setCellValue(
+            exampleRow.createCell(7).setCellValue("BOTH");
+            exampleRow.createCell(8).setCellValue(
                     "Hourly consulting service");
-            exampleRow.createCell(8).setCellValue("BOTH");
 
             workbook.write(out);
             return out.toByteArray();

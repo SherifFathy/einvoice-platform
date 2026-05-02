@@ -16,6 +16,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** Subdivision of a company. Authority configurations are per-branch. */
 @Entity
@@ -43,6 +45,34 @@ public class Branch {
 
     @Column(name = "branch_code", nullable = false)
     private String branchCode;
+
+    @Column(name = "lov_context_id", nullable = false)
+    private Long lovContextId;
+
+    @Column(name = "street")
+    private String street;
+
+    @Column(name = "building_number")
+    private String buildingNumber;
+
+    @Column(name = "additional_number")
+    private String additionalNumber;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "district")
+    private String district;
+
+    @Column(name = "postal_code")
+    private String postalCode;
+
+    @Column(name = "country_code", length = 2, columnDefinition = "char(2)")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    private String countryCode;
+
+    @Column(name = "additional_street")
+    private String additionalStreet;
 
     @Column(name = "is_active")
     @Builder.Default

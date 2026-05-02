@@ -14,21 +14,45 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    Page<Item> findByCompanyIdAndIsActiveTrue(Long companyId, Pageable pageable);
+    @Query("SELECT i FROM Item i WHERE i.company.id = :companyId "
+            + "AND i.isActive = true "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId)")
+    Page<Item> findByCompanyIdAndIsActiveTrue(@Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId, Pageable pageable);
 
-    Optional<Item> findByIdAndCompanyId(Long id, Long companyId);
+    @Query("SELECT i FROM Item i WHERE i.id = :id AND i.company.id = :companyId "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId)")
+    Optional<Item> findByIdAndCompanyId(@Param("id") Long id,
+            @Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId);
 
     @Query("SELECT i FROM Item i WHERE i.company.id = :companyId AND i.isActive = true "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId) "
             + "AND (LOWER(i.nameEn) LIKE LOWER(CONCAT('%', :search, '%')) "
             + "OR LOWER(i.nameAr) LIKE LOWER(CONCAT('%', :search, '%')) "
             + "OR LOWER(i.code) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Item> searchByCompanyId(@Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId,
             @Param("search") String search, Pageable pageable);
 
+    @Query("SELECT i FROM Item i WHERE i.company.id = :companyId "
+            + "AND i.isActive = true AND i.authorityScope = :authorityScope "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId)")
     Page<Item> findByCompanyIdAndIsActiveTrueAndAuthorityScope(
-            Long companyId, AuthorityScope authorityScope, Pageable pageable);
+            @Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId,
+            @Param("authorityScope") AuthorityScope authorityScope, Pageable pageable);
 
-    Optional<Item> findByCompanyIdAndCodeAndIsActiveTrue(Long companyId, String code);
+    @Query("SELECT i FROM Item i WHERE i.company.id = :companyId "
+            + "AND i.code = :code AND i.isActive = true "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId)")
+    Optional<Item> findByCompanyIdAndCodeAndIsActiveTrue(@Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId, @Param("code") String code);
 
-    boolean existsByCompanyIdAndCodeAndIsActiveTrue(Long companyId, String code);
+    @Query("SELECT CASE WHEN COUNT(i) > 0 THEN true ELSE false END FROM Item i "
+            + "WHERE i.company.id = :companyId AND i.code = :code "
+            + "AND i.isActive = true "
+            + "AND (:lovContextId IS NULL OR i.lovContextId = :lovContextId)")
+    boolean existsByCompanyIdAndCodeAndIsActiveTrue(@Param("companyId") Long companyId,
+            @Param("lovContextId") Long lovContextId, @Param("code") String code);
 }

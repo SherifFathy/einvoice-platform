@@ -1,69 +1,79 @@
-<h2>Create New Company</h2>
+<h2>Company Management</h2>
 
-<mat-card>
-  <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <div class="form-grid">
-      <mat-form-field>
-        <mat-label>Name (Arabic)</mat-label>
-        <input matInput formControlName="nameAr" required />
-      </mat-form-field>
+@if (!showForm) {
+  <div class="section-header">
+    <span>{{ totalCompanies }} companies</span>
+    <button mat-raised-button color="primary" (click)="showCreateForm()">
+      <mat-icon>add</mat-icon> New Company
+    </button>
+  </div>
 
-      <mat-form-field>
-        <mat-label>Name (English)</mat-label>
-        <input matInput formControlName="nameEn" required />
-      </mat-form-field>
+  <table mat-table [dataSource]="companies">
+    <ng-container matColumnDef="nameEn">
+      <th mat-header-cell *matHeaderCellDef>Name (English)</th>
+      <td mat-cell *matCellDef="let company">{{ company.nameEn }}</td>
+    </ng-container>
+    <ng-container matColumnDef="nameAr">
+      <th mat-header-cell *matHeaderCellDef>Name (Arabic)</th>
+      <td mat-cell *matCellDef="let company">{{ company.nameAr }}</td>
+    </ng-container>
+    <ng-container matColumnDef="vatNumber">
+      <th mat-header-cell *matHeaderCellDef>VAT Number</th>
+      <td mat-cell *matCellDef="let company">{{ company.vatNumber }}</td>
+    </ng-container>
+    <ng-container matColumnDef="isActive">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let company">{{ company.isActive ? 'Active' : 'Inactive' }}</td>
+    </ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>Actions</th>
+      <td mat-cell *matCellDef="let company">
+        <button mat-icon-button color="primary" (click)="editCompany(company)" title="Edit">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button color="accent" (click)="manageBranches(company)" title="Branches">
+          <mat-icon>account_tree</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
 
-      <mat-form-field>
-        <mat-label>VAT Number</mat-label>
-        <input matInput formControlName="vatNumber" required />
-      </mat-form-field>
+  <mat-paginator [length]="totalCompanies" [pageSize]="pageSize" [pageIndex]="page"
+    (page)="onPageChange($event)"></mat-paginator>
+} @else {
+  <mat-card>
+    <h3>Create New Company</h3>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="form-grid">
+        <mat-form-field>
+          <mat-label>Name (Arabic)</mat-label>
+          <input matInput formControlName="nameAr" required />
+        </mat-form-field>
 
-      <mat-form-field>
-        <mat-label>CR Number</mat-label>
-        <input matInput formControlName="crNumber" />
-      </mat-form-field>
+        <mat-form-field>
+          <mat-label>Name (English)</mat-label>
+          <input matInput formControlName="nameEn" required />
+        </mat-form-field>
 
-      <mat-form-field class="full-width">
-        <mat-label>Street</mat-label>
-        <input matInput formControlName="street" />
-      </mat-form-field>
+        <mat-form-field>
+          <mat-label>VAT Number</mat-label>
+          <input matInput formControlName="vatNumber" required />
+        </mat-form-field>
 
-      <mat-form-field>
-        <mat-label>Building Number</mat-label>
-        <input matInput formControlName="buildingNumber" />
-      </mat-form-field>
+        <mat-form-field>
+          <mat-label>CR Number</mat-label>
+          <input matInput formControlName="crNumber" />
+        </mat-form-field>
+      </div>
 
-      <mat-form-field>
-        <mat-label>City</mat-label>
-        <input matInput formControlName="city" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>District</mat-label>
-        <input matInput formControlName="district" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Postal Code</mat-label>
-        <input matInput formControlName="postalCode" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Country Code</mat-label>
-        <input matInput formControlName="countryCode" />
-      </mat-form-field>
-
-      <mat-form-field class="full-width">
-        <mat-label>Additional ID</mat-label>
-        <input matInput formControlName="additionalId" />
-      </mat-form-field>
-    </div>
-
-    <div class="form-actions">
-      <button mat-button type="button" routerLink="/dashboard">Cancel</button>
-      <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
-        @if (submitting) { Creating... } @else { Create Company }
-      </button>
-    </div>
-  </form>
-</mat-card>
+      <div class="form-actions">
+        <button mat-button type="button" (click)="cancelCreate()">Cancel</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+          @if (submitting) { Creating... } @else { Create Company }
+        </button>
+      </div>
+    </form>
+  </mat-card>
+}

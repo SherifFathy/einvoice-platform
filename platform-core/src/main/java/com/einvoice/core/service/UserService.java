@@ -1,13 +1,22 @@
 package com.einvoice.core.service;
 
 import com.einvoice.core.audit.Audited;
+import com.einvoice.core.domain.Company;
+import com.einvoice.core.domain.LovContext;
 import com.einvoice.core.domain.User;
 import com.einvoice.core.domain.UserCompanyRole;
+import com.einvoice.core.domain.UserContextPermission;
 import com.einvoice.core.domain.enums.Role;
 import com.einvoice.core.repository.CompanyRepository;
+import com.einvoice.core.repository.LovContextRepository;
 import com.einvoice.core.repository.UserCompanyRoleRepository;
+import com.einvoice.core.repository.UserContextPermissionRepository;
 import com.einvoice.core.repository.UserRepository;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,25 +28,38 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserCompanyRoleRepository userCompanyRoleRepository;
+    private final UserContextPermissionRepository userContextPermissionRepository;
+    private final LovContextRepository lovContextRepository;
     private final CompanyRepository companyRepository;
     private final PasswordEncoder passwordEncoder;
 
+    private final AuditService auditService;
+
     /**
-     * Creates a UserService with the required dependencies.
+     * Creates the user service.
      *
      * @param userRepository the user repository
-     * @param userCompanyRoleRepository the user-company role assignment repository
-     * @param companyRepository the company repository for managed references
-     * @param passwordEncoder the password encoder for hashing new user passwords
+     * @param userCompanyRoleRepository the user-company role repository
+     * @param userContextPermissionRepository the user-context permission repository
+     * @param lovContextRepository the LOV context repository
+     * @param companyRepository the company repository
+     * @param passwordEncoder the password encoder
+     * @param auditService the audit service
      */
     public UserService(UserRepository userRepository,
             UserCompanyRoleRepository userCompanyRoleRepository,
+            UserContextPermissionRepository userContextPermissionRepository,
+            LovContextRepository lovContextRepository,
             CompanyRepository companyRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AuditService auditService) {
         this.userRepository = userRepository;
         this.userCompanyRoleRepository = userCompanyRoleRepository;
+        this.userContextPermissionRepository = userContextPermissionRepository;
+        this.lovContextRepository = lovContextRepository;
         this.companyRepository = companyRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditService = auditService;
     }
 
     /**
@@ -73,7 +95,7 @@ public class UserService {
      */
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN')")
-    @Audited(action = "user.assign_to_company", entityType = "UserCompanyRole")
+    @Audited(action = "USER_COMPANY_ASSIGNED", entityType = "UserCompanyRole")
     public UserCompanyRole assignToCompany(Long userId, Long companyId, Role role,
             Long grantedByUserId) {
         if (userCompanyRoleRepository.existsByUserIdAndCompanyId(userId, companyId)) {
@@ -104,9 +126,9 @@ public class UserService {
      */
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN')")
-    @Audited(action = "user.remove_from_company",
-            entityType = "UserCompanyRole",
-            entityClass = UserCompanyRole.class)
+    @Audited(action = "USER_COMPANY_REMOVED",
+             entityType = "UserCompanyRole",
+             entityClass = UserCompanyRole.class)
     public void removeFromCompany(Long userId, Long companyId) {
         UserCompanyRole role = userCompanyRoleRepository
                 .findByUserIdAndCompanyId(userId, companyId)
@@ -179,6 +201,256 @@ public class UserService {
                         "User " + userId + " is not assigned to company " + companyId));
         role.setIsActive(false);
         return role;
+    }
+
+    /**
+     * Lists all users. Requires SUPER_USER role.
+     *
+     * @return list of all users
+     */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('SUPER_USER')")
+    public List<User> listAllUsers() {
+        return userRepository.findAll();
+    }
+
+    /**
+     * Creates a new user with the given details.
+     *
+     * @param name the user display name
+     * @param email the user email
+     * @param password the plaintext password
+     * @return the newly created user
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "USER_CREATED", entityType = "User")
+    public User createUser(String name, String email, String password) {
+        if (userRepository.existsByEmail(email)) {
+            throw new UserAlreadyAssignedException("Email already in use: " + email);
+        }
+        User user = User.builder()
+                .name(name)
+                .email(email)
+                .passwordHash(passwordEncoder.encode(password))
+                .isActive(true)
+                .build();
+        return userRepository.save(user);
+    }
+
+    /**
+     * Updates a user's name and/or email.
+     *
+     * @param id the user identifier
+     * @param name the new display name (may be {@code null})
+     * @param email the new email (may be {@code null})
+     * @return the updated user
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "USER_UPDATED", entityType = "User", entityClass = User.class)
+    public User updateUser(Long id, String name, String email) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + id));
+        if (name != null) {
+            user.setName(name);
+        }
+        if (email != null) {
+            user.setEmail(email);
+        }
+        return user;
+    }
+
+    /**
+     * Resets a user's password.
+     *
+     * @param id the user identifier
+     * @param newPassword the new plaintext password
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "USER_PASSWORD_RESET", entityType = "User", entityClass = User.class)
+    public void resetPassword(Long id, String newPassword) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + id));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+    }
+
+    /**
+     * Activates a user account.
+     *
+     * @param id the user identifier
+     * @return the activated user
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "USER_ACTIVATED", entityType = "User", entityClass = User.class)
+    public User activateUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + id));
+        user.setIsActive(true);
+        return user;
+    }
+
+    /**
+     * Deactivates a user, preventing login. Guards against removing the last Super User.
+     *
+     * @param actorId the user performing the action
+     * @param targetId the user to deactivate
+     * @return the deactivated user
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "USER_DEACTIVATED", entityType = "User", entityClass = User.class)
+    public User deactivateUser(Long actorId, Long targetId) {
+        guardLastSuperUser(targetId);
+        User user = userRepository.findById(targetId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + targetId));
+        user.setIsActive(false);
+        return user;
+    }
+
+    /**
+     * Soft-deletes a user. Guards against removing the last Super User.
+     *
+     * @param actorId the user performing the action
+     * @param targetId the user to delete
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "USER_DELETED", entityType = "User", entityClass = User.class)
+    public void deleteUser(Long actorId, Long targetId) {
+        guardLastSuperUser(targetId);
+        User user = userRepository.findById(targetId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + targetId));
+        user.setIsActive(false);
+        user.setDeletedAt(OffsetDateTime.now());
+    }
+
+    /**
+     * Promotes a user to Super User, granting SUPER_USER role in all companies.
+     *
+     * @param actorId the user performing the promotion
+     * @param targetId the user to promote
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    @Audited(action = "SUPER_USER_PROMOTED", entityType = "User", entityClass = User.class)
+    public void promoteToSuperUser(Long actorId, Long targetId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new UserNotFoundException("Actor not found: " + actorId));
+        if (!Boolean.TRUE.equals(actor.getIsSuperUser())) {
+            throw new IllegalStateException("Only Super Users can promote other users");
+        }
+        User target = userRepository.findById(targetId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + targetId));
+        target.setIsSuperUser(true);
+        userRepository.save(target);
+
+        List<Company> allCompanies = companyRepository.findAll();
+        for (Company company : allCompanies) {
+            if (!userCompanyRoleRepository.existsByUserIdAndCompanyId(
+                    targetId, company.getId())) {
+                UserCompanyRole assignment = UserCompanyRole.builder()
+                        .user(target)
+                        .company(company)
+                        .role(Role.SUPER_USER)
+                        .grantedBy(actor)
+                        .isActive(true)
+                        .build();
+                userCompanyRoleRepository.save(assignment);
+            }
+        }
+    }
+
+    /**
+     * Synchronises a user's permission set for a specific company+context.
+     *
+     * @param userId the user identifier
+     * @param companyId the company identifier
+     * @param lovContextId the LOV context identifier
+     * @param desiredPermissions the set of permission strings to apply
+     * @param grantedByUserId the user granting the permissions (may be {@code null})
+     */
+    @Transactional
+    @PreAuthorize("hasRole('SUPER_USER')")
+    public void bulkSetPermissions(Long userId, Long companyId, Long lovContextId,
+            Set<String> desiredPermissions, Long grantedByUserId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+        LovContext lovContext = lovContextRepository.findById(lovContextId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "LOV context not found: " + lovContextId));
+        User grantedBy = grantedByUserId != null
+                ? userRepository.getReferenceById(grantedByUserId) : null;
+
+        List<UserContextPermission> existing = userContextPermissionRepository
+                .findByUserIdAndCompanyIdAndLovContextId(userId, companyId, lovContextId);
+
+        Set<String> existingKeys = existing.stream()
+                .map(UserContextPermission::getPermission)
+                .collect(Collectors.toSet());
+
+        for (UserContextPermission ucp : existing) {
+            if (!desiredPermissions.contains(ucp.getPermission())) {
+                userContextPermissionRepository.delete(ucp);
+                auditService.log("PERMISSION_REVOKED", "UserContextPermission",
+                        String.valueOf(userId), null,
+                        "{\"permission\":\"" + ucp.getPermission()
+                                + "\",\"companyId\":" + companyId
+                                + ",\"lovContextId\":" + lovContextId + "}",
+                        companyId);
+            }
+        }
+
+        for (String perm : desiredPermissions) {
+            if (!existingKeys.contains(perm)) {
+                UserContextPermission newPerm = UserContextPermission.builder()
+                        .user(user)
+                        .company(companyRepository.getReferenceById(companyId))
+                        .lovContext(lovContext)
+                        .permission(perm)
+                        .grantedBy(grantedBy)
+                        .build();
+                userContextPermissionRepository.save(newPerm);
+                auditService.log("PERMISSION_GRANTED", "UserContextPermission",
+                        String.valueOf(userId), null,
+                        "{\"permission\":\"" + perm
+                                + "\",\"companyId\":" + companyId
+                                + ",\"lovContextId\":" + lovContextId + "}",
+                        companyId);
+            }
+        }
+    }
+
+    /**
+     * Retrieves the effective permissions for a user in a specific company and context.
+     *
+     * @param userId the user identifier
+     * @param companyId the company identifier
+     * @param lovContextId the LOV context identifier
+     * @return the set of permission strings
+     */
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('SUPER_USER')")
+    public Set<String> getUserPermissions(Long userId, Long companyId, Long lovContextId) {
+        return userContextPermissionRepository
+                .findPermissionsByUserIdAndCompanyIdAndLovContextId(userId, companyId, lovContextId);
+    }
+
+    private void guardLastSuperUser(Long targetId) {
+        User target = userRepository.findById(targetId)
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + targetId));
+        if (Boolean.TRUE.equals(target.getIsSuperUser()) && Boolean.TRUE.equals(target.getIsActive())) {
+            long remaining = userRepository.findAll().stream()
+                    .filter(u -> !u.getId().equals(targetId)
+                            && Boolean.TRUE.equals(u.getIsSuperUser())
+                            && Boolean.TRUE.equals(u.getIsActive()))
+                    .count();
+            if (remaining == 0) {
+                throw new IllegalStateException("Cannot remove the last active Super User");
+            }
+        }
     }
 
     /** Exception thrown when a user is not found. */

@@ -35,29 +35,41 @@ public class AuthController {
     }
 
     /**
-     * Authenticates a user and returns JWT tokens.
+     * Authenticates a user with LOV context selection and returns JWT tokens.
      *
-     * @param request login credentials
+     * @param request login credentials and LOV context fields
      * @return authentication response with tokens and user info
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResult result = authenticationService.login(request.email(), request.password());
-        return ResponseEntity.ok(toLoginResponse(result));
+        try {
+            AuthResult result = authenticationService.login(
+                    request.email(), request.password(),
+                    request.authority(), request.docType(), request.subEnvironment());
+            return ResponseEntity.ok(toLoginResponse(result));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+        }
     }
 
     /**
      * Switches the active company for the authenticated user after password verification.
+     * Preserves the current LOV context across the switch.
      *
      * @param request target company ID and current password
+     * @param httpRequest the HTTP request (used to extract JWT claims)
      * @return new authentication response with updated company context
      */
     @PostMapping("/switch-company")
     public ResponseEntity<LoginResponse> switchCompany(
-            @Valid @RequestBody SwitchCompanyRequest request) {
+            @Valid @RequestBody SwitchCompanyRequest request,
+            HttpServletRequest httpRequest) {
         Long userId = getCurrentUserId();
+        LovClaims lovClaims = extractLovClaims(httpRequest);
         AuthResult result = authenticationService.switchCompany(
-                userId, request.companyId(), request.password());
+                userId, request.companyId(), request.password(),
+                lovClaims.authority, lovClaims.docType, lovClaims.subEnv,
+                lovClaims.lovContextId);
         return ResponseEntity.ok(toLoginResponse(result));
     }
 
@@ -99,9 +111,12 @@ public class AuthController {
             HttpServletRequest httpRequest) {
         Long userId = getCurrentUserId();
         Long companyId = getActiveCompanyId(httpRequest);
+        LovClaims lovClaims = extractLovClaims(httpRequest);
         try {
             AuthResult result = authenticationService.selectEnvironment(
-                    userId, companyId, request.environment());
+                    userId, companyId, request.environment(),
+                    lovClaims.authority, lovClaims.docType, lovClaims.subEnv,
+                    lovClaims.lovContextId);
             return ResponseEntity.ok(toLoginResponse(result));
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
@@ -127,6 +142,28 @@ public class AuthController {
         throw new InvalidCredentialsException("No active company context");
     }
 
+    private LovClaims extractLovClaims(HttpServletRequest request) {
+        Object claimsObj = request.getAttribute("jwtClaims");
+        if (claimsObj instanceof Claims claims) {
+            String authority = claims.get("active_authority", String.class);
+            String docType = claims.get("active_doc_type", String.class);
+            String subEnv = claims.get("active_sub_env", String.class);
+            Long lovContextId = toLong(claims.get("lov_context_id"));
+            return new LovClaims(authority, docType, subEnv, lovContextId);
+        }
+        return new LovClaims(null, null, null, null);
+    }
+
+    private Long toLong(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.valueOf(raw.toString());
+    }
+
     private LoginResponse toLoginResponse(AuthResult result) {
         UserInfo userInfo = new UserInfo(
                 result.user.getId(),
@@ -136,7 +173,13 @@ public class AuthController {
                 result.role,
                 result.permittedEnvironments,
                 result.availableCompanies,
-                result.activeEnvironment);
+                result.activeEnvironment,
+                result.activeAuthority,
+                result.activeDocType,
+                result.activeSubEnv,
+                result.lovContextId,
+                result.permissions,
+                result.isSuperUser);
 
         return new LoginResponse(
                 result.accessToken,
@@ -145,4 +188,10 @@ public class AuthController {
                 result.expiresIn,
                 userInfo);
     }
+
+    private record LovClaims(
+            String authority,
+            String docType,
+            String subEnv,
+            Long lovContextId) {}
 }

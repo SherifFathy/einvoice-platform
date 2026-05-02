@@ -91,22 +91,26 @@ class TenantIsolationIntegrationTest {
         companyA.setNameAr("شركة أ");
         companyA.setNameEn("Company A");
         companyA.setVatNumber("100000000000001");
-        companyA.setCountryCode("SA");
         companyA = companyRepository.save(companyA);
 
         companyB = new Company();
         companyB.setNameAr("شركة ب");
         companyB.setNameEn("Company B");
         companyB.setVatNumber("200000000000002");
-        companyB.setCountryCode("SA");
         companyB = companyRepository.save(companyB);
 
         tokenA = jwtTokenProvider.generateAccessToken(
                 1L, "Test User A", "a@test.com", companyA.getId(), "ACCOUNTANT",
-                java.util.List.of(), java.util.List.of(), null);
+                java.util.List.of("ZATCA_SANDBOX"),
+                java.util.List.of(java.util.Map.of("id", companyA.getId(), "name", companyA.getNameEn())),
+                "ZATCA_SANDBOX", "ZATCA", "INVOICE", "SANDBOX", 1L,
+                java.util.List.of("VIEW_CUSTOMER_LIST"), false);
         tokenB = jwtTokenProvider.generateAccessToken(
                 2L, "Test User B", "b@test.com", companyB.getId(), "ACCOUNTANT",
-                java.util.List.of(), java.util.List.of(), null);
+                java.util.List.of("ZATCA_SANDBOX"),
+                java.util.List.of(java.util.Map.of("id", companyB.getId(), "name", companyB.getNameEn())),
+                "ZATCA_SANDBOX", "ZATCA", "INVOICE", "SANDBOX", 1L,
+                java.util.List.of("VIEW_CUSTOMER_LIST"), false);
 
         TenantContext.setCurrentTenantId(companyA.getId());
         Customer customerA = new Customer();

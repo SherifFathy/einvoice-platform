@@ -1,7 +1,5 @@
 package com.einvoice.api.admin;
 
-import com.einvoice.api.admin.dto.AssignUserRequest;
-import com.einvoice.api.admin.dto.AssignUserResponse;
 import com.einvoice.api.admin.dto.AuthorityConfigResponse;
 import com.einvoice.api.admin.dto.BranchResponse;
 import com.einvoice.api.admin.dto.CompanyResponse;
@@ -12,9 +10,6 @@ import com.einvoice.api.admin.dto.UpdateAuthorityConfigRequest;
 import com.einvoice.core.domain.AuthorityConfig;
 import com.einvoice.core.domain.Branch;
 import com.einvoice.core.domain.Company;
-import com.einvoice.core.domain.User;
-import com.einvoice.core.domain.UserCompanyRole;
-import com.einvoice.core.repository.UserRepository;
 import com.einvoice.core.service.AuthorityConfigService;
 import com.einvoice.core.service.BranchService;
 import com.einvoice.core.service.CompanyService;
@@ -28,7 +23,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,7 +43,6 @@ public class AdminCompanyController {
     private final BranchService branchService;
     private final AuthorityConfigService authorityConfigService;
     private final UserService userService;
-    private final UserRepository userRepository;
 
     /**
      * Creates the admin company controller.
@@ -58,16 +51,14 @@ public class AdminCompanyController {
      * @param branchService the branch service
      * @param authorityConfigService the authority config service
      * @param userService the user service
-     * @param userRepository the user repository
      */
     public AdminCompanyController(CompanyService companyService,
             BranchService branchService, AuthorityConfigService authorityConfigService,
-            UserService userService, UserRepository userRepository) {
+            UserService userService) {
         this.companyService = companyService;
         this.branchService = branchService;
         this.authorityConfigService = authorityConfigService;
         this.userService = userService;
-        this.userRepository = userRepository;
     }
 
     /**
@@ -98,13 +89,6 @@ public class AdminCompanyController {
                 .nameEn(request.nameEn())
                 .vatNumber(request.vatNumber())
                 .crNumber(request.crNumber())
-                .street(request.street())
-                .buildingNumber(request.buildingNumber())
-                .city(request.city())
-                .district(request.district())
-                .postalCode(request.postalCode())
-                .countryCode(request.countryCode() != null ? request.countryCode() : "SA")
-                .additionalId(request.additionalId())
                 .build();
         Company saved = companyService.create(company);
         return ResponseEntity.created(URI.create("/api/admin/companies/" + saved.getId()))
@@ -136,6 +120,22 @@ public class AdminCompanyController {
     }
 
     /**
+     * Updates a company's details.
+     *
+     * @param id the company identifier
+     * @param updates a map of field names to new values
+     * @return the updated company response
+     */
+    @PutMapping("/companies/{id}")
+    public ResponseEntity<CompanyResponse> updateCompany(
+            @PathVariable Long id, @RequestBody java.util.Map<String, String> updates) {
+        Company company = companyService.update(id,
+                updates.get("nameAr"), updates.get("nameEn"),
+                updates.get("vatNumber"), updates.get("crNumber"));
+        return ResponseEntity.ok(toCompanyResponse(company));
+    }
+
+    /**
      * Creates a branch under a company.
      *
      * @param id the company identifier
@@ -146,7 +146,9 @@ public class AdminCompanyController {
     public ResponseEntity<BranchResponse> createBranch(
             @PathVariable Long id, @Valid @RequestBody CreateBranchRequest request) {
         Branch branch = branchService.create(id, request.nameAr(), request.nameEn(),
-                request.branchCode());
+                request.branchCode(), request.street(), request.buildingNumber(),
+                request.additionalNumber(), request.city(), request.district(),
+                request.postalCode(), request.countryCode(), request.additionalStreet());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(toBranchResponse(branch));
     }
@@ -180,7 +182,9 @@ public class AdminCompanyController {
             @Valid @RequestBody CreateBranchRequest request) {
         validateBranchBelongsToCompany(branchId, companyId);
         Branch branch = branchService.update(branchId, request.nameAr(), request.nameEn(),
-                request.branchCode());
+                request.branchCode(), request.street(), request.buildingNumber(),
+                request.additionalNumber(), request.city(), request.district(),
+                request.postalCode(), request.countryCode(), request.additionalStreet());
         return ResponseEntity.ok(toBranchResponse(branch));
     }
 
@@ -306,34 +310,6 @@ public class AdminCompanyController {
     }
 
     /**
-     * Assigns a user to a company with a role. Creates user if email is new.
-     *
-     * @param id the company identifier
-     * @param request the user assignment request containing email, name, and role
-     * @param authentication the current authentication principal
-     * @return the assignment response with user, company, and role details
-     */
-    @PostMapping("/companies/{id}/assign-user")
-    public ResponseEntity<AssignUserResponse> assignUser(
-            @PathVariable Long id, @Valid @RequestBody AssignUserRequest request,
-            Authentication authentication) {
-        boolean userExisted = userRepository.existsByEmail(request.email());
-        User user = userService.getOrCreateUser(request.email(), request.name());
-
-        Long grantedByUserId = null;
-        if (authentication != null
-                && authentication.getPrincipal() instanceof Long userId) {
-            grantedByUserId = userId;
-        }
-
-        UserCompanyRole assignment = userService.assignToCompany(
-                user.getId(), id, request.role(), grantedByUserId);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new AssignUserResponse(
-                        user.getId(), id, request.role().name(), !userExisted));
-    }
-
-    /**
      * Removes a user's role assignment from a company.
      *
      * @param companyId the company identifier
@@ -364,15 +340,16 @@ public class AdminCompanyController {
 
     private CompanyResponse toCompanyResponse(Company c) {
         return new CompanyResponse(c.getId(), c.getNameAr(), c.getNameEn(),
-                c.getVatNumber(), c.getCrNumber(), c.getStreet(),
-                c.getBuildingNumber(), c.getCity(), c.getDistrict(),
-                c.getPostalCode(), c.getCountryCode(), c.getAdditionalId(),
+                c.getVatNumber(), c.getCrNumber(),
                 c.getIsActive(), c.getCreatedAt());
     }
 
     private BranchResponse toBranchResponse(Branch b) {
         return new BranchResponse(b.getId(), b.getCompany().getId(),
                 b.getNameAr(), b.getNameEn(), b.getBranchCode(),
+                b.getStreet(), b.getBuildingNumber(), b.getAdditionalNumber(),
+                b.getCity(), b.getDistrict(), b.getPostalCode(),
+                b.getCountryCode(), b.getAdditionalStreet(),
                 b.getIsActive(), b.getCreatedAt());
     }
 

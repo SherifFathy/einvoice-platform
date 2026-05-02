@@ -23,6 +23,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       headers['X-Environment'] = env;
     }
 
+    const lovContextId = authService.getLovContextId();
+    if (lovContextId !== null) {
+      headers['X-Lov-Context'] = String(lovContextId);
+    }
+
     authReq = req.clone({ setHeaders: headers });
   }
 
@@ -39,6 +44,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
               const retryEnv = authService.getActiveEnvironment();
               if (retryEnv) {
                 retryHeaders['X-Environment'] = retryEnv;
+              }
+              const retryLovContextId = authService.getLovContextId();
+              if (retryLovContextId !== null) {
+                retryHeaders['X-Lov-Context'] = String(retryLovContextId);
               }
               const retryReq = req.clone({ setHeaders: retryHeaders });
               return next(retryReq);

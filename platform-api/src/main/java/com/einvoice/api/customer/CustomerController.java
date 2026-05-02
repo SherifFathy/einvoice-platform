@@ -2,16 +2,18 @@ package com.einvoice.api.customer;
 
 import com.einvoice.api.customer.dto.CustomerRequest;
 import com.einvoice.api.customer.dto.CustomerResponse;
-import com.einvoice.api.customer.dto.ImportError;
-import com.einvoice.api.customer.dto.ImportResponse;
+import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.Customer;
 import com.einvoice.core.domain.enums.CustomerType;
 import com.einvoice.core.service.CustomerExcelTemplateService;
 import com.einvoice.core.service.CustomerImportService;
 import com.einvoice.core.service.CustomerService;
-import com.einvoice.core.service.importing.ImportResult;
+import com.einvoice.core.service.importing.BulkUploadResult;
+import com.einvoice.core.service.importing.ExcelParseResult;
+import com.einvoice.core.service.importing.RowError;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -159,21 +161,32 @@ public class CustomerController {
     }
 
     /**
-     * Imports customers from an uploaded Excel file.
+     * Bulk-uploads customers from an Excel template.
+     * Validates headers, parses rows, then creates/updates via
+     * {@link CustomerService#createBatch}.
      *
      * @param file the multipart Excel file
-     * @return the import result with counts and errors
+     * @return the bulk upload result
      */
-    @PostMapping("/import")
+    @PostMapping("/bulk-upload")
     @PreAuthorize("hasAuthority('CREATE')")
-    public ResponseEntity<ImportResponse> importCustomers(
+    public ResponseEntity<BulkUploadResult> bulkUploadCustomers(
             @RequestParam("file") MultipartFile file) {
-        ImportResult result = customerImportService.importCustomers(file);
-        List<ImportError> errors = result.errors().stream()
-                .map(e -> new ImportError(e.row(), e.field(), e.message()))
-                .toList();
-        return ResponseEntity.ok(new ImportResponse(result.totalRows(),
-                result.importedCount(), result.errorCount(), errors));
+        ExcelParseResult<Customer> parsed =
+                customerImportService.parseExcel(file);
+        Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = TenantContext.getLovContextId();
+
+        BulkUploadResult batchResult = customerService.createBatch(
+                parsed.validRows(), companyId, lovContextId);
+
+        List<RowError> allErrors = new ArrayList<>(parsed.errors());
+        allErrors.addAll(batchResult.errors());
+        int totalProcessed = batchResult.processed();
+        int totalFailed = parsed.errors().size() + batchResult.failed();
+
+        return ResponseEntity.ok(
+                new BulkUploadResult(totalProcessed, totalFailed, allErrors));
     }
 
     private CustomerType parseCustomerType(String type) {

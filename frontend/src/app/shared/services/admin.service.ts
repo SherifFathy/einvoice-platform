@@ -9,13 +9,6 @@ export interface CompanyResponse {
   nameEn: string;
   vatNumber: string;
   crNumber: string | null;
-  street: string | null;
-  buildingNumber: string | null;
-  city: string | null;
-  district: string | null;
-  postalCode: string | null;
-  countryCode: string;
-  additionalId: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -25,13 +18,6 @@ export interface CreateCompanyRequest {
   nameEn: string;
   vatNumber: string;
   crNumber?: string;
-  street?: string;
-  buildingNumber?: string;
-  city?: string;
-  district?: string;
-  postalCode?: string;
-  countryCode?: string;
-  additionalId?: string;
 }
 
 export interface BranchResponse {
@@ -40,6 +26,14 @@ export interface BranchResponse {
   nameAr: string;
   nameEn: string;
   branchCode: string;
+  street: string | null;
+  buildingNumber: string | null;
+  additionalNumber: string | null;
+  city: string | null;
+  district: string | null;
+  postalCode: string | null;
+  countryCode: string | null;
+  additionalStreet: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -48,6 +42,14 @@ export interface CreateBranchRequest {
   nameAr: string;
   nameEn: string;
   branchCode: string;
+  street?: string;
+  buildingNumber?: string;
+  additionalNumber?: string;
+  city?: string;
+  district?: string;
+  postalCode?: string;
+  countryCode?: string;
+  additionalStreet?: string;
 }
 
 export interface AuthorityConfigResponse {
@@ -83,17 +85,43 @@ export interface UpdateAuthorityConfigRequest {
   invoiceResetPolicy?: string;
 }
 
-export interface AssignUserRequest {
+export interface AdminUserResponse {
+  id: number;
+  name: string;
   email: string;
-  role: string;
-  name?: string;
+  isActive: boolean;
+  isSuperUser: boolean;
+  createdAt: string;
+  companies: AdminUserCompanyAssignment[];
 }
 
-export interface AssignUserResponse {
-  userId: number;
+export interface AdminUserCompanyAssignment {
+  companyId: number;
+  companyName: string;
+  role: string;
+  isActive: boolean;
+}
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  email?: string;
+}
+
+export interface AssignUserCompanyRequest {
   companyId: number;
   role: string;
-  userCreated: boolean;
+}
+
+export interface BulkPermissionRequest {
+  companyId: number;
+  lovContextId: number;
+  permissions: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -116,6 +144,10 @@ export class AdminService {
 
   deactivateCompany(id: number): Observable<CompanyResponse> {
     return this.http.post<CompanyResponse>(`${this.apiUrl}/companies/${id}/deactivate`, {});
+  }
+
+  updateCompany(id: number, request: Record<string, string>): Observable<CompanyResponse> {
+    return this.http.put<CompanyResponse>(`${this.apiUrl}/companies/${id}`, request);
   }
 
   listBranches(companyId: number): Observable<BranchResponse[]> {
@@ -170,13 +202,48 @@ export class AdminService {
         data, { headers: { 'Content-Type': 'application/octet-stream' } });
   }
 
-  assignUser(companyId: number, request: AssignUserRequest): Observable<AssignUserResponse> {
-    return this.http.post<AssignUserResponse>(
-        `${this.apiUrl}/companies/${companyId}/assign-user`, request);
+  listUsers(): Observable<AdminUserResponse[]> {
+    return this.http.get<AdminUserResponse[]>(`${this.apiUrl}/users`);
   }
 
-  removeUserFromCompany(companyId: number, userId: number): Observable<void> {
-    return this.http.delete<void>(
-        `${this.apiUrl}/companies/${companyId}/users/${userId}`);
+  createUser(request: CreateUserRequest): Observable<AdminUserResponse> {
+    return this.http.post<AdminUserResponse>(`${this.apiUrl}/users`, request);
+  }
+
+  updateUser(id: number, request: UpdateUserRequest): Observable<AdminUserResponse> {
+    return this.http.put<AdminUserResponse>(`${this.apiUrl}/users/${id}`, request);
+  }
+
+  resetPassword(id: number, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/users/${id}/password`, { newPassword });
+  }
+
+  activateUser(id: number): Observable<AdminUserResponse> {
+    return this.http.put<AdminUserResponse>(`${this.apiUrl}/users/${id}/activate`, {});
+  }
+
+  deactivateUser(id: number): Observable<AdminUserResponse> {
+    return this.http.put<AdminUserResponse>(`${this.apiUrl}/users/${id}/deactivate`, {});
+  }
+
+  deleteUser(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/users/${id}`);
+  }
+
+  assignUserToCompany(userId: number, request: AssignUserCompanyRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/users/${userId}/companies`, request);
+  }
+
+  removeUserFromCompany(userId: number, companyId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/users/${userId}/companies/${companyId}`);
+  }
+
+  bulkSetPermissions(userId: number, request: BulkPermissionRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/users/${userId}/permissions`, request);
+  }
+
+  getUserPermissions(userId: number, companyId: number, lovContextId: number): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiUrl}/users/${userId}/permissions`,
+        { params: { companyId: companyId.toString(), lovContextId: lovContextId.toString() } });
   }
 }

@@ -17,6 +17,8 @@ import { InvoiceService, InvoiceListResponse } from '../../shared/services/invoi
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge/status-badge.component';
+import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   selector: 'app-invoice-list',
@@ -26,6 +28,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge/statu
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
     MatSelectModule, MatDatepickerModule, MatNativeDateModule,
     MatDialogModule, MatTooltipModule, StatusBadgeComponent,
+    HasPermissionDirective,
   ],
   templateUrl: './invoice-list.component.html',
   styles: `
@@ -43,6 +46,7 @@ export class InvoiceListComponent implements OnInit {
   private invoiceService = inject(InvoiceService);
   private toast = inject(ToastNotificationService);
   private dialog = inject(MatDialog);
+  protected authService = inject(AuthService);
 
   @Output() editInvoice = new EventEmitter<string>();
   @Output() viewInvoice = new EventEmitter<string>();

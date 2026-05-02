@@ -25,6 +25,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -33,6 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ConcurrentSubmissionDbTest {
 
     @Container
@@ -76,18 +79,25 @@ class ConcurrentSubmissionDbTest {
         company.setNameEn("Concurrent Test Co");
         company.setNameAr("شركة اختبار");
         company.setVatNumber("500000000000001");
-        company.setCountryCode("SA");
         company = companyRepository.save(company);
 
-        branch = Branch.builder().nameEn("Concurrent Branch").company(company).build();
+        branch = Branch.builder()
+                .nameEn("Concurrent Branch")
+                .nameAr("فرع الاختبار")
+                .branchCode("CT-001")
+                .lovContextId(1L)
+                .company(company)
+                .build();
         branch = branchRepository.save(branch);
     }
 
     @AfterEach
     void tearDown() {
-        authorityConfigRepository.deleteAll();
-        branchRepository.deleteAll();
-        companyRepository.deleteAll();
+        authorityConfigRepository.findAll().stream()
+                .filter(c -> c.getBranch() != null && c.getBranch().getId().equals(branch.getId()))
+                .forEach(authorityConfigRepository::delete);
+        branchRepository.deleteById(branch.getId());
+        companyRepository.deleteById(company.getId());
     }
 
     private AuthorityConfig createConfig() {

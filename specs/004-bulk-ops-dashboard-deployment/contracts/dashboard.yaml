@@ -1,0 +1,127 @@
+openapi: 3.0.3
+info:
+  title: Dashboard API
+  version: 1.0.0
+  description: On-demand aggregation endpoints for the operational dashboard. Tenant-scoped; super-admin variant separate.
+
+servers:
+  - url: /api
+
+paths:
+  /dashboard:
+    get:
+      summary: Get composite dashboard payload for the active tenant
+      operationId: getDashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: KPIs, recent activity and alerts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardPayload' }
+
+  /dashboard/super-admin:
+    get:
+      summary: System-wide dashboard (Super Admin only)
+      operationId: getSuperAdminDashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: System KPIs and warnings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuperAdminDashboardPayload' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    DashboardPayload:
+      type: object
+      required: [kpis, recentActivity, alerts]
+      properties:
+        kpis: { $ref: '#/components/schemas/DashboardKpis' }
+        recentActivity:
+          type: array
+          items: { $ref: '#/components/schemas/RecentActivityItem' }
+        alerts:
+          type: array
+          items: { $ref: '#/components/schemas/AlertItem' }
+        enabledAuthorities:
+          type: array
+          items: { type: string, enum: [ZATCA, ETA] }
+
+    DashboardKpis:
+      type: object
+      properties:
+        today: { $ref: '#/components/schemas/KpiBucket' }
+        month: { $ref: '#/components/schemas/KpiBucket' }
+
+    KpiBucket:
+      type: object
+      properties:
+        total: { type: integer }
+        byStatus:
+          type: object
+          additionalProperties: { type: integer }
+        byAuthority:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AuthorityKpiSlice'
+
+    AuthorityKpiSlice:
+      type: object
+      properties:
+        total: { type: integer }
+        accepted: { type: integer }
+        rejected: { type: integer }
+        pending: { type: integer }
+        failed: { type: integer }
+
+    RecentActivityItem:
+      type: object
+      required: [invoiceId, attemptedAt, result, authority]
+      properties:
+        invoiceId: { type: string, format: uuid }
+        invoiceNumber: { type: string }
+        attemptedAt: { type: string, format: date-time }
+        result: { type: string, enum: [SUCCESS, REJECTED, ERROR, TIMEOUT, AMBIGUOUS] }
+        authority: { type: string, enum: [ZATCA, ETA] }
+
+    AlertItem:
+      type: object
+      required: [severity, kind, message]
+      properties:
+        severity: { type: string, enum: [INFO, WARNING, ERROR] }
+        kind:
+          type: string
+          enum:
+            - FAILED_SUBMISSIONS
+            - CERTIFICATE_EXPIRY
+            - CONFIG_INCOMPLETE
+            - CONFIG_INACTIVE
+        message: { type: string }
+        link: { type: string, description: Relative UI route for remediation }
+        context:
+          type: object
+          additionalProperties: true
+
+    SuperAdminDashboardPayload:
+      type: object
+      properties:
+        companyCount: { type: integer }
+        totalInvoicesToday: { type: integer }
+        totalInvoicesMonth: { type: integer }
+        systemWarnings:
+          type: array
+          items: { $ref: '#/components/schemas/AlertItem' }
+
+  responses:
+    Forbidden:
+      description: Not a Super Admin
+      content:
+        application/json:
+          schema:
+            type: object
+            properties: { code: { type: string }, message: { type: string } }

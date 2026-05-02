@@ -59,7 +59,7 @@
     <mat-datepicker #toPicker></mat-datepicker>
   </mat-form-field>
   <span class="spacer"></span>
-  <button mat-raised-button color="primary" (click)="createInvoice.emit()">
+  <button mat-raised-button color="primary" (click)="createInvoice.emit()" *appHasPermission="'CREATE_INVOICE'">
     <mat-icon>add</mat-icon> New Invoice
   </button>
 </div>
@@ -102,26 +102,34 @@
         <button mat-icon-button matTooltip="View" (click)="onView(inv)">
           <mat-icon>visibility</mat-icon>
         </button>
-        @if (canEdit(inv.status)) {
-          <button mat-icon-button matTooltip="Edit" (click)="onEdit(inv)">
-            <mat-icon>edit</mat-icon>
-          </button>
-        }
-        @if (canSubmit(inv.status)) {
-          <button mat-icon-button color="primary" matTooltip="Submit" (click)="onSubmit(inv)">
-            <mat-icon>send</mat-icon>
-          </button>
-        }
-        @if (canRetry(inv.status)) {
-          <button mat-icon-button color="accent" matTooltip="Retry" (click)="onRetry(inv)">
-            <mat-icon>refresh</mat-icon>
-          </button>
-        }
-        @if (canCancel(inv.status)) {
-          <button mat-icon-button color="warn" matTooltip="Cancel" (click)="onCancel(inv)">
-            <mat-icon>cancel</mat-icon>
-          </button>
-        }
+        <ng-container *appHasPermission="'EDIT_INVOICE'">
+          @if (canEdit(inv.status)) {
+            <button mat-icon-button matTooltip="Edit" (click)="onEdit(inv)">
+              <mat-icon>edit</mat-icon>
+            </button>
+          }
+        </ng-container>
+        <ng-container *appHasPermission="'TRANSFER_INVOICE'">
+          @if (canSubmit(inv.status)) {
+            <button mat-icon-button color="primary" matTooltip="Submit" (click)="onSubmit(inv)">
+              <mat-icon>send</mat-icon>
+            </button>
+          }
+        </ng-container>
+        <ng-container *appHasPermission="'REFRESH_INVOICE'">
+          @if (canRetry(inv.status)) {
+            <button mat-icon-button color="accent" matTooltip="Retry" (click)="onRetry(inv)">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          }
+        </ng-container>
+        <ng-container *appHasPermission="'DELETE_INVOICE'">
+          @if (canCancel(inv.status)) {
+            <button mat-icon-button color="warn" matTooltip="Cancel" (click)="onCancel(inv)">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          }
+        </ng-container>
       </div>
     </td>
   </ng-container>

@@ -41,28 +41,6 @@ public class Company {
     @Column(name = "cr_number")
     private String crNumber;
 
-    @Column(name = "street")
-    private String street;
-
-    @Column(name = "building_number")
-    private String buildingNumber;
-
-    @Column(name = "city")
-    private String city;
-
-    @Column(name = "district")
-    private String district;
-
-    @Column(name = "postal_code")
-    private String postalCode;
-
-    @Column(name = "country_code")
-    @Builder.Default
-    private String countryCode = "SA";
-
-    @Column(name = "additional_id")
-    private String additionalId;
-
     @Column(name = "logo_path")
     private String logoPath;
 

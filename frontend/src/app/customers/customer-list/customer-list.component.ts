@@ -13,6 +13,8 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { CustomerService, CustomerResponse } from '../../shared/services/customer.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import { AuthService } from '../../shared/services/auth.service';
 
 @Component({
   selector: 'app-customer-list',
@@ -20,7 +22,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
   imports: [
     CommonModule, FormsModule, MatTableModule, MatPaginatorModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
-    MatSelectModule, MatDialogModule,
+    MatSelectModule, MatDialogModule, HasPermissionDirective,
   ],
   templateUrl: './customer-list.component.html',
   styles: `
@@ -36,6 +38,7 @@ export class CustomerListComponent implements OnInit {
   private customerService = inject(CustomerService);
   private toast = inject(ToastNotificationService);
   private dialog = inject(MatDialog);
+  protected authService = inject(AuthService);
 
   @Output() editCustomer = new EventEmitter<CustomerResponse>();
   @Output() importCustomers = new EventEmitter<void>();

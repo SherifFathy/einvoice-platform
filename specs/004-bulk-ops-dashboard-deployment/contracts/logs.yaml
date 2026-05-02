@@ -1,0 +1,117 @@
+openapi: 3.0.3
+info:
+  title: Logs Explorer API
+  version: 1.0.0
+  description: >
+    Read-only log explorers for audit and submission history. All endpoints are
+    tenant-scoped, cursor-paginated, and enforce a 365-day window unless
+    `confirmWide=true` is passed. No mutation verbs exist on these resources.
+
+servers:
+  - url: /api
+
+paths:
+  /audit-logs:
+    get:
+      summary: Query the audit log (read-only, append-only)
+      operationId: listAuditLogs
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: userId, in: query, schema: { type: string, format: uuid } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: entityType, in: query, schema: { type: string } }
+        - { name: entityId, in: query, schema: { type: string } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: confirmWide, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Paginated audit log page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditLogPage' }
+        '400':
+          description: Date window exceeds 365 days without `confirmWide=true`
+
+  /submission-logs:
+    get:
+      summary: Query submission attempts (read-only)
+      operationId: listSubmissionLogs
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: invoiceId, in: query, schema: { type: string, format: uuid } }
+        - { name: authority, in: query, schema: { type: string, enum: [ZATCA, ETA] } }
+        - { name: environment, in: query, schema: { type: string } }
+        - { name: result, in: query, schema: { type: string, enum: [SUCCESS, REJECTED, ERROR, TIMEOUT, AMBIGUOUS] } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: confirmWide, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: Paginated submission log page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionLogPage' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  schemas:
+    AuditLogEntry:
+      type: object
+      required: [id, timestamp, userId, action, entityType, entityId]
+      properties:
+        id: { type: integer, format: int64 }
+        timestamp: { type: string, format: date-time }
+        userId: { type: string, format: uuid, nullable: true }
+        userEmail: { type: string, nullable: true }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        ipAddress: { type: string, nullable: true }
+        payloadBefore: { type: object, nullable: true, additionalProperties: true }
+        payloadAfter: { type: object, nullable: true, additionalProperties: true }
+
+    SubmissionLogEntry:
+      type: object
+      required: [id, invoiceId, authority, environment, result, submittedAt]
+      properties:
+        id: { type: string, format: uuid }
+        invoiceId: { type: string, format: uuid }
+        invoiceNumber: { type: string }
+        attemptNumber: { type: integer }
+        authority: { type: string, enum: [ZATCA, ETA] }
+        environment: { type: string }
+        result: { type: string, enum: [SUCCESS, REJECTED, ERROR, TIMEOUT, AMBIGUOUS] }
+        statusCode: { type: integer, nullable: true }
+        errorSummary: { type: string, nullable: true }
+        submittedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              href: { type: string, description: Relative URL to download the artifact }
+
+    AuditLogPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AuditLogEntry' }
+        nextCursor: { type: string, nullable: true }
+
+    SubmissionLogPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/SubmissionLogEntry' }
+        nextCursor: { type: string, nullable: true }

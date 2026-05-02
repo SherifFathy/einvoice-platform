@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { BranchResponse, CreateBranchRequest } from './admin.service';
 
 export interface CompanyProfile {
   id: number;
@@ -8,13 +9,6 @@ export interface CompanyProfile {
   nameEn: string;
   vatNumber: string;
   crNumber: string | null;
-  street: string | null;
-  buildingNumber: string | null;
-  city: string | null;
-  district: string | null;
-  postalCode: string | null;
-  countryCode: string;
-  additionalId: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -24,13 +18,6 @@ export interface UpdateCompanyRequest {
   nameEn?: string;
   vatNumber?: string;
   crNumber?: string;
-  street?: string;
-  buildingNumber?: string;
-  city?: string;
-  district?: string;
-  postalCode?: string;
-  countryCode?: string;
-  additionalId?: string;
 }
 
 export interface UserCompany {
@@ -58,16 +45,16 @@ export class CompanyConfigService {
     return this.http.put<CompanyProfile>(`/api/companies/${id}`, request);
   }
 
-  listBranches(companyId: number): Observable<any[]> {
-    return this.http.get<any[]>(`/api/companies/${companyId}/branches`);
+  listBranches(companyId: number): Observable<BranchResponse[]> {
+    return this.http.get<BranchResponse[]>(`/api/companies/${companyId}/branches`);
   }
 
-  createBranch(companyId: number, request: { nameAr: string; nameEn: string; branchCode: string }): Observable<any> {
-    return this.http.post(`/api/companies/${companyId}/branches`, request);
+  createBranch(companyId: number, request: CreateBranchRequest): Observable<BranchResponse> {
+    return this.http.post<BranchResponse>(`/api/companies/${companyId}/branches`, request);
   }
 
-  updateBranch(companyId: number, branchId: number, request: { nameAr: string; nameEn: string; branchCode: string }): Observable<any> {
-    return this.http.put(`/api/companies/${companyId}/branches/${branchId}`, request);
+  updateBranch(companyId: number, branchId: number, request: CreateBranchRequest): Observable<BranchResponse> {
+    return this.http.put<BranchResponse>(`/api/companies/${companyId}/branches/${branchId}`, request);
   }
 
   deactivateBranch(companyId: number, branchId: number): Observable<void> {

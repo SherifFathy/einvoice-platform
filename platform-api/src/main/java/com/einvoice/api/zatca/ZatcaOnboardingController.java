@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+/** REST controller for ZATCA certificate onboarding and renewal. */
 @RestController
 @RequestMapping("/api/branches/{branchId}/zatca")
 public class ZatcaOnboardingController {
@@ -42,6 +43,14 @@ public class ZatcaOnboardingController {
     private final AuthorityConfigRepository authorityConfigRepository;
     private final BranchRepository branchRepository;
 
+    /**
+     * Creates the controller.
+     *
+     * @param onboardingService         ZATCA onboarding service
+     * @param certRenewalService        ZATCA certificate renewal service
+     * @param authorityConfigRepository authority configuration repository
+     * @param branchRepository          branch repository
+     */
     public ZatcaOnboardingController(ZatcaOnboardingService onboardingService,
             ZatcaCertRenewalService certRenewalService,
             AuthorityConfigRepository authorityConfigRepository,
@@ -52,6 +61,13 @@ public class ZatcaOnboardingController {
         this.branchRepository = branchRepository;
     }
 
+    /**
+     * Starts the ZATCA onboarding flow for a branch.
+     *
+     * @param branchId the branch identifier
+     * @param request  the onboarding request body
+     * @return the onboarding status response
+     */
     @PostMapping("/onboard")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<OnboardingStatusResponse> onboard(
@@ -77,6 +93,13 @@ public class ZatcaOnboardingController {
         return ResponseEntity.ok(toStatusResponse(result));
     }
 
+    /**
+     * Returns the current onboarding status for a branch.
+     *
+     * @param branchId    the branch identifier
+     * @param environment the ZATCA environment name
+     * @return the onboarding status response
+     */
     @GetMapping("/onboard/status")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<OnboardingStatusResponse> getOnboardingStatus(
@@ -91,6 +114,16 @@ public class ZatcaOnboardingController {
         return ResponseEntity.ok(toStatusResponse(result));
     }
 
+    /**
+     * Imports an externally-obtained CSID for a branch.
+     *
+     * @param branchId    the branch identifier
+     * @param environment the ZATCA environment name
+     * @param certificate the uploaded certificate file
+     * @param privateKey  the uploaded private key file
+     * @param csidSecret  the CSID secret string
+     * @return the import CSID response
+     */
     @PostMapping("/import-csid")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ImportCsidResponse> importCsid(
@@ -126,6 +159,13 @@ public class ZatcaOnboardingController {
                 "READY"));
     }
 
+    /**
+     * Renews the ZATCA certificate for a branch.
+     *
+     * @param branchId the branch identifier
+     * @param request  the renewal request body
+     * @return the renewal response
+     */
     @PostMapping("/renew-certificate")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<RenewCertificateResponse> renewCertificate(
@@ -148,6 +188,13 @@ public class ZatcaOnboardingController {
                 "RENEWED"));
     }
 
+    /**
+     * Returns certificate expiry status for a branch.
+     *
+     * @param branchId    the branch identifier
+     * @param environment the ZATCA environment name
+     * @return the certificate status response
+     */
     @GetMapping("/certificate-status")
     @PreAuthorize("hasAuthority('READ')")
     public ResponseEntity<CertificateStatusResponse> getCertificateStatus(

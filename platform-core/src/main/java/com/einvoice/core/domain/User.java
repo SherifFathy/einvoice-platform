@@ -42,11 +42,18 @@ public class User {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "is_super_user", nullable = false)
+    @Builder.Default
+    private Boolean isSuperUser = false;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
 
     @PrePersist
     protected void onCreate() {

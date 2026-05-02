@@ -21,20 +21,29 @@ public interface TokenService {
      * @param permittedEnvironments list of environments the user may access
      * @param availableCompanies list of company maps the user belongs to
      * @param activeEnvironment the currently selected environment, or null
+     * @param authority the active authority (ZATCA or ETA)
+     * @param docType the active document type (INVOICE or RECEIPT)
+     * @param subEnv the active sub-environment (SANDBOX, SIMULATION, PRODUCTION, PREPROD)
+     * @param lovContextId the resolved LOV context ID
+     * @param permissions list of granted permission keys for the active company+context
+     * @param isSuperUser whether the user has super-user privileges
      * @return a signed JWT access token string
      */
     String generateAccessToken(Long userId, String name, String email,
             Long activeCompanyId, String role, List<String> permittedEnvironments,
-            List<Map<String, Object>> availableCompanies, String activeEnvironment);
+            List<Map<String, Object>> availableCompanies, String activeEnvironment,
+            String authority, String docType, String subEnv,
+            Long lovContextId, List<String> permissions, boolean isSuperUser);
 
     /**
-     * Generates a refresh token scoped to a specific company.
+     * Generates a refresh token scoped to a specific company and LOV context.
      *
      * @param userId the user's ID
      * @param activeCompanyId the active company to preserve across refresh
+     * @param lovContextId the LOV context to preserve across refresh (stored as lov_context_id claim)
      * @return a signed JWT refresh token string
      */
-    String generateRefreshToken(Long userId, Long activeCompanyId);
+    String generateRefreshToken(Long userId, Long activeCompanyId, Long lovContextId);
 
     /**
      * Extracts the user ID (subject) from a token.
@@ -51,6 +60,14 @@ public interface TokenService {
      * @return the active company ID, or null if not present
      */
     Long getActiveCompanyIdFromToken(String token);
+
+    /**
+     * Extracts the LOV context ID claim from a token.
+     *
+     * @param token the JWT string
+     * @return the LOV context ID, or null if not present
+     */
+    Long getLovContextIdFromToken(String token);
 
     /**
      * Returns the access token expiry in seconds.

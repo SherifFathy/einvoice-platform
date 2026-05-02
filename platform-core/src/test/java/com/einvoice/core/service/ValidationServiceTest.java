@@ -3,6 +3,7 @@ package com.einvoice.core.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.einvoice.core.domain.AuthorityConfig;
@@ -111,7 +112,7 @@ class ValidationServiceTest {
                 .csidEncrypted(new byte[]{1})
                 .invoiceCounter(1L)
                 .build();
-        when(authorityConfigRepository.findByBranchIdAndAuthorityAndEnvironment(
+        lenient().when(authorityConfigRepository.findByBranchIdAndAuthorityAndEnvironment(
                 1L, Authority.ZATCA, Environment.ZATCA_SANDBOX))
                 .thenReturn(Optional.of(config));
 

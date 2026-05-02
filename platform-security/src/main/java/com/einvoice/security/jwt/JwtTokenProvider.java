@@ -33,7 +33,9 @@ public class JwtTokenProvider implements TokenService {
     @Override
     public String generateAccessToken(Long userId, String name, String email,
             Long activeCompanyId, String role, List<String> permittedEnvironments,
-            List<Map<String, Object>> availableCompanies, String activeEnvironment) {
+            List<Map<String, Object>> availableCompanies, String activeEnvironment,
+            String authority, String docType, String subEnv,
+            Long lovContextId, List<String> permissions, boolean isSuperUser) {
         Date now = new Date();
         Date expiry = new Date(now.getTime()
                 + jwtProperties.getAccessTokenExpirySeconds() * 1000);
@@ -47,6 +49,12 @@ public class JwtTokenProvider implements TokenService {
                 .claim("permittedEnvironments", permittedEnvironments)
                 .claim("availableCompanies", availableCompanies)
                 .claim("activeEnvironment", activeEnvironment)
+                .claim("active_authority", authority)
+                .claim("active_doc_type", docType)
+                .claim("active_sub_env", subEnv)
+                .claim("lov_context_id", lovContextId)
+                .claim("permissions", permissions)
+                .claim("is_super_user", isSuperUser)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -54,7 +62,7 @@ public class JwtTokenProvider implements TokenService {
     }
 
     @Override
-    public String generateRefreshToken(Long userId, Long activeCompanyId) {
+    public String generateRefreshToken(Long userId, Long activeCompanyId, Long lovContextId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime()
                 + jwtProperties.getRefreshTokenExpirySeconds() * 1000);
@@ -63,6 +71,7 @@ public class JwtTokenProvider implements TokenService {
                 .subject(userId.toString())
                 .claim("type", "refresh")
                 .claim("activeCompanyId", activeCompanyId)
+                .claim("lov_context_id", lovContextId)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -109,6 +118,16 @@ public class JwtTokenProvider implements TokenService {
         Claims claims = parseToken(token);
         Object activeCompanyId = claims.get("activeCompanyId");
         if (activeCompanyId instanceof Number number) {
+            return number.longValue();
+        }
+        return null;
+    }
+
+    @Override
+    public Long getLovContextIdFromToken(String token) {
+        Claims claims = parseToken(token);
+        Object lovContextId = claims.get("lov_context_id");
+        if (lovContextId instanceof Number number) {
             return number.longValue();
         }
         return null;

@@ -1,6 +1,7 @@
 package com.einvoice.security;
 
 import com.einvoice.security.jwt.JwtAuthenticationFilter;
+import com.einvoice.security.tenant.LovContextResponseFilter;
 import com.einvoice.security.tenant.TenantFilter;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TenantFilter tenantFilter;
+    private final LovContextResponseFilter lovContextResponseFilter;
 
     @Value("${cors.allowed-origins:http://localhost:4200}")
     private List<String> allowedOrigins;
@@ -36,11 +38,14 @@ public class SecurityConfig {
      *
      * @param jwtAuthenticationFilter the JWT authentication filter
      * @param tenantFilter the tenant resolution filter
+     * @param lovContextResponseFilter the LOV context response header filter
      */
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-            TenantFilter tenantFilter) {
+            TenantFilter tenantFilter,
+            LovContextResponseFilter lovContextResponseFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.tenantFilter = tenantFilter;
+        this.lovContextResponseFilter = lovContextResponseFilter;
     }
 
     @Bean
@@ -58,7 +63,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(tenantFilter, JwtAuthenticationFilter.class);
+                .addFilterAfter(tenantFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(lovContextResponseFilter, TenantFilter.class);
         return http.build();
     }
 
@@ -75,8 +81,9 @@ public class SecurityConfig {
                 List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(
                 List.of("Authorization", "Content-Type", "X-Requested-With", "Accept",
-                        "X-Environment"));
+                        "X-Environment", "X-Lov-Context"));
         config.setAllowCredentials(true);
+        config.setExposedHeaders(List.of("X-Lov-Context"));
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =

@@ -40,6 +40,9 @@ public class Item {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
+    @Column(name = "lov_context_id", nullable = false)
+    private Long lovContextId;
+
     @Column(name = "code", nullable = false)
     private String code;
 

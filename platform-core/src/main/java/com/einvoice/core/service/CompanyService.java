@@ -93,21 +93,13 @@ public class CompanyService {
      * @param nameEn the English name
      * @param vatNumber the VAT number
      * @param crNumber the commercial registration number
-     * @param street the street address
-     * @param buildingNumber the building number
-     * @param city the city
-     * @param district the district
-     * @param postalCode the postal code
-     * @param countryCode the country code
-     * @param additionalId the additional identifier
      * @return the updated company
      */
     @Transactional
     @PreAuthorize("hasAuthority('ADMIN')")
     @Audited(action = "company.update", entityType = "Company", entityClass = Company.class)
     public Company update(Long id, String nameAr, String nameEn, String vatNumber,
-            String crNumber, String street, String buildingNumber, String city,
-            String district, String postalCode, String countryCode, String additionalId) {
+            String crNumber) {
         Company company = companyRepository.findById(id)
                 .orElseThrow(() -> new CompanyNotFoundException("Company not found: " + id));
         if (nameAr != null) {
@@ -121,27 +113,6 @@ public class CompanyService {
         }
         if (crNumber != null) {
             company.setCrNumber(crNumber);
-        }
-        if (street != null) {
-            company.setStreet(street);
-        }
-        if (buildingNumber != null) {
-            company.setBuildingNumber(buildingNumber);
-        }
-        if (city != null) {
-            company.setCity(city);
-        }
-        if (district != null) {
-            company.setDistrict(district);
-        }
-        if (postalCode != null) {
-            company.setPostalCode(postalCode);
-        }
-        if (countryCode != null) {
-            company.setCountryCode(countryCode);
-        }
-        if (additionalId != null) {
-            company.setAdditionalId(additionalId);
         }
         return company;
     }

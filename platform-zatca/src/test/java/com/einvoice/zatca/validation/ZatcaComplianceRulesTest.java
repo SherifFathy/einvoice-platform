@@ -42,9 +42,9 @@ class ZatcaComplianceRulesTest {
     }
 
     private Invoice buildValidZatcaInvoice() {
-        Company company = Company.builder().id(1L)
+        Company company = Company.builder().id(1L).build();
+        Branch branch = Branch.builder().id(1L).company(company)
                 .street("King Fahd Road").city("Riyadh").build();
-        Branch branch = Branch.builder().id(1L).company(company).build();
 
         InvoiceLine line = InvoiceLine.builder()
                 .descriptionEn("Test item")
@@ -133,19 +133,19 @@ class ZatcaComplianceRulesTest {
         @Test
         void missingStreet_fails() {
             Invoice invoice = buildValidZatcaInvoice();
-            invoice.getCompany().setStreet(null);
+            invoice.getBranch().setStreet(null);
             List<ValidationError> errors = rules.validate(invoice, Authority.ZATCA);
             assertTrue(errors.stream()
-                    .anyMatch(e -> e.ruleId().equals("ZATCA-004") && e.field().equals("company.street")));
+                    .anyMatch(e -> e.ruleId().equals("ZATCA-004") && e.field().equals("branch.street")));
         }
 
         @Test
         void missingCity_fails() {
             Invoice invoice = buildValidZatcaInvoice();
-            invoice.getCompany().setCity(null);
+            invoice.getBranch().setCity(null);
             List<ValidationError> errors = rules.validate(invoice, Authority.ZATCA);
             assertTrue(errors.stream()
-                    .anyMatch(e -> e.ruleId().equals("ZATCA-004") && e.field().equals("company.city")));
+                    .anyMatch(e -> e.ruleId().equals("ZATCA-004") && e.field().equals("branch.city")));
         }
 
         @Test

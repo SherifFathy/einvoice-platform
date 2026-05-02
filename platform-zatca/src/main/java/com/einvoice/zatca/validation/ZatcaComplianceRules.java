@@ -79,21 +79,21 @@ public class ZatcaComplianceRules implements ValidationRule {
     }
 
     private void validateSellerAddress(Invoice invoice, List<ValidationError> errors) {
-        if (invoice.getCompany() == null) {
+        if (invoice.getBranch() == null) {
             return;
         }
-        var company = invoice.getCompany();
-        if (company.getStreet() == null || company.getStreet().isBlank()) {
+        var branch = invoice.getBranch();
+        if (branch.getStreet() == null || branch.getStreet().isBlank()) {
             errors.add(new ValidationError(
                     ValidationLayer.COMPLIANCE, Authority.ZATCA, "ZATCA-004",
-                    "company.street",
+                    "branch.street",
                     "Seller address street is required (BR-KSA-09)",
                     ValidationSeverity.ERROR));
         }
-        if (company.getCity() == null || company.getCity().isBlank()) {
+        if (branch.getCity() == null || branch.getCity().isBlank()) {
             errors.add(new ValidationError(
                     ValidationLayer.COMPLIANCE, Authority.ZATCA, "ZATCA-004",
-                    "company.city",
+                    "branch.city",
                     "Seller address city is required (BR-KSA-09)",
                     ValidationSeverity.ERROR));
         }

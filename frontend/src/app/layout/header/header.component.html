@@ -1,6 +1,8 @@
 <mat-toolbar color="primary">
   <span class="brand">E-Invoice Platform</span>
 
+  <app-context-badge />
+
   <span class="spacer"></span>
 
   <ng-container *ngIf="currentUser">
@@ -27,6 +29,10 @@
     </span>
 
     <span class="user-name">{{ currentUser.name || currentUser.email }}</span>
+
+    @if (currentUser.isSuperUser) {
+      <span class="super-user-badge">Super User</span>
+    }
 
     <button mat-icon-button (click)="logout()">
       <mat-icon>logout</mat-icon>

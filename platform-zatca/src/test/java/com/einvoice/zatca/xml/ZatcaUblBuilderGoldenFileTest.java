@@ -129,12 +129,6 @@ class ZatcaUblBuilderGoldenFileTest {
                 .nameEn("Test Company LLC")
                 .vatNumber("300000000000003")
                 .crNumber("1234567890")
-                .street("King Fahd Road")
-                .buildingNumber("1234")
-                .district("Al Olaya")
-                .city("Riyadh")
-                .postalCode("12211")
-                .countryCode("SA")
                 .build();
 
         Branch branch = Branch.builder()
@@ -143,6 +137,12 @@ class ZatcaUblBuilderGoldenFileTest {
                 .nameAr("فرع الرياض")
                 .nameEn("Riyadh Branch")
                 .branchCode("RIY-001")
+                .street("King Fahd Road")
+                .buildingNumber("1234")
+                .district("Al Olaya")
+                .city("Riyadh")
+                .postalCode("12211")
+                .countryCode("SA")
                 .build();
 
         Customer buyer = Customer.builder()

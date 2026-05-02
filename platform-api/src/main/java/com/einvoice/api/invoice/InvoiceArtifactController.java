@@ -2,6 +2,7 @@ package com.einvoice.api.invoice;
 
 import com.einvoice.api.invoice.dto.ArtifactListResponse;
 import com.einvoice.api.invoice.dto.ArtifactResponse;
+import com.einvoice.core.context.LovContextResolver;
 import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.AuthorityConfig;
 import com.einvoice.core.domain.Invoice;
@@ -40,6 +41,7 @@ public class InvoiceArtifactController {
     private final InvoiceArtifactService artifactService;
     private final EtaDocumentClient etaDocumentClient;
     private final AuthorityConfigRepository authorityConfigRepository;
+    private final LovContextResolver lovContextResolver;
 
     /**
      * Creates the controller with its required dependencies.
@@ -48,15 +50,18 @@ public class InvoiceArtifactController {
      * @param artifactService the artifact service
      * @param etaDocumentClient the ETA document client
      * @param authorityConfigRepository the authority configuration repository
+     * @param lovContextResolver resolves effective LOV context (super-user bypass)
      */
     public InvoiceArtifactController(InvoiceRepository invoiceRepository,
             InvoiceArtifactService artifactService,
             EtaDocumentClient etaDocumentClient,
-            AuthorityConfigRepository authorityConfigRepository) {
+            AuthorityConfigRepository authorityConfigRepository,
+            LovContextResolver lovContextResolver) {
         this.invoiceRepository = invoiceRepository;
         this.artifactService = artifactService;
         this.etaDocumentClient = etaDocumentClient;
         this.authorityConfigRepository = authorityConfigRepository;
+        this.lovContextResolver = lovContextResolver;
     }
 
     /**
@@ -69,7 +74,8 @@ public class InvoiceArtifactController {
     @PreAuthorize("hasAuthority('READ')")
     public ResponseEntity<ArtifactListResponse> listArtifacts(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         List<InvoiceArtifact> artifacts = artifactService.getArtifacts(id);
@@ -97,7 +103,8 @@ public class InvoiceArtifactController {
     public ResponseEntity<byte[]> downloadArtifact(@PathVariable UUID id,
             @PathVariable String type) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         ArtifactType artifactType = ArtifactType.valueOf(type);
@@ -156,7 +163,8 @@ public class InvoiceArtifactController {
     @PreAuthorize("hasAuthority('READ')")
     public ResponseEntity<byte[]> downloadEtaPdf(@PathVariable UUID id) {
         Long companyId = TenantContext.getCurrentTenantId();
-        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId)
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
+        Invoice invoice = invoiceRepository.findByIdAndCompanyId(id, companyId, lovContextId)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
 
         if (invoice.getAuthority() != Authority.ETA) {

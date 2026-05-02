@@ -1,18 +1,20 @@
 package com.einvoice.api.item;
 
-import com.einvoice.api.item.dto.ImportError;
-import com.einvoice.api.item.dto.ImportResponse;
 import com.einvoice.api.item.dto.ItemRequest;
 import com.einvoice.api.item.dto.ItemResponse;
+import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.Item;
 import com.einvoice.core.domain.enums.AuthorityScope;
 import com.einvoice.core.domain.enums.VatCategory;
 import com.einvoice.core.service.ItemExcelTemplateService;
 import com.einvoice.core.service.ItemImportService;
 import com.einvoice.core.service.ItemService;
-import com.einvoice.core.service.importing.ImportResult;
+import com.einvoice.core.service.importing.BulkUploadResult;
+import com.einvoice.core.service.importing.ExcelParseResult;
+import com.einvoice.core.service.importing.RowError;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -157,21 +159,31 @@ public class ItemController {
     }
 
     /**
-     * Imports items from an uploaded Excel file.
+     * Bulk-uploads items from an Excel template.
+     * Validates headers, parses rows, then creates/updates via
+     * {@link ItemService#createBatch}.
      *
      * @param file the multipart Excel file
-     * @return the import result with counts and errors
+     * @return the bulk upload result
      */
-    @PostMapping("/import")
+    @PostMapping("/bulk-upload")
     @PreAuthorize("hasAuthority('CREATE')")
-    public ResponseEntity<ImportResponse> importItems(
+    public ResponseEntity<BulkUploadResult> bulkUploadItems(
             @RequestParam("file") MultipartFile file) {
-        ImportResult result = itemImportService.importItems(file);
-        List<ImportError> errors = result.errors().stream()
-                .map(e -> new ImportError(e.row(), e.field(), e.message()))
-                .toList();
-        return ResponseEntity.ok(new ImportResponse(result.totalRows(),
-                result.importedCount(), result.errorCount(), errors));
+        ExcelParseResult<Item> parsed = itemImportService.parseExcel(file);
+        Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = TenantContext.getLovContextId();
+
+        BulkUploadResult batchResult = itemService.createBatch(
+                parsed.validRows(), companyId, lovContextId);
+
+        List<RowError> allErrors = new ArrayList<>(parsed.errors());
+        allErrors.addAll(batchResult.errors());
+        int totalProcessed = batchResult.processed();
+        int totalFailed = parsed.errors().size() + batchResult.failed();
+
+        return ResponseEntity.ok(
+                new BulkUploadResult(totalProcessed, totalFailed, allErrors));
     }
 
     private AuthorityScope parseAuthorityScope(String scope) {

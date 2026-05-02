@@ -102,14 +102,12 @@ class TenantIsolationSubmissionTest {
         companyA.setNameEn("Submitter A");
         companyA.setNameAr("أ");
         companyA.setVatNumber("300000000000001");
-        companyA.setCountryCode("SA");
         companyA = companyRepository.save(companyA);
 
         companyB = new Company();
         companyB.setNameEn("Submitter B");
         companyB.setNameAr("ب");
         companyB.setVatNumber("400000000000002");
-        companyB.setCountryCode("SA");
         companyB = companyRepository.save(companyB);
 
         branchA = Branch.builder().nameEn("Branch A").company(companyA).build();

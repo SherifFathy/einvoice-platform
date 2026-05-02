@@ -1,6 +1,7 @@
 package com.einvoice.core.service;
 
 import com.einvoice.core.audit.Audited;
+import com.einvoice.core.context.LovContextResolver;
 import com.einvoice.core.context.TenantContext;
 import com.einvoice.core.domain.Branch;
 import com.einvoice.core.domain.Company;
@@ -11,12 +12,14 @@ import com.einvoice.core.domain.User;
 import com.einvoice.core.domain.enums.Authority;
 import com.einvoice.core.domain.enums.InvoiceStatus;
 import com.einvoice.core.domain.enums.InvoiceType;
+import com.einvoice.core.domain.enums.Permission;
 import com.einvoice.core.repository.BranchRepository;
 import com.einvoice.core.repository.CompanyRepository;
 import com.einvoice.core.repository.CustomerRepository;
 import com.einvoice.core.repository.InvoiceRepository;
 import com.einvoice.core.repository.ItemRepository;
 import com.einvoice.core.repository.UserRepository;
+import com.einvoice.core.security.RequiresPermission;
 import com.einvoice.core.service.InvoiceValidationService.ValidationError;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -28,7 +31,6 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +47,7 @@ public class InvoiceService {
     private final InvoiceCalculationService calculationService;
     private final InvoiceValidationService validationService;
     private final InvoiceNumberService invoiceNumberService;
+    private final LovContextResolver lovContextResolver;
 
     /**
      * Creates the invoice service.
@@ -58,6 +61,7 @@ public class InvoiceService {
      * @param calculationService the calculation service
      * @param validationService the validation service
      * @param invoiceNumberService the invoice number service
+     * @param lovContextResolver resolves effective LOV context (super-user bypass)
      */
     public InvoiceService(InvoiceRepository invoiceRepository,
             CompanyRepository companyRepository,
@@ -67,7 +71,8 @@ public class InvoiceService {
             UserRepository userRepository,
             InvoiceCalculationService calculationService,
             InvoiceValidationService validationService,
-            InvoiceNumberService invoiceNumberService) {
+            InvoiceNumberService invoiceNumberService,
+            LovContextResolver lovContextResolver) {
         this.invoiceRepository = invoiceRepository;
         this.companyRepository = companyRepository;
         this.branchRepository = branchRepository;
@@ -77,6 +82,7 @@ public class InvoiceService {
         this.calculationService = calculationService;
         this.validationService = validationService;
         this.invoiceNumberService = invoiceNumberService;
+        this.lovContextResolver = lovContextResolver;
     }
 
     /**
@@ -86,16 +92,21 @@ public class InvoiceService {
      * @return the persisted invoice
      */
     @Transactional
-    @PreAuthorize("hasAuthority('CREATE')")
+    @RequiresPermission(Permission.CREATE_INVOICE)
     @Audited(action = "invoice.create", entityType = "Invoice")
     public Invoice createDraft(Invoice invoice) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = TenantContext.getLovContextId();
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new InvoiceNotFoundException(
                         "Company not found: " + companyId));
         invoice.setCompany(company);
+        if (lovContextId == null) {
+            throw new IllegalStateException("No active LOV context for create operation");
+        }
+        invoice.setLovContextId(lovContextId);
 
-        resolveRelations(invoice, companyId);
+        resolveRelations(invoice, companyId, lovContextId);
 
         applyCurrencyDefault(invoice);
 
@@ -118,13 +129,14 @@ public class InvoiceService {
      * @return the updated invoice
      */
     @Transactional
-    @PreAuthorize("hasAuthority('UPDATE')")
+    @RequiresPermission(Permission.EDIT_INVOICE)
     @Audited(action = "invoice.update", entityType = "Invoice",
             entityClass = Invoice.class)
     public Invoice updateDraft(UUID invoiceId, Invoice updates) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
         Invoice existing = invoiceRepository.findByIdAndCompanyId(invoiceId,
-                companyId)
+                companyId, lovContextId)
                 .orElseThrow(() -> new InvoiceNotFoundException(
                         "Invoice not found: " + invoiceId));
 
@@ -133,7 +145,7 @@ public class InvoiceService {
                     "Only DRAFT invoices can be updated");
         }
 
-        applyUpdates(existing, updates, companyId);
+        applyUpdates(existing, updates, companyId, lovContextId);
 
         applyCurrencyDefault(existing);
 
@@ -152,13 +164,14 @@ public class InvoiceService {
      * @param invoiceId the invoice identifier
      */
     @Transactional
-    @PreAuthorize("hasAuthority('DELETE')")
+    @RequiresPermission(Permission.DELETE_INVOICE)
     @Audited(action = "invoice.cancel", entityType = "Invoice",
             entityClass = Invoice.class)
     public void cancelDraft(UUID invoiceId) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
         Invoice invoice = invoiceRepository.findByIdAndCompanyId(invoiceId,
-                companyId)
+                companyId, lovContextId)
                 .orElseThrow(() -> new InvoiceNotFoundException(
                         "Invoice not found: " + invoiceId));
 
@@ -185,15 +198,19 @@ public class InvoiceService {
      * @return page of matching invoices
      */
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAuthority('READ')")
+    @RequiresPermission(Permission.VIEW_INVOICE_LIST)
     public Page<Invoice> list(InvoiceStatus status, InvoiceType type,
             Authority authority, LocalDate dateFrom, LocalDate dateTo,
             String search, String buyerSearch, Pageable pageable) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
         boolean hasBuyerSearch = buyerSearch != null && !buyerSearch.isBlank();
         Specification<Invoice> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("company").get("id"), companyId));
+            if (lovContextId != null) {
+                predicates.add(cb.equal(root.get("lovContextId"), lovContextId));
+            }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
@@ -235,11 +252,12 @@ public class InvoiceService {
      * @return the invoice with lines and VAT breakdown loaded
      */
     @Transactional(readOnly = true)
-    @PreAuthorize("hasAuthority('READ')")
+    @RequiresPermission(Permission.VIEW_INVOICE_LIST)
     public Invoice getDetail(UUID invoiceId) {
         Long companyId = TenantContext.getCurrentTenantId();
+        Long lovContextId = lovContextResolver.resolveEffectiveLovContextId();
         Invoice invoice = invoiceRepository.findByIdAndCompanyId(invoiceId,
-                companyId)
+                companyId, lovContextId)
                 .orElseThrow(() -> new InvoiceNotFoundException(
                         "Invoice not found: " + invoiceId));
         invoice.getLines().size();
@@ -247,7 +265,7 @@ public class InvoiceService {
         return invoice;
     }
 
-    private void resolveRelations(Invoice invoice, Long companyId) {
+    private void resolveRelations(Invoice invoice, Long companyId, Long lovContextId) {
         if (invoice.getBranch() != null && invoice.getBranch().getId() != null) {
             Branch branch = branchRepository.findById(
                     invoice.getBranch().getId())
@@ -259,7 +277,7 @@ public class InvoiceService {
 
         if (invoice.getBuyer() != null && invoice.getBuyer().getId() != null) {
             Customer buyer = customerRepository.findByIdAndCompanyId(
-                    invoice.getBuyer().getId(), companyId)
+                    invoice.getBuyer().getId(), companyId, lovContextId)
                     .orElseThrow(() -> new InvoiceNotFoundException(
                             "Customer not found: "
                                     + invoice.getBuyer().getId()));
@@ -277,7 +295,7 @@ public class InvoiceService {
                 line.setInvoice(invoice);
                 if (line.getItem() != null && line.getItem().getId() != null) {
                     itemRepository.findByIdAndCompanyId(
-                            line.getItem().getId(), companyId)
+                            line.getItem().getId(), companyId, lovContextId)
                             .ifPresent(line::setItem);
                 }
             }
@@ -286,7 +304,7 @@ public class InvoiceService {
         if (invoice.getOriginalInvoice() != null
                 && invoice.getOriginalInvoice().getId() != null) {
             Invoice original = invoiceRepository.findByIdAndCompanyId(
-                    invoice.getOriginalInvoice().getId(), companyId)
+                    invoice.getOriginalInvoice().getId(), companyId, lovContextId)
                     .orElseThrow(() -> new InvoiceNotFoundException(
                             "Original invoice not found: "
                                     + invoice.getOriginalInvoice().getId()));
@@ -295,7 +313,7 @@ public class InvoiceService {
     }
 
     private void applyUpdates(Invoice existing, Invoice updates,
-            Long companyId) {
+            Long companyId, Long lovContextId) {
         if (updates.getType() != null) {
             existing.setType(updates.getType());
         }
@@ -312,7 +330,7 @@ public class InvoiceService {
         }
         if (updates.getBuyer() != null && updates.getBuyer().getId() != null) {
             Customer buyer = customerRepository.findByIdAndCompanyId(
-                    updates.getBuyer().getId(), companyId)
+                    updates.getBuyer().getId(), companyId, lovContextId)
                     .orElseThrow(() -> new InvoiceNotFoundException(
                             "Customer not found: "
                                     + updates.getBuyer().getId()));
@@ -338,7 +356,7 @@ public class InvoiceService {
                 line.setInvoice(existing);
                 if (line.getItem() != null && line.getItem().getId() != null) {
                     itemRepository.findByIdAndCompanyId(
-                            line.getItem().getId(), companyId)
+                            line.getItem().getId(), companyId, lovContextId)
                             .ifPresent(line::setItem);
                 }
                 existing.getLines().add(line);
@@ -348,7 +366,7 @@ public class InvoiceService {
         if (updates.getOriginalInvoice() != null
                 && updates.getOriginalInvoice().getId() != null) {
             Invoice original = invoiceRepository.findByIdAndCompanyId(
-                    updates.getOriginalInvoice().getId(), companyId)
+                    updates.getOriginalInvoice().getId(), companyId, lovContextId)
                     .orElseThrow(() -> new InvoiceNotFoundException(
                             "Original invoice not found"));
             existing.setOriginalInvoice(original);

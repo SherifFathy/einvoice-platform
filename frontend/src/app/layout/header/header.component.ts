@@ -9,6 +9,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AuthService } from '../../shared/services/auth.service';
 import { PasswordDialogComponent } from './password-dialog.component';
 import { EnvironmentSelectorComponent } from '../../shared/components/environment-selector/environment-selector.component';
+import { ContextBadgeComponent } from '../../shared/components/context-badge/context-badge.component';
 
 @Component({
   selector: 'app-header',
@@ -22,6 +23,7 @@ import { EnvironmentSelectorComponent } from '../../shared/components/environmen
     MatMenuModule,
     MatDialogModule,
     EnvironmentSelectorComponent,
+    ContextBadgeComponent,
   ],
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss'],
