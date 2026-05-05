@@ -16,11 +16,13 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    placeholders:
+      BOOTSTRAP_SUPERUSER_EMAIL: '${BOOTSTRAP_SUPERUSER_EMAIL:}'
+      BOOTSTRAP_SUPERUSER_PASSWORD_HASH: '${BOOTSTRAP_SUPERUSER_PASSWORD_HASH:}'
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY:15m}
-  refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY:7d}
+  ttl-seconds: ${JWT_TTL_SECONDS:28800}
 
 encryption:
   master-key: ${ENCRYPTION_MASTER_KEY}

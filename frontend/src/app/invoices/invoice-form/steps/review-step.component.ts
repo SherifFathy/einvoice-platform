@@ -103,7 +103,7 @@ export class ReviewStepComponent {
     });
   }
 
-  private toLineInput(l: any): LineInput {
+  private toLineInput(l: Record<string, unknown>): LineInput {
     return {
       unitPrice: parseFloat(l.unitPrice) || 0,
       quantity: parseFloat(l.quantity) || 0,
@@ -113,7 +113,7 @@ export class ReviewStepComponent {
     };
   }
 
-  get headerValues(): any {
+  get headerValues(): Record<string, unknown> {
     return this.form?.value || {};
   }
 
@@ -125,12 +125,12 @@ export class ReviewStepComponent {
       .map(([k]) => k);
   }
 
-  get lines(): any[] {
+  get lines(): Record<string, unknown>[] {
     return (this.form?.get('lines') as FormArray)?.value || [];
   }
 
   get lineCalculations(): LineCalculation[] {
-    return this.lines.map((l: any) =>
+    return this.lines.map((l: Record<string, unknown>) =>
       this.calculationService.calculateLine(this.toLineInput(l)),
     );
   }
@@ -138,7 +138,7 @@ export class ReviewStepComponent {
   get vatBreakdown(): VatBreakdownEntry[] {
     const totalAllowances = parseFloat(this.form?.get('totalAllowances')?.value) || 0;
     return this.calculationService.buildVatBreakdown(
-      this.lines.map((l: any) => this.toLineInput(l)),
+      this.lines.map((l: Record<string, unknown>) => this.toLineInput(l)),
       totalAllowances,
     );
   }
@@ -147,7 +147,7 @@ export class ReviewStepComponent {
     const totalAllowances = parseFloat(this.form?.get('totalAllowances')?.value) || 0;
     const prepaidAmount = parseFloat(this.form?.get('prepaidAmount')?.value) || 0;
     return this.calculationService.calculateTotals(
-      this.lines.map((l: any) => this.toLineInput(l)),
+      this.lines.map((l: Record<string, unknown>) => this.toLineInput(l)),
       totalAllowances,
       prepaidAmount,
     );
@@ -155,19 +155,19 @@ export class ReviewStepComponent {
 
   get validationWarnings(): string[] {
     const warnings: string[] = [];
-    const v = this.headerValues;
+    const v = this.headerValues as Record<string, unknown>;
 
-    if (!v.buyerId && (v.type === 'TAX_INVOICE' || v.type === 'INVOICE')) {
+    if (!v['buyerId'] && (v['type'] === 'TAX_INVOICE' || v['type'] === 'INVOICE')) {
       warnings.push('No buyer selected — required for B2B tax invoices');
     }
 
-    if ((v.type === 'CREDIT_NOTE' || v.type === 'DEBIT_NOTE') &&
-        !v.originalInvoiceId && !v.externalInvoiceReference) {
+    if ((v['type'] === 'CREDIT_NOTE' || v['type'] === 'DEBIT_NOTE') &&
+        !v['originalInvoiceId'] && !v['externalInvoiceReference']) {
       warnings.push('Credit/debit note should reference an original invoice');
     }
 
-    if (v.authority === 'ZATCA' && v.supplyDate && v.issueDate &&
-        v.supplyDate > v.issueDate) {
+    if (v['authority'] === 'ZATCA' && v['supplyDate'] && v['issueDate'] &&
+        (v['supplyDate'] as string) > (v['issueDate'] as string)) {
       warnings.push('Supply date is after issue date');
     }
 
@@ -178,7 +178,7 @@ export class ReviewStepComponent {
 
     for (let i = 0; i < this.lines.length; i++) {
       const l = this.lines[i];
-      if (!l.descriptionEn) {
+      if (!l['descriptionEn']) {
         warnings.push(`Line ${i + 1}: Missing description`);
       }
     }

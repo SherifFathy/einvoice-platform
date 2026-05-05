@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BranchResponse, CreateBranchRequest } from './admin.service';
+import { BranchResponse, BranchCreateRequest } from './admin.service';
+
+type CreateBranchRequest = BranchCreateRequest;
 
 export interface CompanyProfile {
   id: number;
@@ -61,12 +63,12 @@ export class CompanyConfigService {
     return this.http.delete<void>(`/api/companies/${companyId}/branches/${branchId}`);
   }
 
-  listAuthorityConfigs(companyId: number, branchId: number): Observable<any[]> {
-    return this.http.get<any[]>(`/api/companies/${companyId}/branches/${branchId}/authority-configs`);
+  listAuthorityConfigs(companyId: number, branchId: number): Observable<Record<string, unknown>[]> {
+    return this.http.get<Record<string, unknown>[]>(`/api/companies/${companyId}/branches/${branchId}/authority-configs`);
   }
 
-  upsertAuthorityConfig(companyId: number, branchId: number, request: any): Observable<any> {
-    return this.http.put(`/api/companies/${companyId}/branches/${branchId}/authority-configs`, request);
+  upsertAuthorityConfig(companyId: number, branchId: number, request: Record<string, unknown>): Observable<Record<string, unknown>> {
+    return this.http.put<Record<string, unknown>>(`/api/companies/${companyId}/branches/${branchId}/authority-configs`, request);
   }
 
   listUsers(companyId: number): Observable<UserCompany[]> {

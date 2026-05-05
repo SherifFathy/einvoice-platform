@@ -1,127 +1,124 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { PageResponse } from '../components/data-table/data-table.component';
 
 export interface CompanyResponse {
-  id: number;
-  nameAr: string;
+  id: string;
   nameEn: string;
-  vatNumber: string;
+  nameAr: string;
+  taxNumber: string;
   crNumber: string | null;
+  logoPath: string | null;
   isActive: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
-export interface CreateCompanyRequest {
-  nameAr: string;
+export interface CompanyCreateRequest {
   nameEn: string;
-  vatNumber: string;
+  nameAr: string;
+  taxNumber: string;
+  crNumber?: string;
+}
+
+export interface CompanyUpdateRequest {
+  nameEn: string;
+  nameAr: string;
+  taxNumber: string;
   crNumber?: string;
 }
 
 export interface BranchResponse {
-  id: number;
-  companyId: number;
-  nameAr: string;
+  id: string;
+  companyId: string;
   nameEn: string;
-  branchCode: string;
-  street: string | null;
-  buildingNumber: string | null;
-  additionalNumber: string | null;
+  nameAr: string;
+  branchCode: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
   city: string | null;
-  district: string | null;
+  region: string | null;
   postalCode: string | null;
-  countryCode: string | null;
-  additionalStreet: string | null;
+  country: string;
+  buildingNumber: string | null;
+  additionalNo: string | null;
+  taxpayerActivityCode: string | null;
   isActive: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
-export interface CreateBranchRequest {
-  nameAr: string;
+export interface BranchCreateRequest {
   nameEn: string;
-  branchCode: string;
-  street?: string;
-  buildingNumber?: string;
-  additionalNumber?: string;
+  nameAr: string;
+  branchCode?: string;
+  addressLine1?: string;
+  addressLine2?: string;
   city?: string;
-  district?: string;
+  region?: string;
   postalCode?: string;
-  countryCode?: string;
-  additionalStreet?: string;
+  country?: string;
+  buildingNumber?: string;
+  additionalNo?: string;
+  taxpayerActivityCode?: string;
 }
 
-export interface AuthorityConfigResponse {
-  id: number;
-  branchId: number;
-  authority: string;
-  environment: string;
-  hasCredentials: boolean;
-  hasCertificate: boolean;
-  hasCsid: boolean;
-  hasPrivateKey: boolean;
-  hasTokenData: boolean;
-  certificateExpiryDate: string | null;
-  invoiceCounter: number;
-  invoicePrefix: string | null;
-  invoiceStartingNumber: number;
-  invoiceResetPolicy: string;
-  enabledDocumentTypes: string;
-  isActive: boolean;
+export interface BranchUpdateRequest {
+  nameEn: string;
+  nameAr: string;
+  branchCode?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+  buildingNumber?: string;
+  additionalNo?: string;
+  taxpayerActivityCode?: string;
 }
 
-export interface CreateAuthorityConfigRequest {
-  authority: string;
-  environment: string;
-  invoicePrefix?: string;
-  invoiceStartingNumber?: number;
-  invoiceResetPolicy?: string;
-}
-
-export interface UpdateAuthorityConfigRequest {
-  invoicePrefix?: string;
-  invoiceStartingNumber?: number;
-  invoiceResetPolicy?: string;
-}
-
-export interface AdminUserResponse {
-  id: number;
+export interface UserResponse {
+  id: string;
   name: string;
   email: string;
-  isActive: boolean;
   isSuperUser: boolean;
-  createdAt: string;
-  companies: AdminUserCompanyAssignment[];
-}
-
-export interface AdminUserCompanyAssignment {
-  companyId: number;
-  companyName: string;
-  role: string;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface CreateUserRequest {
+export interface UserCreateRequest {
   name: string;
   email: string;
   password: string;
+  isSuperUser?: boolean;
 }
 
-export interface UpdateUserRequest {
+export interface UserUpdateRequest {
   name?: string;
   email?: string;
+  password?: string;
+  isSuperUser?: boolean;
 }
 
-export interface AssignUserCompanyRequest {
-  companyId: number;
-  role: string;
+export interface AssignmentResponse {
+  id: string;
+  userId: string;
+  companyId: string;
+  authorityEnvironmentId: number;
+  transactionType: string;
+  roleCode: string;
+  isActive: boolean;
+  grantedBy: string | null;
+  grantedAt: string;
 }
 
-export interface BulkPermissionRequest {
-  companyId: number;
-  lovContextId: number;
-  permissions: string[];
+export interface AssignmentCreateRequest {
+  companyId: string;
+  authorityEnvironmentId: number;
+  transactionType: string;
+  roleCode: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -129,121 +126,70 @@ export class AdminService {
   private http = inject(HttpClient);
   private readonly apiUrl = '/api/admin';
 
-  listCompanies(page: number, size: number): Observable<PageResponse<CompanyResponse>> {
-    return this.http.get<PageResponse<CompanyResponse>>(
-        `${this.apiUrl}/companies?page=${page}&size=${size}`);
+  listCompanies(includeInactive = false): Observable<CompanyResponse[]> {
+    return this.http.get<CompanyResponse[]>(
+        `${this.apiUrl}/companies?includeInactive=${includeInactive}`);
   }
 
-  createCompany(request: CreateCompanyRequest): Observable<CompanyResponse> {
+  createCompany(request: CompanyCreateRequest): Observable<CompanyResponse> {
     return this.http.post<CompanyResponse>(`${this.apiUrl}/companies`, request);
   }
 
-  activateCompany(id: number): Observable<CompanyResponse> {
-    return this.http.post<CompanyResponse>(`${this.apiUrl}/companies/${id}/activate`, {});
-  }
-
-  deactivateCompany(id: number): Observable<CompanyResponse> {
-    return this.http.post<CompanyResponse>(`${this.apiUrl}/companies/${id}/deactivate`, {});
-  }
-
-  updateCompany(id: number, request: Record<string, string>): Observable<CompanyResponse> {
+  updateCompany(id: string, request: CompanyUpdateRequest): Observable<CompanyResponse> {
     return this.http.put<CompanyResponse>(`${this.apiUrl}/companies/${id}`, request);
   }
 
-  listBranches(companyId: number): Observable<BranchResponse[]> {
+  deactivateCompany(id: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/companies/${id}/deactivate`, {});
+  }
+
+  listBranches(companyId: string): Observable<BranchResponse[]> {
     return this.http.get<BranchResponse[]>(
         `${this.apiUrl}/companies/${companyId}/branches`);
   }
 
-  createBranch(companyId: number, request: CreateBranchRequest): Observable<BranchResponse> {
+  createBranch(companyId: string, request: BranchCreateRequest): Observable<BranchResponse> {
     return this.http.post<BranchResponse>(
         `${this.apiUrl}/companies/${companyId}/branches`, request);
   }
 
-  updateBranch(companyId: number, branchId: number, request: CreateBranchRequest): Observable<BranchResponse> {
-    return this.http.put<BranchResponse>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}`, request);
+  updateBranch(id: string, request: BranchUpdateRequest): Observable<BranchResponse> {
+    return this.http.put<BranchResponse>(`${this.apiUrl}/branches/${id}`, request);
   }
 
-  deleteBranch(companyId: number, branchId: number): Observable<void> {
+  listUsers(includeInactive = false): Observable<UserResponse[]> {
+    return this.http.get<UserResponse[]>(
+        `${this.apiUrl}/users?includeInactive=${includeInactive}`);
+  }
+
+  createUser(request: UserCreateRequest): Observable<UserResponse> {
+    return this.http.post<UserResponse>(`${this.apiUrl}/users`, request);
+  }
+
+  updateUser(id: string, request: UserUpdateRequest): Observable<UserResponse> {
+    return this.http.put<UserResponse>(`${this.apiUrl}/users/${id}`, request);
+  }
+
+  activateUser(id: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/users/${id}/activate`, {});
+  }
+
+  deactivateUser(id: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/users/${id}/deactivate`, {});
+  }
+
+  listAssignments(userId: string): Observable<AssignmentResponse[]> {
+    return this.http.get<AssignmentResponse[]>(
+        `${this.apiUrl}/users/${userId}/assignments`);
+  }
+
+  createAssignment(userId: string, request: AssignmentCreateRequest): Observable<AssignmentResponse> {
+    return this.http.post<AssignmentResponse>(
+        `${this.apiUrl}/users/${userId}/assignments`, request);
+  }
+
+  deleteAssignment(userId: string, assignmentId: string): Observable<void> {
     return this.http.delete<void>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}`);
-  }
-
-  listAuthorityConfigs(companyId: number, branchId: number): Observable<AuthorityConfigResponse[]> {
-    return this.http.get<AuthorityConfigResponse[]>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}/authority-configs`);
-  }
-
-  createAuthorityConfig(companyId: number, branchId: number,
-      request: CreateAuthorityConfigRequest): Observable<AuthorityConfigResponse> {
-    return this.http.post<AuthorityConfigResponse>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}/authority-configs`, request);
-  }
-
-  updateAuthorityConfigSettings(companyId: number, branchId: number, configId: number,
-      request: UpdateAuthorityConfigRequest): Observable<AuthorityConfigResponse> {
-    return this.http.post<AuthorityConfigResponse>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}/authority-configs/${configId}/settings`,
-        request);
-  }
-
-  uploadCredentials(companyId: number, branchId: number, configId: number,
-      data: ArrayBuffer): Observable<AuthorityConfigResponse> {
-    return this.http.post<AuthorityConfigResponse>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}/authority-configs/${configId}/credentials`,
-        data, { headers: { 'Content-Type': 'application/octet-stream' } });
-  }
-
-  uploadCertificate(companyId: number, branchId: number, configId: number,
-      data: ArrayBuffer): Observable<AuthorityConfigResponse> {
-    return this.http.post<AuthorityConfigResponse>(
-        `${this.apiUrl}/companies/${companyId}/branches/${branchId}/authority-configs/${configId}/certificate`,
-        data, { headers: { 'Content-Type': 'application/octet-stream' } });
-  }
-
-  listUsers(): Observable<AdminUserResponse[]> {
-    return this.http.get<AdminUserResponse[]>(`${this.apiUrl}/users`);
-  }
-
-  createUser(request: CreateUserRequest): Observable<AdminUserResponse> {
-    return this.http.post<AdminUserResponse>(`${this.apiUrl}/users`, request);
-  }
-
-  updateUser(id: number, request: UpdateUserRequest): Observable<AdminUserResponse> {
-    return this.http.put<AdminUserResponse>(`${this.apiUrl}/users/${id}`, request);
-  }
-
-  resetPassword(id: number, newPassword: string): Observable<void> {
-    return this.http.put<void>(`${this.apiUrl}/users/${id}/password`, { newPassword });
-  }
-
-  activateUser(id: number): Observable<AdminUserResponse> {
-    return this.http.put<AdminUserResponse>(`${this.apiUrl}/users/${id}/activate`, {});
-  }
-
-  deactivateUser(id: number): Observable<AdminUserResponse> {
-    return this.http.put<AdminUserResponse>(`${this.apiUrl}/users/${id}/deactivate`, {});
-  }
-
-  deleteUser(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/users/${id}`);
-  }
-
-  assignUserToCompany(userId: number, request: AssignUserCompanyRequest): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/users/${userId}/companies`, request);
-  }
-
-  removeUserFromCompany(userId: number, companyId: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/users/${userId}/companies/${companyId}`);
-  }
-
-  bulkSetPermissions(userId: number, request: BulkPermissionRequest): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/users/${userId}/permissions`, request);
-  }
-
-  getUserPermissions(userId: number, companyId: number, lovContextId: number): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiUrl}/users/${userId}/permissions`,
-        { params: { companyId: companyId.toString(), lovContextId: lovContextId.toString() } });
+        `${this.apiUrl}/users/${userId}/assignments/${assignmentId}`);
   }
 }

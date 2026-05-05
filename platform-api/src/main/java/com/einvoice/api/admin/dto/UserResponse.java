@@ -1,14 +1,15 @@
 package com.einvoice.api.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
-import java.util.List;
+import java.util.UUID;
 
 public record UserResponse(
-        Long id,
-        String name,
-        String email,
-        Boolean isActive,
-        Boolean isSuperUser,
-        OffsetDateTime createdAt,
-        List<UserCompanyAssignment> companies
+        @JsonProperty("id") UUID id,
+        @JsonProperty("name") String name,
+        @JsonProperty("email") String email,
+        @JsonProperty("isSuperUser") Boolean isSuperUser,
+        @JsonProperty("isActive") Boolean isActive,
+        @JsonProperty("createdAt") OffsetDateTime createdAt,
+        @JsonProperty("updatedAt") OffsetDateTime updatedAt
 ) {}

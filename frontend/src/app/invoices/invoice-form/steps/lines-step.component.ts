@@ -141,17 +141,17 @@ export class LinesStepComponent implements OnInit, OnDestroy {
   }
 
   recalcTotals(): void {
-    const lines = this.linesArray?.value as any[] || [];
+    const lines = this.linesArray?.value as Record<string, unknown>[] || [];
     const totalAllowances = parseFloat(this.form?.get('totalAllowances')?.value) || 0;
     const prepaidAmount = parseFloat(this.form?.get('prepaidAmount')?.value) || 0;
 
-    const lineInputs = lines.map((l: any) => this.toLineInput(l));
+    const lineInputs = lines.map((l: Record<string, unknown>) => this.toLineInput(l));
     this.lineCalculations = lineInputs.map(li => this.calculationService.calculateLine(li));
     this.vatBreakdown = this.calculationService.buildVatBreakdown(lineInputs, totalAllowances);
     this.totals = this.calculationService.calculateTotals(lineInputs, totalAllowances, prepaidAmount);
   }
 
-  private toLineInput(l: any): LineInput {
+  private toLineInput(l: Record<string, unknown>): LineInput {
     return {
       unitPrice: parseFloat(l.unitPrice) || 0,
       quantity: parseFloat(l.quantity) || 0,

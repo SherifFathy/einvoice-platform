@@ -36,7 +36,7 @@ export class ConfigComponent implements OnInit {
   private toast = inject(ToastNotificationService);
   private etaPollingService = inject(EtaPollingService);
 
-  branches: { id: number; nameEn: string; branchCode: string }[] = [];
+  branches: { id: string; nameEn: string; branchCode: string | null }[] = [];
   displayedColumns = ['nameEn', 'branchCode', 'actions'];
   loading = false;
 

@@ -215,7 +215,7 @@ export class InvoiceFormComponent implements OnChanges {
 
   private buildRequest(): CreateInvoiceRequest {
     const formVal = this.form.value;
-    const lines: InvoiceLineRequest[] = formVal.lines.map((l: any, i: number) => ({
+    const lines: InvoiceLineRequest[] = formVal.lines.map((l: Record<string, unknown>, i: number) => ({
       itemId: l.itemId || null,
       descriptionEn: l.descriptionEn,
       quantity: parseFloat(l.quantity),
@@ -274,7 +274,7 @@ export class InvoiceFormComponent implements OnChanges {
       error: (err) => {
         const errors = err.error?.errors;
         if (errors && Array.isArray(errors)) {
-          this.toast.error(errors.map((e: any) => `${e.field}: ${e.message}`).join('; '));
+          this.toast.error(errors.map((e: { field: string; message: string }) => `${e.field}: ${e.message}`).join('; '));
         } else {
           this.toast.error(err.error?.error || 'Failed to save invoice');
         }
@@ -283,7 +283,7 @@ export class InvoiceFormComponent implements OnChanges {
     });
   }
 
-  async onStepperSelectionChange(event: any): Promise<void> {
+  async onStepperSelectionChange(event: { selectedIndex: number }): Promise<void> {
     if (event.selectedIndex !== 3) return;
     if (this.isEdit || !this.reviewStep) return;
     if (!this.form.valid || this.linesArray.length === 0) return;

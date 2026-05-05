@@ -1,4 +1,2 @@
-/**
- * Scheduled jobs and background task execution.
- */
+/** Placeholder for future jobs module. */
 package com.einvoice.jobs;

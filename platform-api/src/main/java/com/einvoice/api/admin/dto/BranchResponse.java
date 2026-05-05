@@ -1,24 +1,25 @@
 package com.einvoice.api.admin.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
-/**
- * Response DTO representing a branch belonging to a company.
- */
 public record BranchResponse(
-        Long id,
-        Long companyId,
-        String nameAr,
-        String nameEn,
-        String branchCode,
-        String street,
-        String buildingNumber,
-        String additionalNumber,
-        String city,
-        String district,
-        String postalCode,
-        String countryCode,
-        String additionalStreet,
-        Boolean isActive,
-        OffsetDateTime createdAt
+        @JsonProperty("id") UUID id,
+        @JsonProperty("companyId") UUID companyId,
+        @JsonProperty("nameEn") String nameEn,
+        @JsonProperty("nameAr") String nameAr,
+        @JsonProperty("branchCode") String branchCode,
+        @JsonProperty("addressLine1") String addressLine1,
+        @JsonProperty("addressLine2") String addressLine2,
+        @JsonProperty("city") String city,
+        @JsonProperty("region") String region,
+        @JsonProperty("postalCode") String postalCode,
+        @JsonProperty("country") String country,
+        @JsonProperty("buildingNumber") String buildingNumber,
+        @JsonProperty("additionalNo") String additionalNo,
+        @JsonProperty("taxpayerActivityCode") String taxpayerActivityCode,
+        @JsonProperty("isActive") Boolean isActive,
+        @JsonProperty("createdAt") OffsetDateTime createdAt,
+        @JsonProperty("updatedAt") OffsetDateTime updatedAt
 ) {}

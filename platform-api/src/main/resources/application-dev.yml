@@ -17,8 +17,7 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:ZGV2LW9ubHktc2VjcmV0LWtleS1mb3Itand0LTEyMzQ1Ng==}
-  access-token-expiry: ${JWT_ACCESS_TOKEN_EXPIRY:30m}
-  refresh-token-expiry: ${JWT_REFRESH_TOKEN_EXPIRY:30d}
+  ttl-seconds: ${JWT_TTL_SECONDS:28800}
 
 encryption:
   master-key: ${ENCRYPTION_MASTER_KEY:dGVzdC1tYXN0ZXIta2V5LWRldi1vbmx5LTMyYnl0ZXM=}

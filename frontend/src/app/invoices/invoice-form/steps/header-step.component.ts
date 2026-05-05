@@ -1,6 +1,6 @@
 import { Component, EventEmitter, inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormGroup } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
@@ -9,6 +9,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { Subscription } from 'rxjs';
 import { CompanyConfigService } from '../../../shared/services/company-config.service';
+import { BranchResponse } from '../../../shared/services/admin.service';
 
 export const ZATCA_INVOICE_TYPES = [
   { value: 'TAX_INVOICE', label: 'Tax Invoice' },
@@ -53,8 +54,8 @@ export class HeaderStepComponent implements OnChanges, OnInit, OnDestroy {
   private companyConfig = inject(CompanyConfigService);
   private branchSub: Subscription | null = null;
 
-  branches: any[] = [];
-  authorityConfigs: any[] = [];
+  branches: BranchResponse[] = [];
+  authorityConfigs: Record<string, unknown>[] = [];
   enabledDocumentTypes: string[] = [];
 
   get authority(): string {
@@ -121,7 +122,7 @@ export class HeaderStepComponent implements OnChanges, OnInit, OnDestroy {
   onAuthorityChange(authority: string): void {
     const currentCurrency = this.form.get('currency')?.value;
     const defaultCurrency = authority === 'ZATCA' ? 'SAR' : 'EGP';
-    const patch: Record<string, any> = {
+    const patch: Record<string, unknown> = {
       type: authority === 'ZATCA' ? 'TAX_INVOICE' : 'INVOICE',
     };
     if (!currentCurrency || currentCurrency === 'SAR' || currentCurrency === 'EGP') {
@@ -167,9 +168,9 @@ export class HeaderStepComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private loadEtaDocumentTypes(): void {
-    const etaConfig = this.authorityConfigs.find((c: any) => c.authority === 'ETA');
-    if (etaConfig?.enabledDocumentTypes) {
-      this.enabledDocumentTypes = etaConfig.enabledDocumentTypes;
+    const etaConfig = this.authorityConfigs.find(c => c['authority'] === 'ETA');
+    if (etaConfig?.['enabledDocumentTypes']) {
+      this.enabledDocumentTypes = etaConfig['enabledDocumentTypes'] as string[];
     } else {
       this.enabledDocumentTypes = [];
     }

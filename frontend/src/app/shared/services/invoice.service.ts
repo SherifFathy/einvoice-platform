@@ -28,8 +28,8 @@ export interface InvoiceDetailResponse {
   currency: string;
   buyerId: number | null;
   buyerName: string | null;
-  buyerData: Record<string, any> | null;
-  sellerData: Record<string, any> | null;
+  buyerData: Record<string, unknown> | null;
+  sellerData: Record<string, unknown> | null;
   paymentMeansCode: string | null;
   paymentTerms: string | null;
   prepaidAmount: number;

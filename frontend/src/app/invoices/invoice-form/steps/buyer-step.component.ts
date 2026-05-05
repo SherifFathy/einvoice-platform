@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, inject, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormBuilder, Validators, FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -49,7 +49,7 @@ export class BuyerStepComponent implements OnChanges {
   customers: CustomerResponse[] = [];
   selectedCustomer: CustomerResponse | null = null;
   searchTerm = '';
-  invoices: any[] = [];
+  invoices: Record<string, unknown>[] = [];
   invoiceSearchTerm = '';
   isB2b = false;
   showInlineCreate = false;
@@ -150,7 +150,7 @@ export class BuyerStepComponent implements OnChanges {
     });
   }
 
-  selectInvoice(invoice: any): void {
+  selectInvoice(invoice: Record<string, unknown>): void {
     this.form.patchValue({ originalInvoiceId: invoice.id });
     this.invoices = [];
     this.invoiceSearchTerm = '';

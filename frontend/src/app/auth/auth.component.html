@@ -1,36 +1,12 @@
 <div class="login-container">
   <mat-card class="login-card">
     <mat-card-header>
-      <mat-card-title>E-Invoice Platform</mat-card-title>
+      <mat-card-title>Global E-Invoicing Gateway</mat-card-title>
       <mat-card-subtitle>Sign in to your account</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Authority</mat-label>
-          <mat-select formControlName="authority">
-            <mat-option *ngFor="let opt of authorityOptions" [value]="opt.value">{{ opt.label }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('authority')?.hasError('required')">Authority is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Document Type</mat-label>
-          <mat-select formControlName="docType">
-            <mat-option *ngFor="let opt of docTypeOptions" [value]="opt.value">{{ opt.label }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('docType')?.hasError('required')">Document type is required</mat-error>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Sub-Environment</mat-label>
-          <mat-select formControlName="subEnvironment">
-            <mat-option *ngFor="let opt of subEnvOptions" [value]="opt.value">{{ opt.label }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('subEnvironment')?.hasError('required')">Sub-environment is required</mat-error>
-        </mat-form-field>
-
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Email</mat-label>
           <input matInput type="email" formControlName="email" autocomplete="email" />
@@ -44,6 +20,38 @@
           <mat-error *ngIf="form.get('password')?.hasError('required')">Password is required</mat-error>
         </mat-form-field>
 
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Authority</mat-label>
+          <mat-select formControlName="authority">
+            <mat-option *ngFor="let opt of authorityOptions" [value]="opt.value">{{ opt.label }}</mat-option>
+          </mat-select>
+          <mat-error *ngIf="form.get('authority')?.hasError('required')">Authority is required</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Environment</mat-label>
+          <mat-select formControlName="environment">
+            <mat-option *ngFor="let env of environmentOptions" [value]="env.environment">{{ env.label }}</mat-option>
+          </mat-select>
+          <mat-spinner matSuffix *ngIf="loadingEnvironments" diameter="16"></mat-spinner>
+          <mat-error *ngIf="form.get('environment')?.hasError('required')">Environment is required</mat-error>
+          <mat-hint *ngIf="!loadingEnvironments && form.get('authority')?.value && environmentOptions.length === 0">
+            No environments configured for this authority
+          </mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Company</mat-label>
+          <mat-select formControlName="companyId">
+            <mat-option *ngIf="isSuperUser" [value]="null">Continue without company (Admin Mode)</mat-option>
+            <mat-option *ngFor="let c of companyOptions" [value]="c.companyId">{{ c.nameEn }}</mat-option>
+          </mat-select>
+          <mat-spinner matSuffix *ngIf="loadingCompanies" diameter="16"></mat-spinner>
+          <mat-hint *ngIf="!loadingCompanies && !isSuperUser && companyOptions.length === 0 && form.get('environment')?.value">
+            No companies available for this selection
+          </mat-hint>
+        </mat-form-field>
+
         <div *ngIf="errorMessage" class="error-message">
           {{ errorMessage }}
         </div>
@@ -53,7 +61,7 @@
           color="primary"
           type="submit"
           class="full-width login-button"
-          [disabled]="form.invalid || !authorityValue || !docTypeValue || !subEnvValue || submitting"
+          [disabled]="loginDisabled"
         >
           <mat-spinner *ngIf="submitting" diameter="20"></mat-spinner>
           <span *ngIf="!submitting">Sign In</span>

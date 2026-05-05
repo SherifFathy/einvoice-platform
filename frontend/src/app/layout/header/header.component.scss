@@ -7,16 +7,6 @@
   margin-right: 16px;
 }
 
-.user-name {
-  margin-left: 16px;
-  margin-right: 8px;
-  font-size: 14px;
-}
-
-.env-selector-wrapper {
-  margin-left: 12px;
-}
-
 .super-user-badge {
   background-color: #ff9800;
   color: white;
@@ -28,4 +18,8 @@
   margin-right: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+mat-chip-set {
+  margin-left: 16px;
 }

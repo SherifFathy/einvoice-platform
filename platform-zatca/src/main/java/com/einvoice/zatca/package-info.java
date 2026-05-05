@@ -1,4 +1,2 @@
-/**
- * ZATCA (Saudi Arabia) e-invoicing compliance adapter.
- */
+/** Placeholder for future zatca module. */
 package com.einvoice.zatca;

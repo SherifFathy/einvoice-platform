@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
-import { CustomerService, BulkUploadResult, RowError } from '../../shared/services/customer.service';
+import { CustomerService, BulkUploadResult } from '../../shared/services/customer.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 
 @Component({

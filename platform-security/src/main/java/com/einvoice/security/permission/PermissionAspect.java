@@ -1,15 +1,16 @@
 package com.einvoice.security.permission;
 
-import com.einvoice.core.domain.enums.Permission;
+import com.einvoice.core.error.CompanyContextRequiredException;
 import com.einvoice.core.security.RequiresPermission;
+import com.einvoice.security.tenant.TenantContext;
+import java.util.UUID;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
-/** AOP aspect that enforces fine-grained permission checks on annotated methods. */
+/** Javadoc. */
 @Aspect
 @Component
 public class PermissionAspect {
@@ -21,23 +22,45 @@ public class PermissionAspect {
     }
 
     /**
-     * Intercepts methods annotated with {@link RequiresPermission} and checks access.
-     *
-     * @param joinPoint the intercepted join point
-     * @return the result of proceeding with the method execution
-     * @throws Throwable if the underlying method or permission check fails
+     * Javadoc.
+     * @param joinPoint AOP join point
+     * @return proceeding result
      */
     @Around("@annotation(com.einvoice.core.security.RequiresPermission)")
     public Object checkPermission(ProceedingJoinPoint joinPoint) throws Throwable {
-        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
-        RequiresPermission annotation = signature.getMethod()
-                .getAnnotation(RequiresPermission.class);
-        Permission required = annotation.value();
+        TenantContext.Holder ctx = TenantContext.current();
+        if (ctx == null) {
+            throw new CompanyContextRequiredException("No tenant context");
+        }
 
-        var permissions = permissionService.getCurrentPermissions();
-        if (!permissions.contains(required)) {
-            throw new AccessDeniedException(
-                    "Missing permission: " + required.name());
+        if (ctx.isSuperUser() && ctx.mode() == TenantContext.Mode.OPERATIONAL_MODE) {
+            return joinPoint.proceed();
+        }
+
+        if (ctx.mode() == TenantContext.Mode.ADMIN_MODE) {
+            throw new CompanyContextRequiredException(
+                    "Admin Mode cannot access operational endpoints");
+        }
+
+        RequiresPermission annotation = ((MethodSignature) joinPoint.getSignature())
+                .getMethod().getAnnotation(RequiresPermission.class);
+
+        String transactionType = annotation.transactionType();
+        String action = annotation.action();
+
+        UUID companyId = ctx.companyId();
+        if (companyId == null) {
+            throw new CompanyContextRequiredException(
+                    "A company selection is required for operational endpoints");
+        }
+
+        boolean hasPermission = permissionService.hasPermission(
+                ctx.userId(), companyId, ctx.authorityEnvironmentId(),
+                transactionType, action);
+
+        if (!hasPermission) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Missing permission: " + transactionType + ":" + action);
         }
 
         return joinPoint.proceed();

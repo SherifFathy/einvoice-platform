@@ -1,63 +1,34 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { Router } from '@angular/router';
+import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { SessionContextService } from '../services/session-context.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
-  const token = authService.getAccessToken();
+  const sessionCtx = inject(SessionContextService);
+  const router = inject(Router);
+  const token = authService.getToken();
 
   const skipAuth =
-    req.url.includes('/api/auth/login') ||
-    req.url.includes('/api/auth/refresh') ||
-    req.url.includes('/api/auth/logout');
+    req.url.includes('/api/auth/environments') ||
+    req.url.includes('/api/auth/companies') ||
+    req.url.includes('/api/auth/login');
 
   let authReq = req;
   if (token && !skipAuth) {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${token}`,
-    };
-
-    const env = authService.getActiveEnvironment();
-    if (env) {
-      headers['X-Environment'] = env;
-    }
-
-    const lovContextId = authService.getLovContextId();
-    if (lovContextId !== null) {
-      headers['X-Lov-Context'] = String(lovContextId);
-    }
-
-    authReq = req.clone({ setHeaders: headers });
+    authReq = req.clone({
+      setHeaders: { Authorization: `Bearer ${token}` },
+    });
   }
 
   return next(authReq).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 && token && !skipAuth) {
-        const refreshToken = authService.getRefreshToken();
-        if (refreshToken) {
-          return authService.refresh(refreshToken).pipe(
-            switchMap((response) => {
-              const retryHeaders: Record<string, string> = {
-                Authorization: `Bearer ${response.accessToken}`,
-              };
-              const retryEnv = authService.getActiveEnvironment();
-              if (retryEnv) {
-                retryHeaders['X-Environment'] = retryEnv;
-              }
-              const retryLovContextId = authService.getLovContextId();
-              if (retryLovContextId !== null) {
-                retryHeaders['X-Lov-Context'] = String(retryLovContextId);
-              }
-              const retryReq = req.clone({ setHeaders: retryHeaders });
-              return next(retryReq);
-            }),
-            catchError(() => {
-              authService.clearAuth();
-              return throwError(() => error);
-            }),
-          );
-        }
+      if (error.status === 401 && !skipAuth) {
+        authService.clearAuth();
+        sessionCtx.clear();
+        router.navigate(['/login']);
       }
       return throwError(() => error);
     }),

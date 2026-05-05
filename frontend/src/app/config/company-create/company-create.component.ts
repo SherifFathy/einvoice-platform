@@ -73,7 +73,7 @@ export class CompanyCreateComponent {
     });
   }
 
-  onPageChange(event: any): void {
+  onPageChange(event: { pageIndex: number; pageSize: number }): void {
     this.page = event.pageIndex;
     this.pageSize = event.pageSize;
     this.loadCompanies();

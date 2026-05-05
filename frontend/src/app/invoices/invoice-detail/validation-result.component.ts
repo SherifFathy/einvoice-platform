@@ -73,7 +73,7 @@ export class ValidationResultComponent {
   getItemsForLayer(layer: string): ValidationItem[] {
     return [...this.errors, ...this.warnings]
       .filter(item => item.layer === layer)
-      .sort((a, b) => (a.severity === 'ERROR' ? -1 : 1));
+      .sort((a) => (a.severity === 'ERROR' ? -1 : 1));
   }
 
   layerLabel(layer: string): string {

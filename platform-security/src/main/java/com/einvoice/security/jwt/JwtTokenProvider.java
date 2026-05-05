@@ -1,28 +1,26 @@
 package com.einvoice.security.jwt;
 
-import com.einvoice.core.service.TokenService;
+import com.einvoice.security.tenant.TenantContext;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.util.Base64;
 import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 
-/** Generates, validates, and parses JWT tokens for authentication. */
+/** Javadoc. */
 @Service
-public class JwtTokenProvider implements TokenService {
+public class JwtTokenProvider {
 
     private final SecretKey key;
     private final JwtProperties jwtProperties;
 
     /**
-     * Creates a JwtTokenProvider with the given JWT configuration.
-     *
-     * @param jwtProperties JWT configuration properties
+     * Javadoc.
+     * @param jwtProperties jwt configuration
      */
     public JwtTokenProvider(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
@@ -30,59 +28,74 @@ public class JwtTokenProvider implements TokenService {
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    @Override
-    public String generateAccessToken(Long userId, String name, String email,
-            Long activeCompanyId, String role, List<String> permittedEnvironments,
-            List<Map<String, Object>> availableCompanies, String activeEnvironment,
-            String authority, String docType, String subEnv,
-            Long lovContextId, List<String> permissions, boolean isSuperUser) {
+    /**
+     * Javadoc.
+     * @param userId user identifier
+     * @param email user email
+     * @param isSuperUser super user flag
+     * @param authority authority name
+     * @param environment environment name
+     * @param authorityEnvironmentId authority environment id
+     * @param companyId company identifier
+     * @param mode session mode
+     * @return token string
+     */
+    public String createToken(UUID userId, String email, boolean isSuperUser,
+            String authority, String environment, Short authorityEnvironmentId,
+            UUID companyId, TenantContext.Mode mode) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime()
-                + jwtProperties.getAccessTokenExpirySeconds() * 1000);
+        Date expiry = new Date(now.getTime() + jwtProperties.getTtlSeconds() * 1000L);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
-                .claim("name", name)
                 .claim("email", email)
-                .claim("activeCompanyId", activeCompanyId)
-                .claim("role", role)
-                .claim("permittedEnvironments", permittedEnvironments)
-                .claim("availableCompanies", availableCompanies)
-                .claim("activeEnvironment", activeEnvironment)
-                .claim("active_authority", authority)
-                .claim("active_doc_type", docType)
-                .claim("active_sub_env", subEnv)
-                .claim("lov_context_id", lovContextId)
-                .claim("permissions", permissions)
-                .claim("is_super_user", isSuperUser)
+                .claim("isSuperUser", isSuperUser)
+                .claim("authority", authority)
+                .claim("environment", environment)
+                .claim("authorityEnvironmentId", authorityEnvironmentId)
+                .claim("mode", mode.name())
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(key)
-                .compact();
-    }
+                .expiration(expiry);
 
-    @Override
-    public String generateRefreshToken(Long userId, Long activeCompanyId, Long lovContextId) {
-        Date now = new Date();
-        Date expiry = new Date(now.getTime()
-                + jwtProperties.getRefreshTokenExpirySeconds() * 1000);
+        if (companyId != null) {
+            builder.claim("companyId", companyId.toString());
+        }
 
-        return Jwts.builder()
-                .subject(userId.toString())
-                .claim("type", "refresh")
-                .claim("activeCompanyId", activeCompanyId)
-                .claim("lov_context_id", lovContextId)
-                .issuedAt(now)
-                .expiration(expiry)
-                .signWith(key)
-                .compact();
+        return builder.signWith(key).compact();
     }
 
     /**
-     * Parses and validates a JWT, returning its claims.
-     *
-     * @param token the JWT string to parse
-     * @return the parsed JWT claims
+     * Javadoc.
+     * @param token JWT token string
+     * @return tenant context holder
+     */
+    public TenantContext.Holder parseToTenantContext(String token) {
+        Claims claims = parseToken(token);
+
+        UUID userId = UUID.fromString(claims.getSubject());
+        String email = claims.get("email", String.class);
+        boolean isSuperUser = Boolean.TRUE.equals(claims.get("isSuperUser", Boolean.class));
+        String authority = claims.get("authority", String.class);
+        String environment = claims.get("environment", String.class);
+        Short authorityEnvironmentId = toShort(claims.get("authorityEnvironmentId"));
+        TenantContext.Mode mode = TenantContext.Mode.valueOf(claims.get("mode", String.class));
+
+        String companyIdStr = claims.get("companyId", String.class);
+        UUID companyId = companyIdStr != null ? UUID.fromString(companyIdStr) : null;
+
+        long issuedAt = claims.getIssuedAt() != null ? claims.getIssuedAt().getTime() : 0L;
+        String jti = claims.getId();
+
+        return new TenantContext.Holder(
+                userId, companyId, authorityEnvironmentId,
+                authority, environment, mode, isSuperUser, issuedAt, jti);
+    }
+
+    /**
+     * Javadoc.
+     * @param token JWT token string
+     * @return parsed claims
      */
     public Claims parseToken(String token) {
         return Jwts.parser()
@@ -93,10 +106,9 @@ public class JwtTokenProvider implements TokenService {
     }
 
     /**
-     * Validates a token without throwing.
-     *
-     * @param token the JWT string to validate
-     * @return true if the token is valid, false otherwise
+     * Javadoc.
+     * @param token JWT token string
+     * @return true if valid
      */
     public boolean validateToken(String token) {
         try {
@@ -107,39 +119,17 @@ public class JwtTokenProvider implements TokenService {
         }
     }
 
-    @Override
-    public Long getUserIdFromToken(String token) {
-        Claims claims = parseToken(token);
-        return Long.parseLong(claims.getSubject());
+    public long getTtlSeconds() {
+        return jwtProperties.getTtlSeconds();
     }
 
-    @Override
-    public Long getActiveCompanyIdFromToken(String token) {
-        Claims claims = parseToken(token);
-        Object activeCompanyId = claims.get("activeCompanyId");
-        if (activeCompanyId instanceof Number number) {
-            return number.longValue();
+    private Short toShort(Object raw) {
+        if (raw == null) {
+            return null;
         }
-        return null;
-    }
-
-    @Override
-    public Long getLovContextIdFromToken(String token) {
-        Claims claims = parseToken(token);
-        Object lovContextId = claims.get("lov_context_id");
-        if (lovContextId instanceof Number number) {
-            return number.longValue();
+        if (raw instanceof Number number) {
+            return number.shortValue();
         }
-        return null;
-    }
-
-    @Override
-    public long getAccessTokenExpirySeconds() {
-        return jwtProperties.getAccessTokenExpirySeconds();
-    }
-
-    @Override
-    public long getRefreshTokenExpirySeconds() {
-        return jwtProperties.getRefreshTokenExpirySeconds();
+        return Short.valueOf(raw.toString());
     }
 }

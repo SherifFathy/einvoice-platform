@@ -1,12 +1,10 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './shared/guards/auth.guard';
-import { roleGuard } from './shared/guards/role.guard';
-import { unsavedChangesGuard } from './shared/guards/unsaved-changes.guard';
+import { adminGuard } from './shared/guards/admin.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
-    path: 'auth',
+    path: 'login',
     loadComponent: () => import('./auth/auth.component').then((m) => m.AuthComponent),
   },
   {
@@ -15,29 +13,38 @@ export const routes: Routes = [
     loadComponent: () => import('./layout/shell/shell.component').then((m) => m.ShellComponent),
     children: [
       {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
         path: 'admin',
-        canActivate: [roleGuard(['SUPER_USER'])],
+        canActivate: [adminGuard],
         children: [
+          {
+            path: 'companies',
+            loadComponent: () =>
+              import('./admin/companies/company-list.component').then((m) => m.CompanyListComponent),
+          },
+          {
+            path: 'branches',
+            loadComponent: () =>
+              import('./admin/branches/branch-list.component').then((m) => m.BranchListComponent),
+          },
           {
             path: 'users',
             loadComponent: () =>
-              import('./admin/users/admin-users.component').then((m) => m.AdminUsersComponent),
+              import('./admin/users/user-list.component').then((m) => m.UserListComponent),
           },
-        ],
-      },
-      {
-        path: 'dashboard',
-        children: [
           {
-            path: '',
+            path: 'assignments',
             loadComponent: () =>
-              import('./dashboard/dashboard.component').then((m) => m.DashboardComponent),
+              import('./admin/assignments/assignment-list.component').then((m) => m.AssignmentListComponent),
           },
         ],
       },
       {
         path: 'invoices',
-        canActivate: [roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'])],
         children: [
           {
             path: '',
@@ -46,7 +53,6 @@ export const routes: Routes = [
           },
           {
             path: 'new',
-            canDeactivate: [unsavedChangesGuard],
             loadComponent: () =>
               import('./invoices/invoice-form/invoice-form-page.component').then((m) => m.InvoiceFormPageComponent),
           },
@@ -57,7 +63,6 @@ export const routes: Routes = [
           },
           {
             path: ':id/edit',
-            canDeactivate: [unsavedChangesGuard],
             loadComponent: () =>
               import('./invoices/invoice-form/invoice-form-page.component').then((m) => m.InvoiceFormPageComponent),
           },
@@ -65,123 +70,37 @@ export const routes: Routes = [
       },
       {
         path: 'customers',
-        canActivate: [roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'])],
-        children: [
-          {
-            path: '',
-            loadComponent: () =>
-              import('./customers/customers.component').then((m) => m.CustomersComponent),
-          },
-        ],
+        loadComponent: () =>
+          import('./customers/customers.component').then((m) => m.CustomersComponent),
       },
       {
         path: 'items',
-        canActivate: [roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'])],
-        children: [
-          {
-            path: '',
-            loadComponent: () => import('./items/items.component').then((m) => m.ItemsComponent),
-          },
-        ],
+        loadComponent: () => import('./items/items.component').then((m) => m.ItemsComponent),
       },
       {
         path: 'config',
-        canActivate: [roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN'])],
         children: [
           {
             path: '',
             loadComponent: () =>
               import('./config/config.component').then((m) => m.ConfigComponent),
           },
-          {
-            path: 'company-create',
-            canActivate: [roleGuard(['SUPER_ADMIN'])],
-            children: [
-              {
-                path: '',
-                loadComponent: () =>
-                  import('./config/company-create/company-create.component').then((m) => m.CompanyCreateComponent),
-              },
-              {
-                path: ':companyId/branches',
-                loadComponent: () =>
-                  import('./config/branches/branches.component').then((m) => m.BranchesComponent),
-              },
-              {
-                path: ':companyId/edit',
-                loadComponent: () =>
-                  import('./config/company-edit/company-edit.component').then((m) => m.CompanyEditComponent),
-              },
-              {
-                path: ':companyId/branches/:branchId/authority-config',
-                loadComponent: () =>
-                  import('./config/authority-config/authority-config.component').then((m) => m.AuthorityConfigComponent),
-              },
-            ],
-          },
-          {
-            path: 'companies/:companyId/branches',
-            loadComponent: () =>
-              import('./config/branches/branches.component').then((m) => m.BranchesComponent),
-          },
-          {
-            path: 'companies/:companyId/branches/new',
-            loadComponent: () =>
-              import('./config/branches/branches.component').then((m) => m.BranchesComponent),
-          },
-          {
-            path: 'companies/:companyId/branches/:branchId/edit',
-            loadComponent: () =>
-              import('./config/branches/branches.component').then((m) => m.BranchesComponent),
-          },
-          {
-            path: 'company-profile',
-            loadComponent: () =>
-              import('./config/company-profile/company-profile.component').then((m) => m.CompanyProfileComponent),
-          },
-          {
-            path: 'users',
-            loadComponent: () =>
-              import('./config/users/users.component').then((m) => m.UsersComponent),
-          },
-          {
-            path: 'branches/:branchId/zatca-onboarding',
-            loadComponent: () =>
-              import('./config/zatca-onboarding/zatca-onboarding.component').then((m) => m.ZatcaOnboardingComponent),
-          },
-          {
-            path: 'branches/:branchId/zatca-certificate',
-            loadComponent: () =>
-              import('./config/zatca-certificate/zatca-certificate.component').then((m) => m.ZatcaCertificateComponent),
-          },
         ],
-      },
-      {
-        path: 'eta-codes',
-        canActivate: [roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'])],
-        loadComponent: () =>
-          import('./config/eta-codes/eta-codes.component').then((m) => m.EtaCodesComponent),
       },
       {
         path: 'logs',
-        canActivate: [roleGuard(['SUPER_ADMIN', 'COMPANY_ADMIN'])],
-        children: [
-          {
-            path: '',
-            loadComponent: () => import('./logs/logs.component').then((m) => m.LogsComponent),
-          },
-        ],
+        loadComponent: () => import('./logs/logs.component').then((m) => m.LogsComponent),
       },
       {
         path: 'jobs',
-        children: [
-          {
-            path: '',
-            loadComponent: () => import('./jobs/jobs.component').then((m) => m.JobsComponent),
-          },
-        ],
+        loadComponent: () => import('./jobs/jobs.component').then((m) => m.JobsComponent),
       },
     ],
+  },
+  {
+    path: '',
+    redirectTo: 'dashboard',
+    pathMatch: 'full',
   },
   {
     path: '**',
