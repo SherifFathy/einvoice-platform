@@ -78,7 +78,7 @@ public class SessionContextAssembler {
         if (holder.mode() == TenantContext.Mode.ADMIN_MODE) {
             return new SessionContextResponse(
                     holder.userId(), holder.isSuperUser(),
-                    holder.mode().name(), loginContext, List.of());
+                    holder.mode().name(), holder.companyId(), loginContext, List.of());
         }
 
         String authority = holder.authority();
@@ -89,7 +89,7 @@ public class SessionContextAssembler {
 
         return new SessionContextResponse(
                 holder.userId(), holder.isSuperUser(),
-                holder.mode().name(), loginContext, companies);
+                holder.mode().name(), holder.companyId(), loginContext, companies);
     }
 
     private List<CompanyContext> buildCompanies(TenantContext.Holder holder,

@@ -35,6 +35,7 @@ function makeEtaContext(overrides: Partial<SessionContext> = {}): SessionContext
       },
     }],
     ...overrides,
+    activeCompanyId: overrides.activeCompanyId ?? 'c1',
   };
 }
 
@@ -58,6 +59,7 @@ function makeZatcaContext(overrides: Partial<SessionContext> = {}): SessionConte
       },
     }],
     ...overrides,
+    activeCompanyId: overrides.activeCompanyId ?? 'c1',
   };
 }
 
@@ -72,7 +74,10 @@ describe('SidebarComponent', () => {
 
     mockSessionCtx = jasmine.createSpyObj('SessionContextService', ['loadContext', 'clear'], {
       context$: contextSubject.asObservable(),
-      get currentContext() { return contextSubject.value; },
+    });
+    Object.defineProperty(mockSessionCtx, 'currentContext', {
+      get: () => contextSubject.value,
+      configurable: true,
     });
 
     TestBed.configureTestingModule({

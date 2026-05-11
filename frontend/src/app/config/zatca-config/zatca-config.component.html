@@ -1,0 +1,80 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>ZATCA Configuration</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    @if (loading) {
+      <p>Loading...</p>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="form-grid">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Private Key *</mat-label>
+            <textarea matInput formControlName="privateKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
+            @if (form.get('privateKey')?.hasError('required') && form.get('privateKey')?.touched) {
+              <mat-error>Private Key is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Device UUID *</mat-label>
+            <input matInput formControlName="deviceUuid" placeholder="ZATCA device UUID">
+            @if (form.get('deviceUuid')?.hasError('required') && form.get('deviceUuid')?.touched) {
+              <mat-error>Device UUID is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>CSR *</mat-label>
+            <textarea matInput formControlName="csr" rows="4" placeholder="-----BEGIN CERTIFICATE REQUEST-----&#10;...&#10;-----END CERTIFICATE REQUEST-----"></textarea>
+            @if (form.get('csr')?.hasError('required') && form.get('csr')?.touched) {
+              <mat-error>CSR is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Compliance Certificate *</mat-label>
+            <textarea matInput formControlName="complianceCertificate" rows="4" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+            @if (form.get('complianceCertificate')?.hasError('required') && form.get('complianceCertificate')?.touched) {
+              <mat-error>Compliance Certificate is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Compliance API Secret *</mat-label>
+            <input matInput formControlName="complianceApiSecret" placeholder="Compliance API secret">
+            @if (form.get('complianceApiSecret')?.hasError('required') && form.get('complianceApiSecret')?.touched) {
+              <mat-error>Compliance API Secret is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Production Certificate</mat-label>
+            <textarea matInput formControlName="productionCertificate" rows="4" placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Production API Secret</mat-label>
+            <input matInput formControlName="productionApiSecret" placeholder="Production API secret">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Certificate Expiry Date</mat-label>
+            <input matInput [matDatepicker]="expiryPicker" formControlName="certificateExpiryDate">
+            <mat-datepicker-toggle matSuffix [for]="expiryPicker"></mat-datepicker-toggle>
+            <mat-datepicker #expiryPicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions" *appHasPermission="'CONFIG/EDIT'">
+          <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
+            @if (submitting) { Saving... } @else { Save Configuration }
+          </button>
+          @if (saved && chainStateInitialized) {
+            <span class="chain-status">Chain State Initialized</span>
+          }
+        </div>
+      </form>
+    }
+  </mat-card-content>
+</mat-card>

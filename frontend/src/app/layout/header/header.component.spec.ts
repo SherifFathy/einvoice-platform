@@ -26,6 +26,7 @@ function makeEtaContext(overrides: Partial<SessionContext> = {}): SessionContext
       },
     }],
     ...overrides,
+    activeCompanyId: overrides.activeCompanyId ?? 'c1',
   };
 }
 
@@ -45,6 +46,7 @@ function makeZatcaContext(overrides: Partial<SessionContext> = {}): SessionConte
       },
     }],
     ...overrides,
+    activeCompanyId: overrides.activeCompanyId ?? 'c1',
   };
 }
 

@@ -35,6 +35,7 @@ function makeContext(
         userId: 'u1',
         isSuperUser,
         mode,
+        activeCompanyId: 'c1',
         loginContext: { authority: 'ETA', environment: 'PREPROD', authorityEnvironmentId: 2 },
         companies: [{
             companyId: 'c1',
@@ -208,6 +209,7 @@ describe('Permission Parity — Super User bypass (SC-004)', () => {
             userId: 'u1',
             isSuperUser,
             mode,
+            activeCompanyId: null,
             loginContext: { authority: 'ETA', environment: 'PREPROD', authorityEnvironmentId: 2 },
             companies: [],
         };

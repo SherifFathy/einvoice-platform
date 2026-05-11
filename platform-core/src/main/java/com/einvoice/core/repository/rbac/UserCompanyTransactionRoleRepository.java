@@ -29,5 +29,10 @@ public interface UserCompanyTransactionRoleRepository extends JpaRepository<User
     List<UUID> findDistinctCompanyIdsByAuthorityEnvironmentIdAndIsActiveTrue(
             Short authEnvId);
 
+    @Query("SELECT DISTINCT uctr.company.id FROM UserCompanyTransactionRole uctr "
+            + "WHERE uctr.user.id = :userId AND uctr.authorityEnvironmentId = :authEnvId "
+            + "AND uctr.isActive = true")
+    List<UUID> findDistinctAssignedCompanyIds(UUID userId, Short authEnvId);
+
     List<UserCompanyTransactionRole> findByUserIdAndIsActiveTrue(UUID userId);
 }

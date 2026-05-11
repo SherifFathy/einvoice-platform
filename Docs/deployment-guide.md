@@ -66,3 +66,96 @@ Restart the backend (or wait for the next request) and log in with that user.
 > `user_company_roles` / `authority_configs` / `lov_contexts`) no longer applies
 > because Wave 5 drops all three tables. The section is retained for historical
 > reference only.
+
+---
+
+## Wave 6 — Master Data and Certificate Configurations
+
+Wave 6 adds seven operational tables for authority-separated customers, items, and certificate configurations. Migrations V45–V47 apply on top of the Wave 5 V44 baseline.
+
+### Deployment Notes
+
+- **Migrations**: V45 (ETA master data + ETA config), V46 (ZATCA master data + ZATCA config + ZATCA chain state), V47 (compound indexes). These run automatically via Flyway on backend startup — no manual SQL execution needed.
+- **No new environment variables**: Wave 6 does not introduce any new env vars. Existing `JWT_SECRET`, `SPRING_DATASOURCE_*`, `BOOTSTRAP_SUPERUSER_*` settings are unchanged. `ENCRYPTION_MASTER_KEY` remains configured in `application.yml` from Wave 2 scaffolding but is **reserved for the Wave 7+ AES-256-GCM field-level encryption upgrade** — it is not wired to any encryption logic in Wave 6 (Constitution XVIII Phase 1 trade-off; all secrets/keys/PEMs stored as plain TEXT per FR-026).
+- **No new infrastructure components**: No new Docker services, message queues, or external dependencies. Wave 6 uses the existing PostgreSQL instance and the existing Spring Boot application.
+- **No data migration**: Wave 6 creates new empty tables. There is no data to migrate from earlier waves.
+- **Save-blind configuration**: Configuration saves perform required-field and length validation only (FR-014a, FR-018a). The platform does not contact the authority during save; bad URLs or credentials surface at first submission.
+
+### Verifying V45–V47 Applied
+
+After deploying, confirm the migrations applied:
+
+```sql
+SELECT version, description, installed_on
+FROM flyway_schema_history
+WHERE version IN ('45', '46', '47')
+ORDER BY installed_rank;
+```
+
+Verify the seven new tables exist:
+
+```sql
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'eta_customers', 'eta_items',
+    'zatca_customers', 'zatca_items',
+    'eta_configs', 'zatca_configs',
+    'zatca_chain_state'
+  );
+```
+
+### New Endpoint Surface (Wave 6)
+
+| Method | Path | Permission | Notes |
+|--------|------|------------|-------|
+| GET | `/api/companies/{id}/eta/customers` | `CUSTOMERS/VIEW` | List ETA customers (paginated) |
+| POST | `/api/companies/{id}/eta/customers` | `CUSTOMERS/CREATE` | Create ETA customer |
+| GET | `/api/companies/{id}/eta/customers/{customerId}` | `CUSTOMERS/VIEW` | Get ETA customer by ID |
+| PUT | `/api/companies/{id}/eta/customers/{customerId}` | `CUSTOMERS/EDIT` | Update ETA customer (set `isActive: false` to deactivate per FR-007) |
+| DELETE | `/api/companies/{id}/eta/customers/{customerId}` | `CUSTOMERS/DELETE` | Hard-delete ETA customer |
+| GET | `/api/companies/{id}/eta/items` | `ITEMS/VIEW` | List ETA items |
+| POST | `/api/companies/{id}/eta/items` | `ITEMS/CREATE` | Create ETA item |
+| GET | `/api/companies/{id}/eta/items/{itemId}` | `ITEMS/VIEW` | Get ETA item by ID |
+| PUT | `/api/companies/{id}/eta/items/{itemId}` | `ITEMS/EDIT` | Update ETA item (set `isActive: false` to deactivate per FR-008) |
+| DELETE | `/api/companies/{id}/eta/items/{itemId}` | `ITEMS/DELETE` | Hard-delete ETA item |
+| GET | `/api/companies/{id}/zatca/customers` | `CUSTOMERS/VIEW` | List ZATCA customers |
+| POST | `/api/companies/{id}/zatca/customers` | `CUSTOMERS/CREATE` | Create ZATCA customer |
+| GET | `/api/companies/{id}/zatca/customers/{customerId}` | `CUSTOMERS/VIEW` | Get ZATCA customer by ID |
+| PUT | `/api/companies/{id}/zatca/customers/{customerId}` | `CUSTOMERS/EDIT` | Update ZATCA customer (set `isActive: false` to deactivate) |
+| DELETE | `/api/companies/{id}/zatca/customers/{customerId}` | `CUSTOMERS/DELETE` | Hard-delete ZATCA customer |
+| GET | `/api/companies/{id}/zatca/items` | `ITEMS/VIEW` | List ZATCA items |
+| POST | `/api/companies/{id}/zatca/items` | `ITEMS/CREATE` | Create ZATCA item |
+| GET | `/api/companies/{id}/zatca/items/{itemId}` | `ITEMS/VIEW` | Get ZATCA item by ID |
+| PUT | `/api/companies/{id}/zatca/items/{itemId}` | `ITEMS/EDIT` | Update ZATCA item (set `isActive: false` to deactivate) |
+| DELETE | `/api/companies/{id}/zatca/items/{itemId}` | `ITEMS/DELETE` | Hard-delete ZATCA item |
+| GET | `/api/companies/{id}/eta/config` | `CONFIG/VIEW` | Read ETA config (200 null body if never configured) |
+| PUT | `/api/companies/{id}/eta/config` | `CONFIG/EDIT` | Upsert ETA config |
+| GET | `/api/companies/{id}/zatca/config` | `CONFIG/VIEW` | Read ZATCA config |
+| PUT | `/api/companies/{id}/zatca/config` | `CONFIG/EDIT` | Upsert ZATCA config |
+
+All endpoints reject Admin Mode with `403 COMPANY_CONTEXT_REQUIRED`.
+
+**Deactivation design**: There is no separate `PATCH …/deactivate` endpoint. Deactivation is performed via the standard `PUT` endpoint with `isActive: false` in the request body (the `isActive` field is part of every `WriteRequest` schema). The service layer detects the `true → false` transition and applies deactivation logic. Hard delete (`DELETE`) and deactivation (`PUT` with `isActive: false`) are two independent removal capabilities per FR-007/FR-008.
+
+**Query parameters on list endpoints** (GET `/customers` and GET `/items` for both authorities):
+- `q` — substring search across name and tax/VAT number/code fields (FR-024, FR-025)
+- `companyId` — filter to a single company within the user's assigned set (FR-022)
+- `includeInactive` — include `isActive=false` rows (default: `false`; FR-007, FR-008)
+- `page`, `size`, `sort` — standard pagination (0-based, max 100, default sort `name_en,asc`)
+
+### Wave 6 Permission Scopes
+
+Wave 6 introduces three new permission scopes (seeded in V42 per Constitution XVII.7). Users will see menu entries and buttons governed by these scopes:
+
+| Scope | Actions | `COMPANY_ADMIN` | `ACCOUNTANT` | `VIEWER` |
+|-------|---------|:---:|:---:|:---:|
+| `CUSTOMERS` | VIEW, CREATE, EDIT, DELETE, REFRESH | All | VIEW, CREATE, REFRESH | VIEW |
+| `ITEMS` | VIEW, CREATE, EDIT, DELETE, REFRESH | All | VIEW, CREATE, REFRESH | VIEW |
+| `CONFIG` | VIEW, CREATE, EDIT, DELETE, REFRESH | All | — | — |
+
+Users without `CUSTOMERS/VIEW`, `ITEMS/VIEW`, or `CONFIG/VIEW` will not see the respective menu entries in the sidebar (gated by `appHasPermission` directive per Constitution XIV.4).
+
+### Operational Mode Requirement
+
+The three new frontend screens (Customers, Items, Configuration) are operational-only. Users must be in `OPERATIONAL_MODE` with an active company context. Admin Mode access is rejected at the API level by the `@RequireOperationalMode` annotation (Constitution VII.4).

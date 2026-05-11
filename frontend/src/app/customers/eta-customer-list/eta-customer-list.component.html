@@ -1,0 +1,91 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>Search</mat-label>
+    <input matInput [(ngModel)]="searchValue" (ngModelChange)="onSearch()" placeholder="Name or tax number...">
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="filter-select">
+    <mat-label>Company</mat-label>
+    <mat-select [(ngModel)]="selectedCompanyId" (selectionChange)="onCompanyChange()">
+      <mat-option value="">All companies</mat-option>
+      @for (company of companies; track company.companyId) {
+        <mat-option [value]="company.companyId">{{ company.companyNameEn }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-slide-toggle [(ngModel)]="showInactive" (change)="onShowInactiveToggle()">
+    Show inactive
+  </mat-slide-toggle>
+
+  <span class="spacer"></span>
+
+  <button mat-raised-button color="primary"
+    [routerLink]="['/customers/eta/new']"
+    *appHasPermission="'CUSTOMERS/CREATE'">
+    <mat-icon>add</mat-icon> New Customer
+  </button>
+</div>
+
+<table mat-table [dataSource]="customers">
+  <ng-container matColumnDef="company">
+    <th mat-header-cell *matHeaderCellDef>Company</th>
+    <td mat-cell *matCellDef="let c">{{ companyNameMap[c.companyId] || c.companyId }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="nameEn">
+    <th mat-header-cell *matHeaderCellDef>Name (EN)</th>
+    <td mat-cell *matCellDef="let c">{{ c.nameEn }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="nameAr">
+    <th mat-header-cell *matHeaderCellDef>Name (AR)</th>
+    <td mat-cell *matCellDef="let c"><span dir="rtl">{{ c.nameAr }}</span></td>
+  </ng-container>
+
+  <ng-container matColumnDef="taxNumber">
+    <th mat-header-cell *matHeaderCellDef>Tax Number</th>
+    <td mat-cell *matCellDef="let c">{{ c.taxNumber }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="customerType">
+    <th mat-header-cell *matHeaderCellDef>Customer Type</th>
+    <td mat-cell *matCellDef="let c">{{ c.customerType }}</td>
+  </ng-container>
+
+  <ng-container matColumnDef="isActive">
+    <th mat-header-cell *matHeaderCellDef>Active</th>
+    <td mat-cell *matCellDef="let c">
+      <span [class.active]="c.isActive" [class.inactive]="!c.isActive">
+        {{ c.isActive ? 'Yes' : 'No' }}
+      </span>
+    </td>
+  </ng-container>
+
+  <ng-container matColumnDef="actions">
+    <th mat-header-cell *matHeaderCellDef>Actions</th>
+    <td mat-cell *matCellDef="let c">
+      <div class="actions">
+        <a mat-icon-button [routerLink]="['/customers/eta', c.id]"
+          [queryParams]="{companyId: c.companyId}"
+          matTooltip="Edit"
+          *appHasPermission="'CUSTOMERS/EDIT'">
+          <mat-icon>edit</mat-icon>
+        </a>
+        <button mat-icon-button color="warn"
+          (click)="onDelete(c)"
+          matTooltip="Delete"
+          *appHasPermission="'CUSTOMERS/DELETE'">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>
+
+<mat-paginator [length]="totalElements" [pageSize]="pageSize" [pageIndex]="pageIndex"
+    (page)="onPageChange($event)"></mat-paginator>

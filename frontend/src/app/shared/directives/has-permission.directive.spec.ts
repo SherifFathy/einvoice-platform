@@ -20,6 +20,7 @@ describe('HasPermissionDirective', () => {
     userId: 'u1',
     isSuperUser: false,
     mode: 'OPERATIONAL_MODE',
+    activeCompanyId: 'c1',
     loginContext: { authority: 'ETA', environment: 'PREPROD', authorityEnvironmentId: 2 },
     companies: [{
       companyId: 'c1',
@@ -39,6 +40,7 @@ describe('HasPermissionDirective', () => {
     userId: 'u1',
     isSuperUser: false,
     mode: 'OPERATIONAL_MODE',
+    activeCompanyId: 'c1',
     loginContext: { authority: 'ETA', environment: 'PREPROD', authorityEnvironmentId: 2 },
     companies: [{
       companyId: 'c1',
@@ -95,6 +97,7 @@ describe('HasPermissionDirective', () => {
       userId: 'u1',
       isSuperUser: true,
       mode: 'OPERATIONAL_MODE',
+      activeCompanyId: null,
       loginContext: { authority: 'ETA', environment: 'PREPROD', authorityEnvironmentId: 2 },
       companies: []
     };

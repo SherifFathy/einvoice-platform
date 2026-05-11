@@ -1485,9 +1485,9 @@ ZATCA session:
 
 ### Scope
 
-#### 6.1 Database Migrations (Flyway V44–V46)
+#### 6.1 Database Migrations (Flyway V45–V47)
 
-**V44 — ETA master data and config**
+**V45 — ETA master data and config**
 
 ```sql
 -- ETA Config (one row per company + authority_environment_id)
@@ -1568,7 +1568,7 @@ CREATE INDEX idx_eta_items_ctx
     ON eta_items(company_id, authority_environment_id);
 ```
 
-**V45 — ZATCA master data and config**
+**V46 — ZATCA master data and config**
 
 ```sql
 -- ZATCA Config (one row per company + authority_environment_id)
@@ -1654,7 +1654,7 @@ CREATE INDEX idx_zatca_items_ctx
     ON zatca_items(company_id, authority_environment_id);
 ```
 
-**V46 — Indexes**
+**V47 — Indexes**
 
 ```sql
 CREATE INDEX idx_eta_configs_ctx
@@ -1746,7 +1746,7 @@ transaction type).
   for Production (id=3) for the same company
 - User without CONFIG permissions cannot access configuration screen
   or `PUT /api/companies/{id}/eta/config`
-- All Flyway migrations V44–V46 run cleanly
+- All Flyway migrations V45–V47 run cleanly
 - `mvn clean verify` and `ng test` pass
 
 ---

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './shared/guards/auth.guard';
 import { adminGuard } from './shared/guards/admin.guard';
+import { operationalModeGuard } from './shared/guards/operational-mode.guard';
 
 export const routes: Routes = [
   {
@@ -70,20 +71,31 @@ export const routes: Routes = [
       },
       {
         path: 'customers',
-        loadComponent: () =>
-          import('./customers/customers.component').then((m) => m.CustomersComponent),
-      },
-      {
-        path: 'items',
-        loadComponent: () => import('./items/items.component').then((m) => m.ItemsComponent),
-      },
-      {
-        path: 'config',
+        canActivate: [operationalModeGuard],
         children: [
           {
             path: '',
-            loadComponent: () =>
-              import('./config/config.component').then((m) => m.ConfigComponent),
+            loadChildren: () => import('./customers/customer-routing.module').then((m) => m.CustomerRoutingModule),
+          },
+        ],
+      },
+      {
+        path: 'items',
+        canActivate: [operationalModeGuard],
+        children: [
+          {
+            path: '',
+            loadChildren: () => import('./items/item-routing.module').then((m) => m.ItemRoutingModule),
+          },
+        ],
+      },
+      {
+        path: 'config',
+        canActivate: [operationalModeGuard],
+        children: [
+          {
+            path: '',
+            loadChildren: () => import('./config/config-routing.module').then((m) => m.ConfigRoutingModule),
           },
         ],
       },

@@ -10,6 +10,7 @@ public record SessionContextResponse(
         UUID userId,
         boolean isSuperUser,
         String mode,
+        UUID activeCompanyId,
         LoginContext loginContext,
         List<CompanyContext> companies
 ) {

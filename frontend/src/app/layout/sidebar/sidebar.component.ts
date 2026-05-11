@@ -5,18 +5,20 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { SessionContextService } from '../../shared/services/session-context.service';
+import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 
 interface SidebarItem {
   label: string;
   icon: string;
   route: string;
   moduleKey?: string;
+  permission?: [string, string];
 }
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatListModule, MatIconModule],
+  imports: [CommonModule, RouterModule, MatListModule, MatIconModule, HasPermissionDirective],
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.scss'],
 })
@@ -28,9 +30,9 @@ export class SidebarComponent {
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
     { label: 'Invoices', icon: 'receipt', route: '/invoices', moduleKey: 'invoice' },
     { label: 'Receipts', icon: 'receipt_long', route: '/receipts', moduleKey: 'receipt' },
-    { label: 'Customers', icon: 'people', route: '/customers', moduleKey: 'customers' },
-    { label: 'Items', icon: 'inventory', route: '/items', moduleKey: 'items' },
-    { label: 'Configuration', icon: 'settings', route: '/config', moduleKey: 'configuration' },
+    { label: 'Customers', icon: 'people', route: '/customers', permission: ['customers', 'VIEW'] },
+    { label: 'Items', icon: 'inventory', route: '/items', permission: ['items', 'VIEW'] },
+    { label: 'Configuration', icon: 'settings', route: '/config', permission: ['configuration', 'VIEW'] },
     { label: 'Logs', icon: 'history', route: '/logs' },
   ];
 
@@ -38,9 +40,9 @@ export class SidebarComponent {
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
     { label: 'Standard', icon: 'article', route: '/standard', moduleKey: 'standard' },
     { label: 'Simplified', icon: 'note', route: '/simplified', moduleKey: 'simplified' },
-    { label: 'Customers', icon: 'people', route: '/customers', moduleKey: 'customers' },
-    { label: 'Items', icon: 'inventory', route: '/items', moduleKey: 'items' },
-    { label: 'Configuration', icon: 'settings', route: '/config', moduleKey: 'configuration' },
+    { label: 'Customers', icon: 'people', route: '/customers', permission: ['customers', 'VIEW'] },
+    { label: 'Items', icon: 'inventory', route: '/items', permission: ['items', 'VIEW'] },
+    { label: 'Configuration', icon: 'settings', route: '/config', permission: ['configuration', 'VIEW'] },
     { label: 'Logs', icon: 'history', route: '/logs' },
   ];
 
@@ -65,7 +67,8 @@ export class SidebarComponent {
     const baseItems = authority === 'ETA' ? this.etaItems : this.zatcaItems;
 
     const visibleItems = baseItems.filter((item) => {
-      if (!item.moduleKey) return true;
+      if (!item.moduleKey && !item.permission) return true;
+      if (item.permission) return true;
       return ctx.companies.some((c) => c.modules[item.moduleKey!]?.visible);
     });
 

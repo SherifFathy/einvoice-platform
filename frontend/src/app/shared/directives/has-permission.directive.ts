@@ -34,8 +34,14 @@ export class HasPermissionDirective implements OnDestroy {
       this.currentModule = value[0] ?? '';
       this.currentAction = value[1] ?? '';
     } else if (typeof value === 'string') {
-      this.currentAction = value;
-      this.currentModule = '';
+      if (value.includes('/')) {
+        const [mod, action] = value.split('/');
+        this.currentModule = mod ?? '';
+        this.currentAction = action ?? '';
+      } else {
+        this.currentAction = value;
+        this.currentModule = '';
+      }
     }
     this.updateView();
   }
@@ -61,8 +67,9 @@ export class HasPermissionDirective implements OnDestroy {
     if (ctx.isSuperUser && ctx.mode === 'OPERATIONAL_MODE') {
       show = true;
     } else if (this.currentModule) {
+      const moduleKey = this.currentModule.toLowerCase();
       for (const company of ctx.companies) {
-        const mod = company.modules[this.currentModule];
+        const mod = company.modules[moduleKey];
         if (mod && mod.visible) {
           const key = this.currentAction.toLowerCase() as keyof typeof mod.permissions;
           if (mod.permissions[key]) {

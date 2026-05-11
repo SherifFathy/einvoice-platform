@@ -39,6 +39,7 @@ export interface SessionContext {
   userId: string;
   isSuperUser: boolean;
   mode: string;
+  activeCompanyId: string | null;
   loginContext: {
     authority: string;
     environment: string;
