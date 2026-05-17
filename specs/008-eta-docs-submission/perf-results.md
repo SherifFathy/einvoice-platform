@@ -1,10 +1,12 @@
 # Wave 7 Performance Test Results
 
 **Date**: 2026-05-17
+**Commit**: `256be40` (branch `008-eta-docs-submission`)
 **Environment**: Local development (engine mocked, no outbound ETA calls)
 **Backend**: `mvn -pl platform-api spring-boot:run` on localhost:8080
 **Database**: PostgreSQL 16 via Docker Compose
 **Tool**: k6 v0.50+
+**T113/T114 verified against this commit**: mvn clean verify BUILD SUCCESS; npm run lint + npm run build green
 
 ## Results
 
