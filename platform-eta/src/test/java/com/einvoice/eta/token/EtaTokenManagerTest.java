@@ -29,10 +29,14 @@ class EtaTokenManagerTest {
         tokenManager = new EtaTokenManager(httpClient);
     }
 
+    private static String tokenJson(String accessToken) {
+        return "{\"access_token\":\"" + accessToken + "\",\"expires_in\":3600}";
+    }
+
     @Test
     void cacheHitReturnsStoredToken() {
-        when(httpClient.requestToken(anyString(), anyString(), anyString()))
-                .thenReturn("token-abc");
+        when(httpClient.requestTokenRaw(anyString(), anyString(), anyString()))
+                .thenReturn(tokenJson("token-abc"));
         UUID companyId = UUID.randomUUID();
         Short envId = (short) 2;
 
@@ -41,14 +45,14 @@ class EtaTokenManagerTest {
 
         assertEquals("token-abc", first);
         assertEquals("token-abc", second);
-        verify(httpClient, times(1)).requestToken("client1", "secret1", "http://token");
+        verify(httpClient, times(1)).requestTokenRaw("client1", "secret1", "http://token");
     }
 
     @Test
     void invalidateCausesRefreshOnNextCall() {
-        when(httpClient.requestToken(anyString(), anyString(), anyString()))
-                .thenReturn("token-1")
-                .thenReturn("token-2");
+        when(httpClient.requestTokenRaw(anyString(), anyString(), anyString()))
+                .thenReturn(tokenJson("token-1"))
+                .thenReturn(tokenJson("token-2"));
         UUID companyId = UUID.randomUUID();
         Short envId = (short) 2;
 
@@ -61,8 +65,8 @@ class EtaTokenManagerTest {
 
     @Test
     void crossEnvironmentCacheIsIsolated() {
-        when(httpClient.requestToken(anyString(), anyString(), anyString()))
-                .thenReturn("token-prod");
+        when(httpClient.requestTokenRaw(anyString(), anyString(), anyString()))
+                .thenReturn(tokenJson("token-prod"));
         UUID companyId = UUID.randomUUID();
 
         String prod = tokenManager.getToken(companyId, (short) 1, "c", "s", "url-prod");

@@ -42,6 +42,8 @@ class AppendOnlyDbTriggerTest {
         registry.add("spring.flyway.clean-disabled", () -> "false");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         registry.add("spring.main.web-application-type", () -> "none");
+        registry.add("spring.flyway.placeholders.BOOTSTRAP_SUPERUSER_EMAIL", () -> "");
+        registry.add("spring.flyway.placeholders.BOOTSTRAP_SUPERUSER_PASSWORD_HASH", () -> "");
     }
 
     @Autowired

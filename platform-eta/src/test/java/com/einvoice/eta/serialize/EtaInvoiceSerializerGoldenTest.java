@@ -53,6 +53,15 @@ class EtaInvoiceSerializerGoldenTest {
         if (docType.requiresOriginalDocument()) {
             header.setOriginalDocumentId(UUID.fromString("00000000-0000-0000-0000-000000000099"));
         }
+        if (docType == EtaInvoiceDocumentType.ei
+                || docType == EtaInvoiceDocumentType.ec
+                || docType == EtaInvoiceDocumentType.ed) {
+            header.setDeliveryData(Map.of(
+                    "approach", "AIR",
+                    "packaging", "Box",
+                    "dateValidity", "2026-05-15",
+                    "exportPort", "Cairo Airport"));
+        }
         EtaInvoiceLine line = buildTestLine();
         header.setLines(List.of(line));
 
@@ -61,6 +70,10 @@ class EtaInvoiceSerializerGoldenTest {
         assertNotNull(result.canonicalBytes());
 
         Path goldenPath = Path.of("src/test/resources/golden/invoices/" + suffix + ".json");
+        if (Boolean.getBoolean("regenerate.goldens")) {
+            Files.write(goldenPath, result.canonicalBytes());
+            return;
+        }
         byte[] expected = Files.readAllBytes(goldenPath);
 
         assertArrayEquals(
