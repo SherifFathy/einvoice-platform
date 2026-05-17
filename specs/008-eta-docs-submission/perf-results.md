@@ -1,12 +1,19 @@
 # Wave 7 Performance Test Results
 
 **Date**: 2026-05-17
-**Commit**: `256be40` (branch `008-eta-docs-submission`)
+**Commit**: `b0f4da5` (branch `008-eta-docs-submission`)
 **Environment**: Local development (engine mocked, no outbound ETA calls)
 **Backend**: `mvn -pl platform-api spring-boot:run` on localhost:8080
 **Database**: PostgreSQL 16 via Docker Compose
 **Tool**: k6 v0.50+
-**T113/T114 verified against this commit**: mvn clean verify BUILD SUCCESS; npm run lint + npm run build green
+
+**T114 (frontend) verified against this commit**: `npm run lint` green, `ng test --watch=false --browsers=ChromeHeadless` 252/252 SUCCESS, `ng build` green (warnings only — pre-existing bundle-size budget overrun by 31 kB; not a Wave-7 regression).
+
+**T113 (backend) partially verified against this commit**:
+- platform-core: 184/184 pass
+- platform-security: pass
+- platform-eta: 17/17 pass
+- platform-api: 191/241 pass, **48 failures + 2 errors deferred** across 12 test classes (MockMvc auth/context setup; `addFilters=false` does not bypass `@RequiresPermission` AOP that needs TenantContext populated). These are pre-existing Wave-7 issues surfaced for the first time when `mvn clean verify` was actually run; previous T113 `[X]` was bookkeeping, not a green build. Not in scope for Phase 8 polish; tracked for separate triage. T113 unchecked in tasks.md.
 
 ## Results
 
