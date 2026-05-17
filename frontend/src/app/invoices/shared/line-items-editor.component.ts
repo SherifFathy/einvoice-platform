@@ -1,4 +1,4 @@
-import { Component, inject, Input, Output, EventEmitter } from '@angular/core';
+import { Component, inject, Input, Output, EventEmitter, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -17,7 +17,8 @@ import { MatExpansionModule } from '@angular/material/expansion';
   template: `
     <div class="line-items-editor">
       <h3>Line Items</h3>
-      <div formArrayName="lines" *ngIf="linesArray">
+      <div [formGroup]="wrapper">
+        <div formArrayName="lines" *ngIf="linesArray">
         <div *ngFor="let line of linesArray.controls; let i = index" [formGroupName]="i" class="line-row">
           <mat-form-field><mat-label>Item Code</mat-label>
             <input matInput formControlName="itemCode"></mat-form-field>
@@ -54,6 +55,7 @@ import { MatExpansionModule } from '@angular/material/expansion';
             <mat-icon>delete</mat-icon>
           </button>
         </div>
+        </div>
       </div>
       <button mat-stroked-button (click)="addLine()">
         <mat-icon>add</mat-icon> Add Line
@@ -69,11 +71,18 @@ import { MatExpansionModule } from '@angular/material/expansion';
     .tax-row mat-form-field { flex: 1; min-width: 80px; }
   `]
 })
-export class LineItemsEditorComponent {
+export class LineItemsEditorComponent implements OnChanges {
   @Input() linesArray!: FormArray;
   @Output() validityChange = new EventEmitter<boolean>();
 
   private fb = inject(FormBuilder);
+  wrapper: FormGroup = this.fb.group({});
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['linesArray'] && this.linesArray) {
+      this.wrapper = this.fb.group({ lines: this.linesArray });
+    }
+  }
 
   ngDoCheck(): void {
     this.validityChange.emit(this.linesArray?.valid ?? false);

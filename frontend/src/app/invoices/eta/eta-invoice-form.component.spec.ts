@@ -18,7 +18,10 @@ describe('EtaInvoiceFormComponent', () => {
       providers: [
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(new Map([['id', 'test-id']])) }
+          useValue: {
+            paramMap: of(new Map([['id', 'test-id']])),
+            snapshot: { paramMap: { get: (key: string) => key === 'id' ? 'test-id' : null } }
+          }
         },
         {
           provide: SessionContextService,
@@ -104,6 +107,15 @@ describe('EtaInvoiceFormComponent', () => {
       } as ConflictBody['current'],
     };
     spyOn(service, 'update').and.returnValue(throwError(() => conflict));
+    component.form.patchValue({
+      invoiceNumber: 'INV-001',
+      documentType: 'i',
+      issueDatetime: '2026-05-13T10:00:00',
+      currency: 'EGP',
+      sellerData: {},
+      buyerData: {},
+    });
+    component.linesValid = true;
     component.currentVersion = 0;
     component.onSubmit();
     expect(service.update).toHaveBeenCalled();

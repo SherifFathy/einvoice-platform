@@ -104,9 +104,9 @@ describe('SidebarComponent', () => {
     });
 
     it('should show correct routes for ETA items', () => {
-      const routes = (component.items() as TestSidebarItem[]).filter((i) => i.moduleKey).map((i) => i.route);
+      const routes = (component.items() as TestSidebarItem[]).map((i) => i.route);
       expect(routes).toContain('/invoices');
-      expect(routes).toContain('/receipts');
+      expect(routes).toContain('/receipts/eta');
     });
   });
 
@@ -129,7 +129,7 @@ describe('SidebarComponent', () => {
   });
 
   describe('visibility filtering (FR-043)', () => {
-    it('should hide module when no company has it visible', () => {
+    it('should show all ETA items regardless of module visibility (permission-gated in template)', () => {
       const ctx = makeEtaContext({
         companies: [{
           companyId: 'c1',
@@ -149,8 +149,8 @@ describe('SidebarComponent', () => {
       fixture.detectChanges();
 
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).not.toContain('Receipts');
       expect(labels).toContain('Invoices');
+      expect(labels).toContain('Receipts');
       expect(labels).toContain('Dashboard');
       expect(labels).toContain('Logs');
     });
