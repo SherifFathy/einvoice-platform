@@ -1,0 +1,69 @@
+{
+  "documentType": "i",
+  "documentTypeVersion": "1.0",
+  "dateTimeIssued": "2026-05-13T10:00:00+02:00",
+  "taxpayerActivityCode": "4610",
+  "internalID": "00000000-0000-0000-0000-000000000001",
+  "seller": {
+    "branchNumber": "0",
+    "companyName": "Test Company",
+    "country": "EG",
+    "governate": "Cairo",
+    "regionCity": "Nasr City",
+    "street": "Test Street",
+    "buildingNumber": "1",
+    "postalCode": "12345",
+    "type": "B",
+    "id": "123456789",
+    "name": "Test Company"
+  },
+  "buyer": {
+    "type": "B",
+    "id": "987654321",
+    "name": "Test Buyer",
+    "country": "EG",
+    "governate": "Cairo",
+    "regionCity": "Nasr City",
+    "street": "Test Street",
+    "buildingNumber": "2",
+    "postalCode": "12345"
+  },
+  "documentTotals": {
+    "totalSalesAmount": "100.00000",
+    "totalDiscountAmount": "0.00000",
+    "extraDiscountAmount": "0.00000",
+    "totalItemsDiscountAmount": "0.00000",
+    "netAmount": "100.00000",
+    "totalAmount": "114.00000"
+  },
+  "invoiceLines": [
+    {
+      "internalCode": "ITEM001",
+      "itemType": "GS1",
+      "itemCode": "1234567890123",
+      "description": "Test Item",
+      "unitType": "EA",
+      "quantity": "1.00000",
+      "unitValue": {
+        "currencySold": "EGP",
+        "amountEGP": "100.00000",
+        "amountSold": "100.00000",
+        "currencyExchangeRate": "1.00000"
+      },
+      "salesTotal": "100.00000",
+      "discount": "0.00000",
+      "itemsDiscount": "0.00000",
+      "valueDifference": "0.00000",
+      "totalTaxableFees": "0.00000",
+      "netTotal": "100.00000",
+      "total": "114.00000",
+      "taxableItems": [
+        {
+          "taxType": "T1",
+          "rate": "14.00000",
+          "amount": "14.00000"
+        }
+      ]
+    }
+  ]
+}

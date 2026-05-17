@@ -14,6 +14,10 @@
     <name>Platform Core</name>
     <description>Shared domain entities, utilities, and configuration</description>
 
+    <properties>
+        <skipCodegen>false</skipCodegen>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -95,4 +99,30 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-eta-states-ts</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>com.einvoice.core.codegen.EtaStatesTsGenerator</mainClass>
+                            <arguments>
+                                <argument>${project.basedir}/../frontend/src/app/invoices/shared/generated/eta-states.ts</argument>
+                            </arguments>
+                            <skip>${skipCodegen}</skip>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

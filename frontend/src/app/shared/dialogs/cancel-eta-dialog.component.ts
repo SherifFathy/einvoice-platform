@@ -14,9 +14,9 @@ import { FormsModule } from '@angular/forms';
     MatFormFieldModule, MatInputModule, FormsModule,
   ],
   template: `
-    <h2 mat-dialog-title>Cancel ETA Invoice</h2>
+    <h2 mat-dialog-title>Cancel ETA Document</h2>
     <mat-dialog-content>
-      <p>Are you sure you want to cancel this invoice? This action cannot be undone.</p>
+      <p>Are you sure you want to cancel this document? This action cannot be undone.</p>
       <mat-form-field appearance="outline" style="width: 100%;">
         <mat-label>Reason</mat-label>
         <input matInput [(ngModel)]="reason" placeholder="Enter cancellation reason">

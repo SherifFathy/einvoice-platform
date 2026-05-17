@@ -1,0 +1,545 @@
+openapi: 3.1.0
+info:
+  title: Wave 7 — ETA Invoices API
+  version: "1.0.0"
+  description: |
+    REST contract for ETA tax invoice management.
+
+    **Authentication**: every request requires a bearer JWT. The JWT carries
+    `companyId` and `authorityEnvironmentId` (Wave 5). The platform refuses any
+    request whose `companyId` JWT claim does not match the `{id}` path parameter
+    (cross-company access is denied with `403 Forbidden`).
+
+    **Tenant scope**: every endpoint operates within the
+    `(companyId, authorityEnvironmentId)` tuple resolved from the JWT.
+    `authorityEnvironmentId` is **never** on the wire (Constitution III.3,
+    spec FR-018).
+
+    **Optimistic concurrency** (spec FR-025): `GET` responses include a strong
+    `ETag` header derived from the `version` field. `PUT` requires `If-Match`;
+    a stale `If-Match` returns `409 Conflict` with the full current document
+    body to drive the conflict-resolution UI.
+servers:
+  - url: /api/companies/{id}
+    variables:
+      id:
+        default: "00000000-0000-0000-0000-000000000000"
+        description: Active company UUID; must match the JWT companyId claim.
+
+tags:
+  - name: invoices
+  - name: lifecycle
+  - name: artifacts
+
+paths:
+  /eta/invoices:
+    get:
+      tags: [invoices]
+      summary: List ETA invoices visible to the user in the active environment
+      description: |
+        Returns invoices across **all** companies the user is assigned to for the
+        active `authorityEnvironmentId` (Constitution VIII.5, spec FR-022). The
+        `companyId` path parameter scopes only authorisation; the result set is
+        not filtered to that one company unless the `company` query parameter is
+        supplied.
+      parameters:
+        - name: company
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/EtaInvoiceState' }
+        - name: dateFrom
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: dateTo
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      responses:
+        "200":
+          description: Paged list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedInvoiceList' }
+        "403":
+          description: User is not assigned to the active company
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    post:
+      tags: [invoices]
+      summary: Create a new draft invoice
+      description: |
+        Creates the invoice in `DRAFT` state. Requires `INVOICE.CREATE` permission
+        on `(companyId, authorityEnvironmentId)`. Validates totals consistency
+        (spec FR-024) and document-number uniqueness (FR-006); no outbound call
+        to ETA is made here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrUpdateInvoice' }
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Strong ETag = `"<version>"` (spec FR-025).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        "400":
+          description: Validation failure
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        "409":
+          description: Duplicate document number
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /eta/invoices/{docId}:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [invoices]
+      summary: Get an ETA invoice with lines, taxes, and submission summary
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        "404":
+          description: Not found (or out-of-tenant — opaque to caller)
+    put:
+      tags: [invoices]
+      summary: Update a draft invoice (optimistic concurrency)
+      description: Only `DRAFT` documents may be edited (spec FR-007).
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+          description: Must equal the document's current ETag (spec FR-025).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrUpdateInvoice' }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        "409":
+          description: |
+            Either (a) optimistic-lock conflict — body contains the current
+            document so the UI can present a side-by-side diff (research
+            Decision 2), or (b) duplicate document number, or (c) invalid
+            lifecycle transition (the document is no longer `DRAFT`). The
+            `code` field disambiguates.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConflictBody' }
+    delete:
+      tags: [invoices]
+      summary: Delete a draft invoice
+      description: Only `DRAFT` documents may be deleted (spec FR-007). Cascades to lines and line taxes.
+      responses:
+        "204": { description: Deleted }
+        "409": { description: Document is not in DRAFT state }
+
+  /eta/invoices/{docId}/submit:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Sign and submit a draft invoice to ETA
+      description: |
+        Transitions DRAFT → SUBMITTING, signs the canonical JSON, calls ETA,
+        then updates the document state based on ETA's response (research
+        Decision 4). Records a `SubmissionAttempt`, two `InvoiceArtifact`
+        rows (`SIGNED_JSON`, `ETA_RESPONSE`), and an `AuditLog` entry.
+      responses:
+        "200":
+          description: Submission completed (state is one of VALID / REJECTED / IN_REVIEW / SUBMISSION_AMBIGUOUS).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Document not in a submittable state, or totals inconsistent, or no certificate configured.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /eta/invoices/{docId}/cancel:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Forward a cancellation request to ETA
+      description: |
+        No platform-side window check (spec Q3, FR-013). The request is forwarded
+        to ETA; ETA's response (acceptance, or rejection — including out-of-window
+        rejection — with reason) is recorded as a new `SubmissionAttempt` row and
+        used to update the document state. State must be `VALID`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200":
+          description: Cancellation outcome (CANCELLED or VALID with rejection reason).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Document not in VALID state.
+
+  /eta/invoices/{docId}/retry:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Retry a previously ambiguous submission
+      description: |
+        Allowed only from `SUBMISSION_AMBIGUOUS`. Calls ETA with the same
+        `etaSubmissionId` (idempotency hint) so ETA can return the prior outcome
+        if it already processed the original attempt. Produces a new
+        `SubmissionAttempt` row.
+      responses:
+        "200":
+          description: Retry outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Document not in SUBMISSION_AMBIGUOUS state.
+
+  /eta/invoices/{docId}/clone-as-draft:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Clone a rejected document into a new draft
+      description: |
+        Allowed only when the source document is in `REJECTED` state (spec Q1,
+        FR-007). The new draft inherits all editable fields from the source
+        except `invoiceNumber`, which must be supplied in the request body.
+        The source document remains untouched and read-only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoiceNumber]
+              properties:
+                invoiceNumber: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        "201":
+          description: New draft created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        "409":
+          description: Source not in REJECTED state, or new document number duplicate.
+
+  /eta/invoices/check-status:
+    post:
+      tags: [lifecycle]
+      summary: Bulk check status against ETA
+      description: |
+        Body carries up to 200 document IDs. The platform fans out up to 8
+        concurrent ETA status calls (research Decision 5), updates each
+        document's state per ETA's response, and returns a per-document
+        outcome array. A single-element array is allowed for symmetry with
+        the per-row "Check status" button (spec FR-012a). Each id is
+        permission-checked individually; denied entries appear in the
+        response with `outcome: FORBIDDEN`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentIds]
+              properties:
+                documentIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Per-document outcomes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/BulkStatusOutcome' }
+
+  /eta/invoices/{docId}/submissions:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [artifacts]
+      summary: List submission attempts for an invoice
+      responses:
+        "200":
+          description: Attempt history (chronological ascending)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubmissionAttempt' }
+
+  /eta/invoices/{docId}/artifacts/{type}:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+      - name: type
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ArtifactType' }
+    get:
+      tags: [artifacts]
+      summary: Download an immutable artifact for an invoice
+      description: |
+        Returns the artifact contents as the appropriate MIME type (e.g.
+        `application/json` for `SIGNED_JSON` and `ETA_RESPONSE`,
+        `image/png` for `QR_CODE`). `Content-Disposition: attachment` is set
+        so browsers prompt a download. If multiple artifacts of the requested
+        type exist (e.g. one per submission attempt), the most recent is
+        returned; an `?attemptNumber=` query parameter selects a specific one.
+      parameters:
+        - name: attemptNumber
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Artifact bytes
+          headers:
+            X-Artifact-Hash:
+              schema: { type: string }
+              description: SHA-256 hex of the artifact content (integrity check, spec FR-014).
+        "404":
+          description: No artifact of the requested type exists for this document.
+
+components:
+  schemas:
+    EtaInvoiceState:
+      type: string
+      enum: [DRAFT, SUBMITTING, IN_REVIEW, VALID, REJECTED, SUBMISSION_AMBIGUOUS, CANCELLED]
+    EtaInvoiceDocumentType:
+      type: string
+      enum: [i, c, d, ei, ec, ed]
+      description: Standard invoice / Credit note / Debit note / Export invoice / Export credit / Export debit (spec FR-001).
+    ArtifactType:
+      type: string
+      enum: [SIGNED_JSON, SIGNED_XML, QR_CODE, CLEARED_XML, ETA_RESPONSE, ZATCA_RESPONSE]
+    Party:
+      type: object
+      description: ETA SDK party structure (seller or buyer). Schema is opaque at the API layer; backend validates against the ETA spec.
+      additionalProperties: true
+    Money:
+      type: string
+      pattern: '^-?\d+(\.\d{1,5})?$'
+      description: Decimal monetary amount with up to 5 fractional digits (Constitution XIII.5).
+    LineTax:
+      type: object
+      required: [taxType, taxAmount]
+      properties:
+        taxType: { type: string, description: "ETA tax type code, e.g. T1 (VAT), T2 (WHT)" }
+        subType: { type: string }
+        taxRate: { type: string, description: "Decimal rate as string" }
+        taxAmount: { $ref: '#/components/schemas/Money' }
+    Line:
+      type: object
+      required: [lineNumber, itemType, itemCode, description, unitType, quantity, unitValue]
+      properties:
+        lineNumber: { type: integer, minimum: 1 }
+        itemId: { type: string, format: uuid, nullable: true }
+        internalCode: { type: string, nullable: true }
+        itemType: { type: string, enum: [GS1, EGS] }
+        itemCode: { type: string }
+        description: { type: string }
+        unitType: { type: string }
+        quantity: { $ref: '#/components/schemas/Money' }
+        unitValue:
+          type: object
+          additionalProperties: true
+          description: "{ currencySold, amountEGP, amountSold, currencyExchangeRate } per ETA spec."
+        salesTotal: { $ref: '#/components/schemas/Money' }
+        discountRate: { type: string, nullable: true }
+        discountAmount: { $ref: '#/components/schemas/Money' }
+        itemsDiscount: { $ref: '#/components/schemas/Money' }
+        valueDifference: { $ref: '#/components/schemas/Money' }
+        totalTaxableFees: { $ref: '#/components/schemas/Money' }
+        netTotal: { $ref: '#/components/schemas/Money' }
+        taxAmount: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+        taxes:
+          type: array
+          items: { $ref: '#/components/schemas/LineTax' }
+    CreateOrUpdateInvoice:
+      type: object
+      required:
+        - invoiceNumber
+        - documentType
+        - issueDatetime
+        - sellerData
+        - buyerData
+        - currency
+        - lines
+      properties:
+        invoiceNumber: { type: string, minLength: 1, maxLength: 100 }
+        documentType: { $ref: '#/components/schemas/EtaInvoiceDocumentType' }
+        documentTypeVersion: { type: string, default: "1.0" }
+        issueDatetime: { type: string, format: date-time }
+        serviceDeliveryDate: { type: string, format: date, nullable: true }
+        sellerData: { $ref: '#/components/schemas/Party' }
+        buyerData: { $ref: '#/components/schemas/Party' }
+        taxpayerActivityCode: { type: string, nullable: true }
+        purchaseOrderReference: { type: string, nullable: true }
+        purchaseOrderDescription: { type: string, nullable: true }
+        salesOrderReference: { type: string, nullable: true }
+        salesOrderDescription: { type: string, nullable: true }
+        proformaInvoiceNumber: { type: string, nullable: true }
+        paymentData: { type: object, additionalProperties: true, nullable: true }
+        deliveryData: { type: object, additionalProperties: true, nullable: true }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        totalSalesAmount: { $ref: '#/components/schemas/Money' }
+        totalDiscountAmount: { $ref: '#/components/schemas/Money' }
+        extraDiscountAmount: { $ref: '#/components/schemas/Money' }
+        totalItemsDiscountAmount: { $ref: '#/components/schemas/Money' }
+        netAmount: { $ref: '#/components/schemas/Money' }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+        originalDocumentId: { type: string, format: uuid, nullable: true }
+        lines:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Line' }
+    Invoice:
+      allOf:
+        - $ref: '#/components/schemas/CreateOrUpdateInvoice'
+        - type: object
+          required: [id, companyId, state, version, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            companyId: { type: string, format: uuid }
+            companyName: { type: string }
+            branchId: { type: string, format: uuid, nullable: true }
+            state: { $ref: '#/components/schemas/EtaInvoiceState' }
+            version: { type: integer }
+            etaUuid: { type: string, nullable: true }
+            etaLongId: { type: string, nullable: true }
+            etaSubmissionId: { type: string, nullable: true }
+            createdBy: { type: string, format: uuid, nullable: true }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            permissions:
+              type: object
+              description: "Action availability for the calling user on this document (echoes the spec FR-021 gating logic)."
+              additionalProperties: { type: boolean }
+    PagedInvoiceList:
+      type: object
+      required: [items, page, size, totalElements]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, invoiceNumber, companyId, companyName, documentType, issueDatetime, totalAmount, state, version]
+            properties:
+              id: { type: string, format: uuid }
+              invoiceNumber: { type: string }
+              companyId: { type: string, format: uuid }
+              companyName: { type: string }
+              documentType: { $ref: '#/components/schemas/EtaInvoiceDocumentType' }
+              issueDatetime: { type: string, format: date-time }
+              totalAmount: { $ref: '#/components/schemas/Money' }
+              currency: { type: string }
+              state: { $ref: '#/components/schemas/EtaInvoiceState' }
+              version: { type: integer }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+    SubmissionAttempt:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        attemptNumber: { type: integer }
+        result: { type: string, enum: [SUCCESS, REJECTED, ERROR, TIMEOUT, AMBIGUOUS, null] }
+        statusCode: { type: integer, nullable: true }
+        errorSummary: { type: string, nullable: true }
+        submittedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        actor:
+          type: object
+          properties:
+            userId: { type: string, format: uuid, nullable: true }
+            displayName: { type: string, nullable: true }
+    SubmissionOutcome:
+      type: object
+      required: [state, attempt]
+      properties:
+        state: { $ref: '#/components/schemas/EtaInvoiceState' }
+        attempt: { $ref: '#/components/schemas/SubmissionAttempt' }
+        etaUuid: { type: string, nullable: true }
+        etaLongId: { type: string, nullable: true }
+        etaSubmissionId: { type: string, nullable: true }
+    BulkStatusOutcome:
+      type: object
+      required: [documentId, outcome]
+      properties:
+        documentId: { type: string, format: uuid }
+        outcome:
+          type: string
+          enum: [UPDATED, UNCHANGED, FORBIDDEN, NOT_FOUND, ETA_ERROR]
+        beforeState: { $ref: '#/components/schemas/EtaInvoiceState' }
+        afterState: { $ref: '#/components/schemas/EtaInvoiceState' }
+        etaResultCode: { type: string, nullable: true }
+        errorSummary: { type: string, nullable: true }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+    ConflictBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [OPTIMISTIC_LOCK_CONFLICT, DUPLICATE_INVOICE_NUMBER, INVALID_LIFECYCLE_TRANSITION]
+        message: { type: string }
+        expectedVersion: { type: integer }
+        actualVersion: { type: integer }
+        current: { $ref: '#/components/schemas/Invoice' }

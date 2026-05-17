@@ -257,7 +257,7 @@ class Wave6CompoundFilterEnforcementTest {
         List<Class<?>> result = new ArrayList<>();
         try {
             String path = packageName.replace('.', '/');
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            ClassLoader cl = Wave6CompoundFilterEnforcementTest.class.getClassLoader();
             Enumeration<URL> resources = cl.getResources(path);
             while (resources.hasMoreElements()) {
                 URL url = resources.nextElement();

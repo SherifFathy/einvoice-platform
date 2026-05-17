@@ -1,0 +1,500 @@
+openapi: 3.1.0
+info:
+  title: Wave 7 — ETA Receipts API
+  version: "1.0.0"
+  description: |
+    REST contract for ETA v1.2 receipt management.
+
+    Shape parallels the ETA Invoices API exactly (same JWT-scoped tenant model,
+    same optimistic-concurrency mechanics, same artifact and lifecycle
+    semantics). The only differences are:
+    - The `documentType` enum carries the full v1.2 receipt subtype set.
+    - `buyerData` is nullable (B2C receipts).
+    - `posSerial` and `paymentMethod` fields replace invoice-specific reference
+      fields.
+    - The reference field for return/cancellation subtypes is `originalReceiptId`.
+
+    All cross-cutting semantics (FR-007 draft-only edits, FR-012 manual check-status
+    with bulk variant FR-012a, FR-013 forward-cancellation-to-ETA, FR-014/015
+    append-only artifacts, FR-016/017 audit logs, FR-018 environment isolation,
+    FR-022 multi-company list, FR-025 optimistic concurrency, FR-026 English UI
+    chrome) apply identically.
+
+servers:
+  - url: /api/companies/{id}
+    variables:
+      id:
+        default: "00000000-0000-0000-0000-000000000000"
+
+tags:
+  - name: receipts
+  - name: lifecycle
+  - name: artifacts
+
+paths:
+  /eta/receipts:
+    get:
+      tags: [receipts]
+      summary: List ETA receipts visible to the user in the active environment
+      parameters:
+        - name: company
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/EtaReceiptState' }
+        - name: receiptType
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/EtaReceiptDocumentType' }
+        - name: dateFrom
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: dateTo
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      responses:
+        "200":
+          description: Paged list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedReceiptList' }
+    post:
+      tags: [receipts]
+      summary: Create a new draft receipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrUpdateReceipt' }
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Receipt' }
+        "400":
+          description: Validation failure
+        "409":
+          description: Duplicate receipt number
+
+  /eta/receipts/{docId}:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [receipts]
+      summary: Get an ETA receipt
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Receipt' }
+        "404":
+          description: Not found (or out-of-tenant)
+    put:
+      tags: [receipts]
+      summary: Update a draft receipt (optimistic concurrency)
+      parameters:
+        - name: If-Match
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrUpdateReceipt' }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Receipt' }
+        "409":
+          description: Conflict — see invoices ConflictBody semantics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConflictBody' }
+    delete:
+      tags: [receipts]
+      summary: Delete a draft receipt
+      responses:
+        "204": { description: Deleted }
+        "409": { description: Document is not in DRAFT state }
+
+  /eta/receipts/{docId}/submit:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Sign and submit a draft receipt to ETA
+      responses:
+        "200":
+          description: Submission completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Not in submittable state, or totals inconsistent, or no certificate configured
+
+  /eta/receipts/{docId}/cancel:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Forward a cancellation request to ETA (no platform-side window check)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200":
+          description: Cancellation outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Not in VALID state
+
+  /eta/receipts/{docId}/retry:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Retry a previously ambiguous submission
+      responses:
+        "200":
+          description: Retry outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Not in SUBMISSION_AMBIGUOUS state
+
+  /eta/receipts/{docId}/clone-as-draft:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Clone a rejected receipt into a new draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receiptNumber]
+              properties:
+                receiptNumber: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        "201":
+          description: New draft created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Receipt' }
+        "409":
+          description: Source not in REJECTED state, or duplicate receipt number
+
+  /eta/receipts/check-status:
+    post:
+      tags: [lifecycle]
+      summary: Bulk check status against ETA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentIds]
+              properties:
+                documentIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Per-document outcomes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items: { $ref: '#/components/schemas/BulkStatusOutcome' }
+
+  /eta/receipts/{docId}/submissions:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [artifacts]
+      summary: List submission attempts for a receipt
+      responses:
+        "200":
+          description: Attempt history
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubmissionAttempt' }
+
+  /eta/receipts/{docId}/artifacts/{type}:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+      - name: type
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/ArtifactType' }
+    get:
+      tags: [artifacts]
+      summary: Download an immutable artifact for a receipt
+      parameters:
+        - name: attemptNumber
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Artifact bytes
+          headers:
+            X-Artifact-Hash:
+              schema: { type: string }
+        "404":
+          description: No artifact of the requested type exists
+
+components:
+  schemas:
+    EtaReceiptState:
+      type: string
+      enum: [DRAFT, SUBMITTING, IN_REVIEW, VALID, REJECTED, SUBMISSION_AMBIGUOUS, CANCELLED]
+    EtaReceiptDocumentType:
+      type: string
+      description: ETA v1.2 receipt subtype code (spec FR-002).
+      enum:
+        - r
+        - rr
+        - rrwr
+        - cr
+        - crr
+        - gs
+        - gsr
+        - rt
+        - rtr
+        - tr
+        - trr
+        - bk
+        - bkr
+        - ed
+        - edr
+        - pr
+        - prr
+        - sh
+        - shr
+        - en
+        - enr
+        - ut
+        - utr
+    ArtifactType:
+      type: string
+      enum: [SIGNED_JSON, SIGNED_XML, QR_CODE, CLEARED_XML, ETA_RESPONSE, ZATCA_RESPONSE]
+    Party:
+      type: object
+      additionalProperties: true
+    Money:
+      type: string
+      pattern: '^-?\d+(\.\d{1,5})?$'
+    LineTax:
+      type: object
+      required: [taxType, taxAmount]
+      properties:
+        taxType: { type: string }
+        subType: { type: string }
+        taxRate: { type: string }
+        taxAmount: { $ref: '#/components/schemas/Money' }
+    Line:
+      type: object
+      required: [lineNumber, itemType, itemCode, description, unitType, quantity, unitValue]
+      properties:
+        lineNumber: { type: integer, minimum: 1 }
+        itemId: { type: string, format: uuid, nullable: true }
+        internalCode: { type: string, nullable: true }
+        itemType: { type: string, enum: [GS1, EGS] }
+        itemCode: { type: string }
+        description: { type: string }
+        unitType: { type: string }
+        quantity: { $ref: '#/components/schemas/Money' }
+        unitValue:
+          type: object
+          additionalProperties: true
+        salesTotal: { $ref: '#/components/schemas/Money' }
+        discountRate: { type: string, nullable: true }
+        discountAmount: { $ref: '#/components/schemas/Money' }
+        itemsDiscount: { $ref: '#/components/schemas/Money' }
+        valueDifference: { $ref: '#/components/schemas/Money' }
+        totalTaxableFees: { $ref: '#/components/schemas/Money' }
+        netTotal: { $ref: '#/components/schemas/Money' }
+        taxAmount: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+        taxes:
+          type: array
+          items: { $ref: '#/components/schemas/LineTax' }
+    CreateOrUpdateReceipt:
+      type: object
+      required:
+        - receiptNumber
+        - documentType
+        - issueDatetime
+        - sellerData
+        - currency
+        - lines
+      properties:
+        receiptNumber: { type: string, minLength: 1, maxLength: 100 }
+        documentType: { $ref: '#/components/schemas/EtaReceiptDocumentType' }
+        documentTypeVersion: { type: string, default: "1.2" }
+        issueDatetime: { type: string, format: date-time }
+        sellerData: { $ref: '#/components/schemas/Party' }
+        buyerData:
+          allOf:
+            - $ref: '#/components/schemas/Party'
+          nullable: true
+          description: Required for B2B receipts; optional for B2C.
+        posSerial: { type: string, nullable: true }
+        paymentMethod: { type: string, nullable: true }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        totalSalesAmount: { $ref: '#/components/schemas/Money' }
+        totalDiscountAmount: { $ref: '#/components/schemas/Money' }
+        netAmount: { $ref: '#/components/schemas/Money' }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+        originalReceiptId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Required for return / cancellation subtypes (rr, rrwr, cr, crr, gsr, rtr, trr, bkr, edr, prr, shr, enr, utr).
+        lines:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Line' }
+    Receipt:
+      allOf:
+        - $ref: '#/components/schemas/CreateOrUpdateReceipt'
+        - type: object
+          required: [id, companyId, state, version, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            companyId: { type: string, format: uuid }
+            companyName: { type: string }
+            branchId: { type: string, format: uuid, nullable: true }
+            state: { $ref: '#/components/schemas/EtaReceiptState' }
+            version: { type: integer }
+            etaReceiptUuid: { type: string, nullable: true }
+            etaSubmissionId: { type: string, nullable: true }
+            createdBy: { type: string, format: uuid, nullable: true }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            permissions:
+              type: object
+              additionalProperties: { type: boolean }
+    PagedReceiptList:
+      type: object
+      required: [items, page, size, totalElements]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, receiptNumber, companyId, companyName, documentType, issueDatetime, totalAmount, state, version]
+            properties:
+              id: { type: string, format: uuid }
+              receiptNumber: { type: string }
+              companyId: { type: string, format: uuid }
+              companyName: { type: string }
+              documentType: { $ref: '#/components/schemas/EtaReceiptDocumentType' }
+              issueDatetime: { type: string, format: date-time }
+              totalAmount: { $ref: '#/components/schemas/Money' }
+              currency: { type: string }
+              state: { $ref: '#/components/schemas/EtaReceiptState' }
+              version: { type: integer }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer }
+    SubmissionAttempt:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        attemptNumber: { type: integer }
+        result: { type: string, enum: [SUCCESS, REJECTED, ERROR, TIMEOUT, AMBIGUOUS, null] }
+        statusCode: { type: integer, nullable: true }
+        errorSummary: { type: string, nullable: true }
+        submittedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        actor:
+          type: object
+          properties:
+            userId: { type: string, format: uuid, nullable: true }
+            displayName: { type: string, nullable: true }
+    SubmissionOutcome:
+      type: object
+      required: [state, attempt]
+      properties:
+        state: { $ref: '#/components/schemas/EtaReceiptState' }
+        attempt: { $ref: '#/components/schemas/SubmissionAttempt' }
+        etaReceiptUuid: { type: string, nullable: true }
+        etaSubmissionId: { type: string, nullable: true }
+    BulkStatusOutcome:
+      type: object
+      required: [documentId, outcome]
+      properties:
+        documentId: { type: string, format: uuid }
+        outcome:
+          type: string
+          enum: [UPDATED, UNCHANGED, FORBIDDEN, NOT_FOUND, ETA_ERROR]
+        beforeState: { $ref: '#/components/schemas/EtaReceiptState' }
+        afterState: { $ref: '#/components/schemas/EtaReceiptState' }
+        etaResultCode: { type: string, nullable: true }
+        errorSummary: { type: string, nullable: true }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+    ConflictBody:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [OPTIMISTIC_LOCK_CONFLICT, DUPLICATE_RECEIPT_NUMBER, INVALID_LIFECYCLE_TRANSITION]
+        message: { type: string }
+        expectedVersion: { type: integer }
+        actualVersion: { type: integer }
+        current: { $ref: '#/components/schemas/Receipt' }

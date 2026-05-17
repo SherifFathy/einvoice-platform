@@ -159,3 +159,64 @@ Users without `CUSTOMERS/VIEW`, `ITEMS/VIEW`, or `CONFIG/VIEW` will not see the 
 ### Operational Mode Requirement
 
 The three new frontend screens (Customers, Items, Configuration) are operational-only. Users must be in `OPERATIONAL_MODE` with an active company context. Admin Mode access is rejected at the API level by the `@RequireOperationalMode` annotation (Constitution VII.4).
+
+---
+
+## Wave 7 — ETA Document Tables and Submission Engine
+
+Wave 7 adds nine operational tables for ETA invoices, receipts, and shared submission infrastructure. Migrations V48–V53 apply on top of the Wave 6 V47 baseline. A supplementary permission seed migration V53a adds INVOICE and RECEIPT permission rows. The `invoice_artifacts` table includes an `attempt_number` column and the `submission_attempts` table includes a `submitted_by` column, both created directly in V52.
+
+### Deployment Notes
+
+- **Migrations**: V48 (`eta_invoice_headers`), V49 (`eta_invoice_lines` + `eta_invoice_line_taxes`), V50 (`eta_receipt_headers`), V51 (`eta_receipt_lines` + `eta_receipt_line_taxes`), V52 (`submission_attempts` + `invoice_artifacts` + `audit_logs` + `append_only_guard` trigger), V53 (compound indexes across all 8 new tables), V53a (INVOICE + RECEIPT permission seeds). These run automatically via Flyway on backend startup.
+- **V52 trigger verification**: After deploying, confirm the `append_only_guard` trigger exists and enforces immutability on `invoice_artifacts` and `audit_logs`:
+  ```sql
+  -- Should raise ERROR: append_only_table
+  UPDATE invoice_artifacts SET content = 'x' WHERE id = '<any-id>';
+  DELETE FROM audit_logs WHERE id = <any-id>;
+  ```
+  For `submission_attempts`, the trigger uses a deny-list of immutable columns: `id`, `company_id`, `authority_environment_id`, `transaction_type`, `document_id`, `attempt_number`, `submitted_by`, `request_payload_ref`, and `submitted_at` may not be changed. Only `result`, `status_code`, `error_summary`, `response_payload_ref`, and `completed_at` may be updated. Any UPDATE touching a deny-listed column raises `append_only_table`.
+- **Outbound HTTPS access**: The app container must be able to reach ETA endpoints:
+  - Production: `https://api.invoicing.eta.gov.eg`
+  - Pre-Production: `https://api.preproduction.invoicing.eta.gov.eg`
+  Verify connectivity from the app container: `curl -I https://api.preproduction.invoicing.eta.gov.eg`.
+- **No new environment variables**: Wave 7 does not introduce new env vars. Existing `JWT_SECRET`, `SPRING_DATASOURCE_*`, `BOOTSTRAP_SUPERUSER_*`, and `ENCRYPTION_MASTER_KEY` settings are unchanged.
+- **No new infrastructure components**: No new Docker services, message queues, or external dependencies. Wave 7 uses the existing PostgreSQL instance and the existing Spring Boot application.
+
+### Verifying V48–V53 Applied
+
+After deploying, confirm the migrations applied:
+
+```sql
+SELECT version, description, installed_on
+FROM flyway_schema_history
+WHERE version IN ('48', '49', '50', '51', '52', '53', '53a')
+ORDER BY installed_rank;
+```
+
+Verify all 9 new tables exist:
+
+```sql
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'eta_invoice_headers', 'eta_invoice_lines', 'eta_invoice_line_taxes',
+    'eta_receipt_headers', 'eta_receipt_lines', 'eta_receipt_line_taxes',
+    'submission_attempts', 'invoice_artifacts', 'audit_logs'
+  );
+```
+
+Verify the 16 compound indexes:
+
+```sql
+SELECT indexname FROM pg_indexes
+WHERE schemaname = 'public'
+  AND (indexname LIKE 'idx_eta_%'
+       OR indexname LIKE 'idx_submission_%'
+       OR indexname LIKE 'idx_artifacts_%'
+       OR indexname LIKE 'idx_audit_%');
+```
+
+### New Endpoint Surface (Wave 7)
+
+Wave 7 adds approximately 24 new REST endpoints for invoice/receipt CRUD, submission, cancellation, retry, check-status (single + bulk), submission history, artifact download, and clone-to-new-draft. All are gated by `@RequiresPermission` with INVOICE or RECEIPT module actions. All reject Admin Mode with `403 COMPANY_CONTEXT_REQUIRED`.

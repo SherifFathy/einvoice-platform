@@ -70,6 +70,48 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'invoices/eta',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./invoices/eta/eta-invoice-list.component').then(m => m.EtaInvoiceListComponent),
+          },
+          {
+            path: 'new',
+            loadComponent: () => import('./invoices/eta/eta-invoice-form.component').then(m => m.EtaInvoiceFormComponent),
+          },
+          {
+            path: ':id',
+            loadComponent: () => import('./invoices/eta/eta-invoice-detail.component').then(m => m.EtaInvoiceDetailComponent),
+          },
+          {
+            path: ':id/edit',
+            loadComponent: () => import('./invoices/eta/eta-invoice-form.component').then(m => m.EtaInvoiceFormComponent),
+          },
+        ],
+      },
+      {
+        path: 'receipts/eta',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./receipts/eta/eta-receipt-list.component').then(m => m.EtaReceiptListComponent),
+          },
+          {
+            path: 'new',
+            loadComponent: () => import('./receipts/eta/eta-receipt-form.component').then(m => m.EtaReceiptFormComponent),
+          },
+          {
+            path: ':id',
+            loadComponent: () => import('./receipts/eta/eta-receipt-detail.component').then(m => m.EtaReceiptDetailComponent),
+          },
+          {
+            path: ':id/edit',
+            loadComponent: () => import('./receipts/eta/eta-receipt-form.component').then(m => m.EtaReceiptFormComponent),
+          },
+        ],
+      },
+      {
         path: 'customers',
         canActivate: [operationalModeGuard],
         children: [

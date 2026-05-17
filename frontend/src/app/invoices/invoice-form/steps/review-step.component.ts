@@ -105,11 +105,11 @@ export class ReviewStepComponent {
 
   private toLineInput(l: Record<string, unknown>): LineInput {
     return {
-      unitPrice: parseFloat(l.unitPrice) || 0,
-      quantity: parseFloat(l.quantity) || 0,
-      discountAmount: parseFloat(l.discountAmount) || 0,
-      vatCategory: l.vatCategory,
-      vatRate: parseFloat(l.vatRate) || 0,
+      unitPrice: parseFloat(l['unitPrice'] as string) || 0,
+      quantity: parseFloat(l['quantity'] as string) || 0,
+      discountAmount: parseFloat(l['discountAmount'] as string) || 0,
+      vatCategory: l['vatCategory'] as string,
+      vatRate: parseFloat(l['vatRate'] as string) || 0,
     };
   }
 

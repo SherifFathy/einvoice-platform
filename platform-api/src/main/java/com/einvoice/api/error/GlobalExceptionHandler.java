@@ -1,16 +1,22 @@
 package com.einvoice.api.error;
 
+import com.einvoice.core.error.AppendOnlyViolationException;
 import com.einvoice.core.error.AssignmentExistsException;
 import com.einvoice.core.error.BranchCodeDuplicateException;
 import com.einvoice.core.error.BranchIdNotAllowedException;
+import com.einvoice.core.error.BulkBatchLimitExceededException;
 import com.einvoice.core.error.CompanyContextRequiredException;
 import com.einvoice.core.error.ConfigNotFoundException;
 import com.einvoice.core.error.CustomerNotFoundException;
+import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.DuplicateInternalCodeException;
+import com.einvoice.core.error.DuplicateInvoiceNumberException;
+import com.einvoice.core.error.DuplicateReceiptNumberException;
 import com.einvoice.core.error.DuplicateTaxNumberException;
 import com.einvoice.core.error.DuplicateVatNumberException;
 import com.einvoice.core.error.EmailAlreadyExistsException;
 import com.einvoice.core.error.InactiveCompanyException;
+import com.einvoice.core.error.IncompatibleOriginalDocumentException;
 import com.einvoice.core.error.InvalidAddressDataException;
 import com.einvoice.core.error.InvalidAuthorityEnvironmentException;
 import com.einvoice.core.error.InvalidAuthorityForRouteException;
@@ -18,16 +24,23 @@ import com.einvoice.core.error.InvalidCustomerTypeException;
 import com.einvoice.core.error.InvalidEnvironmentForAuthorityException;
 import com.einvoice.core.error.InvalidExpiryDateException;
 import com.einvoice.core.error.InvalidItemTypeException;
+import com.einvoice.core.error.InvalidLifecycleTransitionException;
 import com.einvoice.core.error.InvalidRoleForAuthorityException;
+import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.InvalidVatCategoryException;
 import com.einvoice.core.error.InvalidVatNumberException;
 import com.einvoice.core.error.InvalidVatRateException;
 import com.einvoice.core.error.ItemNotFoundException;
 import com.einvoice.core.error.LastSuperUserProtectedException;
+import com.einvoice.core.error.MissingOriginalDocumentException;
+import com.einvoice.core.error.NoCertificateConfiguredException;
+import com.einvoice.core.error.OptimisticLockConflictException;
 import com.einvoice.core.error.ProductionTokenRequiredException;
 import com.einvoice.core.error.TaxNumberDuplicateException;
+import com.einvoice.core.error.TotalsInconsistentException;
 import com.einvoice.core.error.UnauthorizedContextException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
+import jakarta.persistence.OptimisticLockException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -295,6 +309,168 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
                 ex.getCode(), ex.getMessage(),
                 Map.of("field", ex.getField(), "value", ex.getValue())));
+    }
+
+    /**
+     * Handle duplicate invoice number.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(DuplicateInvoiceNumberException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateInvoiceNumber(DuplicateInvoiceNumberException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("companyId", ex.getCompanyId(), "invoiceNumber", ex.getInvoiceNumber())));
+    }
+
+    /**
+     * Handle duplicate receipt number.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(DuplicateReceiptNumberException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateReceiptNumber(DuplicateReceiptNumberException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("companyId", ex.getCompanyId(), "receiptNumber", ex.getReceiptNumber())));
+    }
+
+    /**
+     * Handle missing original document.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(MissingOriginalDocumentException.class)
+    public ResponseEntity<ErrorResponse> handleMissingOriginalDocument(MissingOriginalDocumentException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getCode(), ex.getMessage());
+    }
+
+    /**
+     * Handle incompatible original document.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(IncompatibleOriginalDocumentException.class)
+    public ResponseEntity<ErrorResponse> handleIncompatibleOriginalDocument(IncompatibleOriginalDocumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("expectedType", ex.getExpectedType(), "actualType", ex.getActualType())));
+    }
+
+    /**
+     * Handle inconsistent totals.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(TotalsInconsistentException.class)
+    public ResponseEntity<ErrorResponse> handleTotalsInconsistent(TotalsInconsistentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("field", ex.getField(), "expected", ex.getExpected(), "actual", ex.getActual())));
+    }
+
+    /**
+     * Handle invalid unit-value fields.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(InvalidUnitValueException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidUnitValue(InvalidUnitValueException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("field", ex.getField(), "missingKeys", ex.getMissingKeys())));
+    }
+
+    /**
+     * Handle no certificate configured.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(NoCertificateConfiguredException.class)
+    public ResponseEntity<ErrorResponse> handleNoCertificateConfigured(NoCertificateConfiguredException ex) {
+        return build(HttpStatus.CONFLICT, ex.getCode(), ex.getMessage());
+    }
+
+    /**
+     * Handle document-not-draft.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(DocumentNotDraftException.class)
+    public ResponseEntity<ErrorResponse> handleDocumentNotDraft(DocumentNotDraftException ex) {
+        return build(HttpStatus.CONFLICT, ex.getCode(), ex.getMessage());
+    }
+
+    /**
+     * Handle invalid lifecycle transition.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(InvalidLifecycleTransitionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidLifecycleTransition(InvalidLifecycleTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("fromState", ex.getFromState(), "action", ex.getAction())));
+    }
+
+    /**
+     * Handle optimistic-lock conflict from our service layer.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(OptimisticLockConflictException.class)
+    public ResponseEntity<ConflictResponse> handleOptimisticLockConflict(OptimisticLockConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ConflictResponse(ex.getCode(), ex.getMessage(),
+                        ex.getExpectedVersion(), ex.getActualVersion(),
+                        ex.getCurrent()));
+    }
+
+    /**
+     * Map JPA optimistic-lock failures to the same conflict shape.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
+    public ResponseEntity<ErrorResponse> handleJpaOptimisticLock(Exception ex) {
+        return build(HttpStatus.CONFLICT, OptimisticLockConflictException.CODE,
+                "The document was modified by another user. Please refresh and retry.");
+    }
+
+    /**
+     * Handle append-only DB-trigger violations.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(AppendOnlyViolationException.class)
+    public ResponseEntity<ErrorResponse> handleAppendOnlyViolation(AppendOnlyViolationException ex) {
+        log.error("Append-only violation on table: {}", ex.getTableName(), ex);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getCode(), ex.getMessage());
+    }
+
+    /**
+     * Handle bulk-batch limit exceeded.
+     *
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(BulkBatchLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleBulkBatchLimitExceeded(BulkBatchLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("requested", ex.getRequested(), "limit", ex.getLimit())));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

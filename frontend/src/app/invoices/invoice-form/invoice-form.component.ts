@@ -216,14 +216,14 @@ export class InvoiceFormComponent implements OnChanges {
   private buildRequest(): CreateInvoiceRequest {
     const formVal = this.form.value;
     const lines: InvoiceLineRequest[] = formVal.lines.map((l: Record<string, unknown>, i: number) => ({
-      itemId: l.itemId || null,
-      descriptionEn: l.descriptionEn,
-      quantity: parseFloat(l.quantity),
-      unit: l.unit,
-      unitPrice: parseFloat(l.unitPrice),
-      discountAmount: parseFloat(l.discountAmount) || 0,
-      vatCategory: l.vatCategory,
-      vatRate: parseFloat(l.vatRate),
+      itemId: l['itemId'] || null,
+      descriptionEn: l['descriptionEn'],
+      quantity: parseFloat(l['quantity'] as string),
+      unit: l['unit'],
+      unitPrice: parseFloat(l['unitPrice'] as string),
+      discountAmount: parseFloat(l['discountAmount'] as string) || 0,
+      vatCategory: l['vatCategory'] as string,
+      vatRate: parseFloat(l['vatRate'] as string),
       sortOrder: i + 1,
     }));
 

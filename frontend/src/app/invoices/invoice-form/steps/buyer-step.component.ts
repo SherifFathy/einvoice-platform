@@ -9,7 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatListModule } from '@angular/material/list';
 import { CustomerService, CustomerResponse } from '../../../shared/services/customer.service';
-import { InvoiceService } from '../../../shared/services/invoice.service';
+import { InvoiceService, InvoiceListResponse } from '../../../shared/services/invoice.service';
 import { ToastNotificationService } from '../../../shared/services/toast.service';
 
 @Component({
@@ -49,7 +49,7 @@ export class BuyerStepComponent implements OnChanges {
   customers: CustomerResponse[] = [];
   selectedCustomer: CustomerResponse | null = null;
   searchTerm = '';
-  invoices: Record<string, unknown>[] = [];
+  invoices: InvoiceListResponse[] = [];
   invoiceSearchTerm = '';
   isB2b = false;
   showInlineCreate = false;
@@ -150,7 +150,7 @@ export class BuyerStepComponent implements OnChanges {
     });
   }
 
-  selectInvoice(invoice: Record<string, unknown>): void {
+  selectInvoice(invoice: InvoiceListResponse): void {
     this.form.patchValue({ originalInvoiceId: invoice.id });
     this.invoices = [];
     this.invoiceSearchTerm = '';

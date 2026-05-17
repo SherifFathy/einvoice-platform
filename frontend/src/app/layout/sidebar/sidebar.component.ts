@@ -28,8 +28,8 @@ export class SidebarComponent {
 
   private readonly etaItems: SidebarItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Invoices', icon: 'receipt', route: '/invoices', moduleKey: 'invoice' },
-    { label: 'Receipts', icon: 'receipt_long', route: '/receipts', moduleKey: 'receipt' },
+    { label: 'Invoices', icon: 'receipt', route: '/invoices', permission: ['INVOICE', 'VIEW'] },
+    { label: 'Receipts', icon: 'receipt_long', route: '/receipts/eta', permission: ['RECEIPT', 'VIEW'] },
     { label: 'Customers', icon: 'people', route: '/customers', permission: ['customers', 'VIEW'] },
     { label: 'Items', icon: 'inventory', route: '/items', permission: ['items', 'VIEW'] },
     { label: 'Configuration', icon: 'settings', route: '/config', permission: ['configuration', 'VIEW'] },

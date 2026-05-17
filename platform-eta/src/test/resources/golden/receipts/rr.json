@@ -1,0 +1,56 @@
+{
+  "documentType" : "rr",
+  "documentTypeVersion" : "1.2",
+  "dateTimeIssued" : "2026-05-13T16:00+02:00",
+  "internalID" : "REC-001",
+  "posSerial" : "POS-001",
+  "paymentMethod" : "CASH",
+  "originalReceiptId" : "00000000-0000-0000-0000-000000000099",
+  "seller" : {
+    "branchNumber" : "0",
+    "buildingNumber" : "1",
+    "companyName" : "Test Company",
+    "country" : "EG",
+    "governate" : "Cairo",
+    "id" : "123456789",
+    "name" : "Test Company",
+    "postalCode" : "12345",
+    "regionCity" : "Nasr City",
+    "street" : "Test Street",
+    "type" : "B"
+  },
+  "documentTotals" : {
+    "totalSalesAmount" : "50.00000",
+    "totalDiscountAmount" : "0.00000",
+    "extraDiscountAmount" : "0.00000",
+    "totalItemsDiscountAmount" : "0.00000",
+    "netAmount" : "50.00000",
+    "totalAmount" : "57.00000"
+  },
+  "receiptLines" : [ {
+    "internalCode" : "ITEM002",
+    "itemType" : "EGS",
+    "itemCode" : "EGS-001",
+    "description" : "Test Receipt Item Return",
+    "unitType" : "EA",
+    "quantity" : "2.00000",
+    "unitValue" : {
+      "amountEGP" : "25.00000",
+      "amountSold" : "25.00000",
+      "currencyExchangeRate" : "1.00000",
+      "currencySold" : "EGP"
+    },
+    "salesTotal" : "50.00000",
+    "discount" : "0.00000",
+    "itemsDiscount" : "0.00000",
+    "valueDifference" : "0.00000",
+    "totalTaxableFees" : "0.00000",
+    "netTotal" : "50.00000",
+    "total" : "57.00000",
+    "taxableItems" : [ {
+      "taxType" : "T1",
+      "rate" : "14.00000",
+      "amount" : "7.00000"
+    } ]
+  } ]
+}

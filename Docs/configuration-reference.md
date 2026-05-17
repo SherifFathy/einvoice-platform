@@ -164,3 +164,98 @@ Full catalogue: [`specs/007-wave6-master-data-configs/contracts/error-codes.md`]
 | `INVALID_ITEM_TYPE` | 400 | `itemType` not in `{GS1, EGS}` |
 | `INVALID_ADDRESS_DATA` | 400 | `addressData` JSON missing required keys for the authority |
 | `INVALID_ENVIRONMENT_FOR_AUTHORITY` | 400 | JWT environment does not match the endpoint's authority |
+
+---
+
+## Wave 7 — ETA Document Tables and Submission Engine
+
+### New Tables
+
+| Table | Purpose | Key Constraints |
+|-------|---------|-----------------|
+| `eta_invoice_headers` | Canonical ETA tax invoice (6 document types: `i`, `c`, `d`, `ei`, `ec`, `ed`) | `uq_eta_invoice_number (company_id, authority_environment_id, invoice_number)`; `CHECK (documentType IN ('i','c','d','ei','ec','ed'))`; `CHECK ((documentType IN ('c','d','ec','ed')) IS NOT TRUE OR original_document_id IS NOT NULL)` |
+| `eta_invoice_lines` | Line items within an invoice | `uq_eta_invoice_line (header_id, line_number)`; `CHECK (item_type IN ('GS1','EGS'))`; `CHECK (quantity > 0)`; `ON DELETE CASCADE` |
+| `eta_invoice_line_taxes` | Tax components per line (multiple per line — Constitution XI.3) | `ON DELETE CASCADE` |
+| `eta_receipt_headers` | ETA v1.2 receipt (23 subtypes) | `uq_eta_receipt_number (company_id, authority_environment_id, receipt_number)`; `buyer_data` nullable (B2C); `original_receipt_id` required for return/cancellation subtypes |
+| `eta_receipt_lines` | Line items within a receipt | Same shape as `eta_invoice_lines` referencing `eta_receipt_headers` |
+| `eta_receipt_line_taxes` | Tax components per receipt line | Same shape as `eta_invoice_line_taxes` referencing `eta_receipt_lines` |
+| `submission_attempts` | Shared cross-authority transmission log | `UNIQUE (document_id, attempt_number)`; append-only after finalisation — deny-list trigger rejects UPDATE on all columns except `result`, `status_code`, `error_summary`, `response_payload_ref`, `completed_at`; includes `submitted_by UUID` for audit traceability |
+| `invoice_artifacts` | Shared immutable payload storage (SIGNED_JSON, SIGNED_XML, QR_CODE, CLEARED_XML, ETA_RESPONSE, ZATCA_RESPONSE) | Fully append-only — no UPDATE or DELETE (3-layer enforcement: repository, service, DB trigger); includes `attempt_number INTEGER` for per-attempt artifact lookup (T097) |
+| `audit_logs` | Shared immutable audit trail for every state-changing action | Fully append-only — same 3-layer enforcement |
+
+All nine tables are **operational** (Constitution II.5): every read/write filters by `(company_id, authority_environment_id)` from the JWT-derived `TenantContext`. Flyway migrations V48–V53 create these tables and their compound indexes.
+
+### Permission Scopes — INVOICE and RECEIPT (Constitution XVII.6–8)
+
+Wave 7 introduces the INVOICE and RECEIPT permission modules with all 8 defined action permissions:
+
+| Role | VIEW | CREATE | EDIT | DELETE | CANCEL | TRANSFER | REFRESH | SUBMIT |
+|------|------|--------|------|--------|--------|----------|---------|--------|
+| COMPANY_ADMIN | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| ACCOUNTANT | ✓ | ✓ | — | — | — | — | ✓ | ✓ |
+| VIEWER | ✓ | — | — | — | — | — | — | — |
+
+Seeded by Flyway migration `V53a__wave7_invoice_receipt_permissions_seed.sql` (idempotent `INSERT … ON CONFLICT DO NOTHING`). `TRANSFER` is seeded for forward-compatibility with Wave 9 inter-branch transfers; no Wave 7 endpoint consumes it.
+
+### ETA HTTP Base URLs
+
+The `EtaHttpClient` routes outbound calls based on `authority_environments.id`:
+
+| `authority_environment_id` | Environment | ETA Base URL |
+|---------------------------|-------------|--------------|
+| 1 | PRODUCTION | `https://api.invoicing.eta.gov.eg` |
+| 2 | PRE-PRODUCTION | `https://api.preproduction.invoicing.eta.gov.eg` |
+
+> **Confirmed**: Hostnames verified against ETA SDK documentation. The Pre-Production sandbox uses the full `preproduction` subdomain.
+
+Tokens are cached per `(companyId, authorityEnvironmentId)` via Caffeine with TTL = token-expiry − 60 seconds (Constitution V.3 bounded cache). On 401, the cache entry is invalidated and one refresh attempt is made before propagating.
+
+### Wave 7 Error-Code Additions
+
+Full catalogue: [`specs/008-eta-docs-submission/contracts/error-codes.md`](../specs/008-eta-docs-submission/contracts/error-codes.md)
+
+| Code | HTTP | When |
+|------|------|------|
+| `DUPLICATE_INVOICE_NUMBER` | 409 | Invoice number already exists for `(companyId, authorityEnvironmentId)` |
+| `DUPLICATE_RECEIPT_NUMBER` | 409 | Receipt number already exists for `(companyId, authorityEnvironmentId)` |
+| `MISSING_ORIGINAL_DOCUMENT` | 400 | Credit/debit note or return/cancellation receipt missing required original document reference |
+| `INCOMPATIBLE_ORIGINAL_DOCUMENT` | 400 | Original document type is incompatible with the new document type |
+| `TOTALS_INCONSISTENT` | 400 | Line or header totals do not reconcile at 5-decimal precision (FR-024) |
+| `NO_CERTIFICATE_CONFIGURED` | 409 | No ETA certificate configured for `(companyId, authorityEnvironmentId)` at submission time (FR-008) |
+| `DOCUMENT_NOT_DRAFT` | 409 | Edit or delete attempted on a non-DRAFT document (FR-007) |
+| `INVALID_LIFECYCLE_TRANSITION` | 409 | Action not allowed from the current state per lifecycle matrix |
+| `OPTIMISTIC_LOCK_CONFLICT` | 409 | `If-Match` version does not match current `@Version` (FR-025); response includes `expectedVersion`, `actualVersion`, and full `current` document body |
+| `APPEND_ONLY_VIOLATION` | 500 | Internal — surfaces only if a future code path tries to UPDATE/DELETE an append-only table; should never occur in normal operation (defence-in-depth surface) |
+| `BULK_BATCH_LIMIT_EXCEEDED` | 400 | Bulk check-status request exceeds 200 document limit |
+
+Two additional outcome codes — `SUBMISSION_AMBIGUOUS` and `ETA_VALIDATION_ERROR` — surface in 200 OK submission/response bodies rather than as HTTP errors; see [`contracts/error-codes.md`](../specs/008-eta-docs-submission/contracts/error-codes.md).
+
+### Document Lifecycle States
+
+Both invoices and receipts share the same seven-state lifecycle:
+
+```
+DRAFT → SUBMITTING → { VALID | REJECTED | IN_REVIEW | SUBMISSION_AMBIGUOUS }
+IN_REVIEW → CHECK_STATUS → { VALID | REJECTED }
+VALID → CANCEL → CANCELLED (if ETA accepts)
+SUBMISSION_AMBIGUOUS → RETRY → { VALID | REJECTED | IN_REVIEW | SUBMISSION_AMBIGUOUS }
+REJECTED → ∅ (terminal — clone-to-new-draft creates a new row)
+CANCELLED → ∅ (terminal)
+```
+
+### Optimistic Concurrency (FR-025)
+
+`eta_invoice_headers` and `eta_receipt_headers` carry a `version` column (JPA `@Version`, default 0). `GET` responses include `ETag: "<version>"`. `PUT` requires `If-Match` header. On version mismatch, the API returns 409 `OPTIMISTIC_LOCK_CONFLICT` with `{ expectedVersion, actualVersion, current: {...} }`.
+
+### Five-Decimal Money Precision (Constitution XIII.5)
+
+All monetary columns on invoice/receipt headers and lines use `NUMERIC(18,5)`. The `EtaMoneyMath` helper centralises rounding (`RoundingMode.HALF_UP`, 5 fractional digits) for line-total and header-total reconciliation.
+
+### Post-Implementation Notes (T118)
+
+- **ETA Pre-Production hostname**: Confirmed as `api.preproduction.invoicing.eta.gov.eg` (full word, not `preprod`). Updated in `EtaHttpClient`, `configuration-reference.md`, and `deployment-guide.md`.
+- **Token TTL**: ETA Pre-Production access tokens expire after 3600 seconds (1 hour). The `EtaTokenManager` caches with TTL = expiry − 60s = 3540 seconds.
+- **submission_attempts trigger**: Uses a deny-list of immutable columns (id, company_id, authority_environment_id, transaction_type, document_id, attempt_number, submitted_by, request_payload_ref, submitted_at). Changing any of these raises `append_only_table`. Only the finalisation columns (result, status_code, error_summary, response_payload_ref, completed_at) are updatable. The deny-list is appropriate because the protected column set is stable and finite.
+- **V54 folded into V52**: The unscheduled V54 migration has been removed. Its columns (`attempt_number` on `invoice_artifacts`, `submitted_by` on `submission_attempts`) and the compound index are now part of V52 directly.
+- **Lifecycle matrix fix**: `IN_REVIEW + CHECK_STATUS` was missing a target state transition in both `EtaInvoiceLifecycle` and `EtaReceiptLifecycle`. Fixed to return `IN_REVIEW` (self-loop). This was caught by the codegen now propagating exceptions instead of swallowing them.
+- **T117 (quickstart A–L)**: Requires ETA Pre-Production sandbox credentials. To be run manually and documented as a follow-up.

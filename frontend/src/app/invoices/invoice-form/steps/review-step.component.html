@@ -4,27 +4,27 @@
     <div class="meta-grid">
       <div class="meta-item">
         <div class="label">Authority</div>
-        <div class="value">{{ headerValues.authority }}</div>
+        <div class="value">{{ $any(headerValues).authority }}</div>
       </div>
       <div class="meta-item">
         <div class="label">Invoice Type</div>
-        <div class="value">{{ headerValues.type }}</div>
+        <div class="value">{{ $any(headerValues).type }}</div>
       </div>
       <div class="meta-item">
         <div class="label">Branch</div>
-        <div class="value">{{ headerValues.branchId }}</div>
+        <div class="value">{{ $any(headerValues).branchId }}</div>
       </div>
       <div class="meta-item">
         <div class="label">Issue Date</div>
-        <div class="value">{{ headerValues.issueDate }}</div>
+        <div class="value">{{ $any(headerValues).issueDate }}</div>
       </div>
       <div class="meta-item">
         <div class="label">Currency</div>
-        <div class="value">{{ headerValues.currency }}</div>
+        <div class="value">{{ $any(headerValues).currency }}</div>
       </div>
       <div class="meta-item">
         <div class="label">Payment Means</div>
-        <div class="value">{{ headerValues.paymentMeansCode || '-' }}</div>
+        <div class="value">{{ $any(headerValues).paymentMeansCode || '-' }}</div>
       </div>
     </div>
 
@@ -44,22 +44,22 @@
 
   <div class="review-section" style="margin-top: 16px;">
     <h4>Buyer</h4>
-    @if (headerValues.buyerId) {
+    @if ($any(headerValues).buyerId) {
       <div class="buyer-card">
-        Customer ID: {{ headerValues.buyerId }}
+        Customer ID: {{ $any(headerValues).buyerId }}
       </div>
     } @else {
       <div style="color: #666;">No buyer selected</div>
     }
 
-    @if (headerValues.originalInvoiceId || headerValues.externalInvoiceReference) {
+    @if ($any(headerValues).originalInvoiceId || $any(headerValues).externalInvoiceReference) {
       <div style="margin-top: 8px;">
         <strong>Original Reference:</strong>
-        @if (headerValues.originalInvoiceId) {
-          <span>Invoice {{ headerValues.originalInvoiceId }}</span>
+        @if ($any(headerValues).originalInvoiceId) {
+          <span>Invoice {{ $any(headerValues).originalInvoiceId }}</span>
         }
-        @if (headerValues.externalInvoiceReference) {
-          <span>External: {{ headerValues.externalInvoiceReference }}</span>
+        @if ($any(headerValues).externalInvoiceReference) {
+          <span>External: {{ $any(headerValues).externalInvoiceReference }}</span>
         }
       </div>
     }
@@ -78,11 +78,11 @@
       @for (line of lines; track $index; let i = $index) {
         <tr>
           <td>{{ i + 1 }}</td>
-          <td>{{ line.descriptionEn }}</td>
-          <td>{{ line.quantity }}</td>
-          <td>{{ line.unit }}</td>
-          <td class="amount">{{ line.unitPrice | number:'1.2-2' }}</td>
-          <td class="amount">{{ line.discountAmount | number:'1.2-2' }}</td>
+          <td>{{ $any(line).descriptionEn }}</td>
+          <td>{{ $any(line).quantity }}</td>
+          <td>{{ $any(line).unit }}</td>
+          <td class="amount">{{ $any(line).unitPrice | number:'1.2-2' }}</td>
+          <td class="amount">{{ $any(line).discountAmount | number:'1.2-2' }}</td>
           <td class="amount">{{ lineCalculations[i].lineNet | number:'1.2-2' }}</td>
           <td class="amount">{{ lineCalculations[i].lineVat | number:'1.2-2' }}</td>
           <td class="amount">{{ lineCalculations[i].lineTotal | number:'1.2-2' }}</td>
@@ -122,7 +122,7 @@
     <span class="label" style="font-weight:bold">Total With VAT:</span>
     <span class="value" style="font-weight:bold">{{ totals.totalWithVat | number:'1.2-2' }}</span>
     <span class="label">Prepaid:</span>
-    <span class="value">- {{ headerValues.prepaidAmount | number:'1.2-2' }}</span>
+    <span class="value">- {{ $any(headerValues).prepaidAmount | number:'1.2-2' }}</span>
     <span class="label grand">Amount Due:</span>
     <span class="value grand">{{ totals.amountDue | number:'1.2-2' }}</span>
   </div>
