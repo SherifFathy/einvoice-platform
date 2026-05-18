@@ -1,6 +1,6 @@
 ﻿# einvoice-platform Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-11
+Auto-generated from all feature plans. Last updated: 2026-05-18
 
 ## Active Technologies
 - Java 17 (backend), TypeScript 5.x (frontend) + Spring Boot 3.4.4, Spring Security, Spring Data JPA, Angular 19, Angular Material, Flyway, BouncyCastle, Apache POI, Lombok, Jackson (002-platform-foundation-tenancy)
@@ -35,9 +35,9 @@ npm test; npm run lint
 Java 17+ (backend), TypeScript 5.x (frontend): Follow standard conventions
 
 ## Recent Changes
+- 009-zatca-docs-submission: Added Java 17 (backend), TypeScript 5.x (frontend, Angular 19)
 - 008-eta-docs-submission: Phase 8 complete. Wave 7 adds ETA invoice/receipt document tables (V48–V53 + V53a), submission engine, lifecycle state machine (7 states), CAdES signing, append-only operational tables with explicit allow-list trigger, optimistic locking, 5-decimal money math, Angular invoice/receipt CRUD + submission UI, bulk check-status, artifact download, conflict resolution. ETA Pre-Production hostname confirmed as `api.preproduction.invoicing.eta.gov.eg`.
 - 007-wave6-master-data-configs: Added Java 17 (backend), TypeScript 5.x (frontend, Angular 19)
-- 006-wave5-foundation-refactor: Added Java 17 (backend), TypeScript 5.x (frontend, Angular 19)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
