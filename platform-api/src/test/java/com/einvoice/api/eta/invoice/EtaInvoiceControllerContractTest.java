@@ -1,6 +1,7 @@
 package com.einvoice.api.eta.invoice;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +62,10 @@ class EtaInvoiceControllerContractTest {
     void setUp() {
         companyId = UUID.randomUUID();
         docId = UUID.randomUUID();
+        TenantContext.set(new TenantContext.Holder(
+                UUID.randomUUID(), companyId, (short) 2,
+                "ETA", "TEST", TenantContext.Mode.OPERATIONAL_MODE,
+                true, System.currentTimeMillis(), "jti"));
         sampleResponse = new EtaInvoiceResponse(
                 docId, companyId, null,
                 "INV-001", EtaInvoiceDocumentType.i,
@@ -75,11 +81,16 @@ class EtaInvoiceControllerContractTest {
                 Collections.emptyList());
     }
 
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
     @Test
     void listReturnsPagedResults() throws Exception {
         Page<EtaInvoiceResponse> page = new PageImpl<>(List.of(sampleResponse),
                 PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), any(), any(), any(), any())).thenReturn(page);
+        when(service.list(any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/eta/invoices", companyId))
                 .andExpect(status().isOk())

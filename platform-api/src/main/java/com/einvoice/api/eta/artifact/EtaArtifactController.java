@@ -133,17 +133,18 @@ public class EtaArtifactController {
             return ResponseEntity.badRequest().build();
         }
 
+        Short authEnvId = TenantContext.getAuthorityEnvironmentId();
         List<InvoiceArtifact> artifacts;
         if (attemptNumber != null) {
             artifacts = artifactRepository
                     .findByDocumentIdAndTypeAndAttemptAndTenant(
                             docId, artifactType, attemptNumber,
-                            companyId, transactionType);
+                            companyId, authEnvId, transactionType);
         } else {
             artifacts = artifactRepository
                     .findByDocumentIdAndTypeAndTenant(
                             docId, artifactType, companyId,
-                            transactionType);
+                            authEnvId, transactionType);
         }
 
         if (artifacts.isEmpty()) {

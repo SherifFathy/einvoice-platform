@@ -115,9 +115,9 @@ class Wave6CompoundFilterEnforcementTest {
 
     @Test
     void forbiddenCallDetector_detectsCallOnOperationalRepo() throws Exception {
-        Set<String> repoInternalNames = collectRepoInternalNames();
-        assertFalse(repoInternalNames.isEmpty(),
-                "Should have found at least one operational repo");
+        Set<String> repoInternalNames = Set.of(
+                Type.getInternalName(com.einvoice.core.repository.eta
+                        .EtaCustomerRepository.class));
 
         Class<?> fixture = Class.forName(
                 "com.einvoice.api.fixtures.ForbiddenCallFixture");

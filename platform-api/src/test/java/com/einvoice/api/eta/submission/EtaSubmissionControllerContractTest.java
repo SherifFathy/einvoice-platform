@@ -10,8 +10,11 @@ import com.einvoice.api.eta.invoice.service.EtaInvoiceService;
 import com.einvoice.api.eta.submission.service.EtaSubmissionOrchestrator;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
 import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.security.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -36,11 +39,26 @@ class EtaSubmissionControllerContractTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    private UUID companyId;
+    private UUID docId;
+
+    @BeforeEach
+    void setUp() {
+        companyId = UUID.randomUUID();
+        docId = UUID.randomUUID();
+        TenantContext.set(new TenantContext.Holder(
+                UUID.randomUUID(), companyId, (short) 2,
+                "ETA", "TEST", TenantContext.Mode.OPERATIONAL_MODE,
+                true, System.currentTimeMillis(), "jti"));
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
     @Test
     void submitInvoiceReturns200WithState() throws Exception {
-        UUID companyId = UUID.randomUUID();
-        UUID docId = UUID.randomUUID();
-
         EtaInvoiceHeader header = EtaInvoiceHeader.builder()
                 .id(docId).companyId(companyId)
                 .authorityEnvironmentId((short) 2)
@@ -60,9 +78,6 @@ class EtaSubmissionControllerContractTest {
 
     @Test
     void retryInvoiceReturns200WithState() throws Exception {
-        UUID companyId = UUID.randomUUID();
-        UUID docId = UUID.randomUUID();
-
         EtaInvoiceHeader header = EtaInvoiceHeader.builder()
                 .id(docId).companyId(companyId)
                 .authorityEnvironmentId((short) 2)
@@ -83,9 +98,6 @@ class EtaSubmissionControllerContractTest {
 
     @Test
     void cancelInvoiceReturns200WithCancelledState() throws Exception {
-        UUID companyId = UUID.randomUUID();
-        UUID docId = UUID.randomUUID();
-
         EtaInvoiceHeader cancelled = EtaInvoiceHeader.builder()
                 .id(docId).companyId(companyId)
                 .authorityEnvironmentId((short) 2)

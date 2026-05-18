@@ -198,7 +198,9 @@ public class EtaReceiptService {
 
         header.setReceiptNumber(form.receiptNumber());
         header.setDocumentType(form.documentType());
-        header.setDocumentTypeVersion(form.documentTypeVersion());
+        header.setDocumentTypeVersion(form.documentTypeVersion() != null
+                ? form.documentTypeVersion()
+                : header.getDocumentTypeVersion());
         header.setIssueDatetime(form.issueDatetime());
         header.setSellerData(form.sellerData());
         header.setBuyerData(form.buyerData());
@@ -215,6 +217,7 @@ public class EtaReceiptService {
         header.setOriginalReceiptId(form.originalReceiptId());
 
         header.getLines().clear();
+        repository.flush();
         EtaReceiptHeader persistentHeader = header;
         EtaReceiptFormMapper.toEntity(form, header.getCompanyId(),
                 header.getAuthorityEnvironmentId(),

@@ -20,6 +20,7 @@ import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.MissingOriginalDocumentException;
 import com.einvoice.core.error.OptimisticLockConflictException;
+import com.einvoice.security.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -27,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +62,10 @@ class EtaReceiptControllerContractTest {
     void setUp() {
         companyId = UUID.randomUUID();
         docId = UUID.randomUUID();
+        TenantContext.set(new TenantContext.Holder(
+                UUID.randomUUID(), companyId, (short) 2,
+                "ETA", "TEST", TenantContext.Mode.OPERATIONAL_MODE,
+                true, System.currentTimeMillis(), "jti"));
         sampleResponse = new EtaReceiptResponse(
                 docId, companyId, null,
                 "REC-001", EtaReceiptDocumentType.r,
@@ -74,6 +80,11 @@ class EtaReceiptControllerContractTest {
                 null, null,
                 null, OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     @Test

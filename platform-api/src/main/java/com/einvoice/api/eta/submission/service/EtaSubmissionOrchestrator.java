@@ -187,32 +187,37 @@ public class EtaSubmissionOrchestrator {
                         header.getId(),
                         header.getEtaSubmissionId()));
 
-        EtaInvoiceState newState = resolveState(response);
-        if (newState == null || newState == header.getState()) {
-            return header;
-        }
-
-        LifecycleAction outcomeAction = mapOutcomeToAction(newState);
-        if (!EtaInvoiceLifecycle.allowed(header.getState(), outcomeAction)) {
-            return header;
+        EtaInvoiceState resolved = resolveState(response);
+        EtaInvoiceState beforeState = header.getState();
+        EtaInvoiceState newState = resolved;
+        if (newState != null && newState != beforeState) {
+            LifecycleAction outcomeAction = mapOutcomeToAction(newState);
+            if (!EtaInvoiceLifecycle.allowed(beforeState, outcomeAction)) {
+                newState = beforeState;
+            }
+        } else {
+            newState = beforeState;
         }
 
         UUID headerId = header.getId();
+        final EtaInvoiceState targetState = newState;
         return txTemplate.execute(status -> {
             EtaInvoiceHeader h = headerRepository.findById(headerId)
                     .orElseThrow();
-            h.setState(newState);
-            if (response.etaUuid() != null) {
-                h.setEtaUuid(response.etaUuid());
+            if (targetState != beforeState) {
+                h.setState(targetState);
+                if (response.etaUuid() != null) {
+                    h.setEtaUuid(response.etaUuid());
+                }
+                if (response.etaLongId() != null) {
+                    h.setEtaLongId(response.etaLongId());
+                }
+                headerRepository.saveAndFlush(h);
             }
-            if (response.etaLongId() != null) {
-                h.setEtaLongId(response.etaLongId());
-            }
-            headerRepository.saveAndFlush(h);
             auditService.record("CHECK_STATUS_INVOICE",
                     "ETA_INVOICE", headerId.toString(),
-                    Map.of("state", header.getState().name()),
-                    Map.of("state", newState.name()));
+                    Map.of("state", beforeState.name()),
+                    Map.of("state", targetState.name()));
             return h;
         });
     }
@@ -541,29 +546,34 @@ public class EtaSubmissionOrchestrator {
                         header.getId(),
                         header.getEtaSubmissionId()));
 
-        EtaReceiptState newState = resolveReceiptState(response);
-        if (newState == null || newState == header.getState()) {
-            return header;
-        }
-
-        LifecycleAction outcomeAction = mapReceiptOutcomeToAction(newState);
-        if (!EtaReceiptLifecycle.allowed(header.getState(), outcomeAction)) {
-            return header;
+        EtaReceiptState resolved = resolveReceiptState(response);
+        EtaReceiptState beforeState = header.getState();
+        EtaReceiptState newState = resolved;
+        if (newState != null && newState != beforeState) {
+            LifecycleAction outcomeAction = mapReceiptOutcomeToAction(newState);
+            if (!EtaReceiptLifecycle.allowed(beforeState, outcomeAction)) {
+                newState = beforeState;
+            }
+        } else {
+            newState = beforeState;
         }
 
         UUID headerId = header.getId();
+        final EtaReceiptState targetState = newState;
         return txTemplate.execute(status -> {
             EtaReceiptHeader h = receiptHeaderRepository.findById(headerId)
                     .orElseThrow();
-            h.setState(newState);
-            if (response.etaUuid() != null) {
-                h.setEtaReceiptUuid(response.etaUuid());
+            if (targetState != beforeState) {
+                h.setState(targetState);
+                if (response.etaUuid() != null) {
+                    h.setEtaReceiptUuid(response.etaUuid());
+                }
+                receiptHeaderRepository.saveAndFlush(h);
             }
-            receiptHeaderRepository.saveAndFlush(h);
             auditService.record("CHECK_STATUS_RECEIPT",
                     "ETA_RECEIPT", headerId.toString(),
-                    Map.of("state", header.getState().name()),
-                    Map.of("state", newState.name()));
+                    Map.of("state", beforeState.name()),
+                    Map.of("state", targetState.name()));
             return h;
         });
     }

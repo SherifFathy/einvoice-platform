@@ -16,12 +16,14 @@ public interface InvoiceArtifactRepository extends WriteOnlyRepository<InvoiceAr
             + "WHERE a.documentId = :documentId "
             + "AND a.artifactType = :artifactType "
             + "AND a.companyId = :companyId "
+            + "AND a.authorityEnvironmentId = :authorityEnvironmentId "
             + "AND a.transactionType = :transactionType "
             + "ORDER BY a.createdAt DESC")
     List<InvoiceArtifact> findByDocumentIdAndTypeAndTenant(
             @Param("documentId") UUID documentId,
             @Param("artifactType") ArtifactType artifactType,
             @Param("companyId") UUID companyId,
+            @Param("authorityEnvironmentId") Short authorityEnvironmentId,
             @Param("transactionType") TransactionType transactionType);
 
     @Query("SELECT a FROM InvoiceArtifact a "
@@ -29,6 +31,7 @@ public interface InvoiceArtifactRepository extends WriteOnlyRepository<InvoiceAr
             + "AND a.artifactType = :artifactType "
             + "AND a.attemptNumber = :attemptNumber "
             + "AND a.companyId = :companyId "
+            + "AND a.authorityEnvironmentId = :authorityEnvironmentId "
             + "AND a.transactionType = :transactionType "
             + "ORDER BY a.createdAt DESC")
     List<InvoiceArtifact> findByDocumentIdAndTypeAndAttemptAndTenant(
@@ -36,15 +39,18 @@ public interface InvoiceArtifactRepository extends WriteOnlyRepository<InvoiceAr
             @Param("artifactType") ArtifactType artifactType,
             @Param("attemptNumber") Integer attemptNumber,
             @Param("companyId") UUID companyId,
+            @Param("authorityEnvironmentId") Short authorityEnvironmentId,
             @Param("transactionType") TransactionType transactionType);
 
     @Query("SELECT a FROM InvoiceArtifact a "
             + "WHERE a.documentId = :documentId "
             + "AND a.companyId = :companyId "
+            + "AND a.authorityEnvironmentId = :authorityEnvironmentId "
             + "AND a.transactionType = :transactionType "
             + "ORDER BY a.createdAt DESC")
     List<InvoiceArtifact> findByDocumentIdAndTenant(
             @Param("documentId") UUID documentId,
             @Param("companyId") UUID companyId,
+            @Param("authorityEnvironmentId") Short authorityEnvironmentId,
             @Param("transactionType") TransactionType transactionType);
 }

@@ -16,6 +16,8 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 
 /**
  * Executes bulk ETA document status checks in parallel using a bounded thread pool.
@@ -69,6 +71,9 @@ public class BulkStatusCheckExecutor {
         }
 
         UUID capturedUserId = TenantContext.getUserId();
+        TenantContext.Holder capturedContext = TenantContext.current();
+        RequestAttributes capturedRequestAttrs =
+                RequestContextHolder.getRequestAttributes();
 
         List<BulkStatusOutcome> outcomes =
                 new ArrayList<>(documentIds.size());
@@ -78,6 +83,13 @@ public class BulkStatusCheckExecutor {
         for (UUID docId : documentIds) {
             pool.submit(() -> {
                 try {
+                    if (capturedContext != null) {
+                        TenantContext.set(capturedContext);
+                    }
+                    if (capturedRequestAttrs != null) {
+                        RequestContextHolder.setRequestAttributes(
+                                capturedRequestAttrs);
+                    }
                     BulkStatusOutcome outcome =
                             checkSingle(transactionType, docId,
                                     capturedUserId);
@@ -85,6 +97,8 @@ public class BulkStatusCheckExecutor {
                         outcomes.add(outcome);
                     }
                 } finally {
+                    TenantContext.clear();
+                    RequestContextHolder.resetRequestAttributes();
                     latch.countDown();
                 }
             });
@@ -193,6 +207,10 @@ public class BulkStatusCheckExecutor {
             TransactionType transactionType, String action) {
         if (userId == null) {
             return false;
+        }
+        if (TenantContext.isSuperUser()
+                && TenantContext.getMode() == TenantContext.Mode.OPERATIONAL_MODE) {
+            return true;
         }
         return permissionService.hasPermission(
                 userId, companyId, authEnvId,

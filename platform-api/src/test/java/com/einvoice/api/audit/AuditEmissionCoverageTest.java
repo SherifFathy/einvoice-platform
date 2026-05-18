@@ -180,6 +180,9 @@ class AuditEmissionCoverageTest {
                  "sellerData":{"type":"B","name":"Seller"},
                  "buyerData":{"type":"P","name":"Buyer"},
                  "currency":"EGP",
+                 "totalSalesAmount":100,"totalDiscountAmount":0,
+                 "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                 "netAmount":100,"totalAmount":100,
                  "lines":[{
                    "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                    "description":"Test","unitType":"EA","quantity":1,
@@ -236,13 +239,14 @@ class AuditEmissionCoverageTest {
                 new EtaAuthorityEngine.Preparation(
                         sp, "clientId", "clientSecret",
                         "https://token.url");
-        when(engine.prepareSubmission(any(), any(), anyShort()))
-                .thenReturn(prep);
-        when(engine.httpSubmit(any(), any(), anyShort(), any()))
-                .thenReturn(new AuthorityResponse(true, "SUCCESS",
+        org.mockito.Mockito.doReturn(prep).when(engine)
+                .prepareSubmission(any(), any(), anyShort());
+        org.mockito.Mockito.doReturn(new AuthorityResponse(true, "SUCCESS",
                         "eta-uuid-001", "long-1", "sub-001",
                         200, null,
-                        "{\"uuid\":\"eta-uuid-001\"}"));
+                        "{\"uuid\":\"eta-uuid-001\"}"))
+                .when(engine)
+                .httpSubmit(any(), any(), anyShort(), any());
     }
 
     private void mockReceiptSubmitSuccess() {
@@ -252,13 +256,14 @@ class AuditEmissionCoverageTest {
                 new EtaAuthorityEngine.Preparation(
                         sp, "clientId", "clientSecret",
                         "https://token.url");
-        when(engine.prepareReceiptSubmission(any(), any(), anyShort()))
-                .thenReturn(prep);
-        when(engine.httpSubmitReceipt(any(), any(), anyShort(), any()))
-                .thenReturn(new AuthorityResponse(true, "SUCCESS",
+        org.mockito.Mockito.doReturn(prep).when(engine)
+                .prepareReceiptSubmission(any(), any(), anyShort());
+        org.mockito.Mockito.doReturn(new AuthorityResponse(true, "SUCCESS",
                         "eta-rcpt-uuid-001", null, "sub-rcpt-001",
                         200, null,
-                        "{\"uuid\":\"eta-rcpt-uuid-001\"}"));
+                        "{\"uuid\":\"eta-rcpt-uuid-001\"}"))
+                .when(engine)
+                .httpSubmitReceipt(any(), any(), anyShort(), any());
     }
 
     private void mockSubmitAmbiguous() {
@@ -268,10 +273,11 @@ class AuditEmissionCoverageTest {
                 new EtaAuthorityEngine.Preparation(
                         sp, "clientId", "clientSecret",
                         "https://token.url");
-        when(engine.prepareSubmission(any(), any(), anyShort()))
-                .thenReturn(prep);
-        when(engine.httpSubmit(any(), any(), anyShort(), any()))
-                .thenThrow(new RuntimeException("Connection timeout"));
+        org.mockito.Mockito.doReturn(prep).when(engine)
+                .prepareSubmission(any(), any(), anyShort());
+        org.mockito.Mockito.doThrow(new RuntimeException("Connection timeout"))
+                .when(engine)
+                .httpSubmit(any(), any(), anyShort(), any());
     }
 
     private void mockReceiptSubmitAmbiguous() {
@@ -281,10 +287,11 @@ class AuditEmissionCoverageTest {
                 new EtaAuthorityEngine.Preparation(
                         sp, "clientId", "clientSecret",
                         "https://token.url");
-        when(engine.prepareReceiptSubmission(any(), any(), anyShort()))
-                .thenReturn(prep);
-        when(engine.httpSubmitReceipt(any(), any(), anyShort(), any()))
-                .thenThrow(new RuntimeException("Connection timeout"));
+        org.mockito.Mockito.doReturn(prep).when(engine)
+                .prepareReceiptSubmission(any(), any(), anyShort());
+        org.mockito.Mockito.doThrow(new RuntimeException("Connection timeout"))
+                .when(engine)
+                .httpSubmitReceipt(any(), any(), anyShort(), any());
     }
 
     private void mockSubmitRejected() {
@@ -427,6 +434,9 @@ class AuditEmissionCoverageTest {
                      "sellerData":{"type":"B","name":"Updated Seller"},
                      "buyerData":{"type":"P","name":"Buyer"},
                      "currency":"EGP",
+                     "totalSalesAmount":100,"totalDiscountAmount":0,
+                     "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                     "netAmount":100,"totalAmount":100,
                      "lines":[{
                        "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                        "description":"Test","unitType":"EA","quantity":1,
@@ -598,6 +608,9 @@ class AuditEmissionCoverageTest {
                      "sellerData":{"type":"B","name":"First Edit"},
                      "buyerData":{"type":"P","name":"Buyer"},
                      "currency":"EGP",
+                     "totalSalesAmount":100,"totalDiscountAmount":0,
+                     "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                     "netAmount":100,"totalAmount":100,
                      "lines":[{
                        "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                        "description":"Test","unitType":"EA","quantity":1,
@@ -639,6 +652,9 @@ class AuditEmissionCoverageTest {
                      "sellerData":{"type":"B","name":"Overwritten"},
                      "buyerData":{"type":"P","name":"Buyer"},
                      "currency":"EGP",
+                     "totalSalesAmount":100,"totalDiscountAmount":0,
+                     "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                     "netAmount":100,"totalAmount":100,
                      "lines":[{
                        "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                        "description":"Test","unitType":"EA","quantity":1,

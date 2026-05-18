@@ -83,6 +83,9 @@ class EtaInvoiceCrossEnvIsolationTest {
              "sellerData":{"type":"B","name":"Seller"},
              "buyerData":{"type":"P","name":"Buyer"},
              "currency":"EGP",
+             "totalSalesAmount":100,"totalDiscountAmount":0,
+             "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+             "netAmount":100,"totalAmount":100,
              "lines":[{
                "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                "description":"Isolation Test Item","unitType":"EA","quantity":1,
@@ -297,6 +300,9 @@ class EtaInvoiceCrossEnvIsolationTest {
                  "sellerData":{"type":"B","name":"Seller Prod"},
                  "buyerData":{"type":"P","name":"Buyer Prod"},
                  "currency":"EGP",
+                 "totalSalesAmount":200,"totalDiscountAmount":0,
+                 "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                 "netAmount":200,"totalAmount":200,
                  "lines":[{
                    "lineNumber":1,"itemType":"GS1","itemCode":"ITM-P",
                    "description":"Prod Item","unitType":"EA","quantity":1,

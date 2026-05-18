@@ -15,11 +15,14 @@ import com.einvoice.api.eta.invoice.service.EtaInvoiceService;
 import com.einvoice.core.domain.eta.document.EtaInvoiceDocumentType;
 import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
 import com.einvoice.core.error.DocumentNotDraftException;
+import com.einvoice.security.tenant.TenantContext;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,11 +42,26 @@ class EtaInvoiceRejectionTerminalTest {
     @MockitoBean
     private EtaInvoiceService service;
 
+    private UUID companyId;
+    private UUID docId;
+
+    @BeforeEach
+    void setUp() {
+        companyId = UUID.randomUUID();
+        docId = UUID.randomUUID();
+        TenantContext.set(new TenantContext.Holder(
+                UUID.randomUUID(), companyId, (short) 2,
+                "ETA", "TEST", TenantContext.Mode.OPERATIONAL_MODE,
+                true, System.currentTimeMillis(), "jti"));
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
     @Test
     void rejectedIsTerminal_editReturns409DocumentNotDraft() throws Exception {
-        UUID companyId = UUID.randomUUID();
-        UUID docId = UUID.randomUUID();
-
         Mockito.doThrow(new DocumentNotDraftException("Only DRAFT invoices can be edited", "REJECTED"))
                 .when(service).update(eq(docId), any(), eq(0));
 
@@ -62,9 +80,6 @@ class EtaInvoiceRejectionTerminalTest {
 
     @Test
     void rejectedIsTerminal_deleteReturns409DocumentNotDraft() throws Exception {
-        UUID companyId = UUID.randomUUID();
-        UUID docId = UUID.randomUUID();
-
         Mockito.doThrow(new DocumentNotDraftException("Only DRAFT invoices can be deleted", "REJECTED"))
                 .when(service).delete(eq(docId));
 
@@ -75,8 +90,6 @@ class EtaInvoiceRejectionTerminalTest {
 
     @Test
     void cloneAsDraft_createsNewDraftFromRejected() throws Exception {
-        UUID companyId = UUID.randomUUID();
-        UUID docId = UUID.randomUUID();
         UUID cloneId = UUID.randomUUID();
 
         when(service.cloneAsDraft(eq(docId), eq("CLONE-001")))

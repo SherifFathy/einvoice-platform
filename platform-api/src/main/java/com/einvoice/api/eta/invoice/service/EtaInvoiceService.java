@@ -183,7 +183,9 @@ public class EtaInvoiceService {
 
         header.setInvoiceNumber(form.invoiceNumber());
         header.setDocumentType(form.documentType());
-        header.setDocumentTypeVersion(form.documentTypeVersion());
+        header.setDocumentTypeVersion(form.documentTypeVersion() != null
+                ? form.documentTypeVersion()
+                : header.getDocumentTypeVersion());
         header.setIssueDatetime(form.issueDatetime());
         header.setServiceDeliveryDate(form.serviceDeliveryDate());
         header.setSellerData(form.sellerData());
@@ -206,9 +208,14 @@ public class EtaInvoiceService {
         header.setOriginalDocumentId(form.originalDocumentId());
 
         header.getLines().clear();
+        repository.flush();
+        EtaInvoiceHeader persistentHeader = header;
         EtaInvoiceFormMapper.toEntity(form, header.getCompanyId(),
                 header.getAuthorityEnvironmentId(), header.getCreatedBy())
-                .getLines().forEach(header.getLines()::add);
+                .getLines().forEach(line -> {
+                    line.setHeader(persistentHeader);
+                    persistentHeader.getLines().add(line);
+                });
 
         reconcileTotals(header);
 

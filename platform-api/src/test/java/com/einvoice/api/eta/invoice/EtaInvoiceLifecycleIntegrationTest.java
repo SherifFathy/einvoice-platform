@@ -127,6 +127,9 @@ class EtaInvoiceLifecycleIntegrationTest {
                  "sellerData":{"type":"B","name":"Seller"},
                  "buyerData":{"type":"P","name":"Buyer"},
                  "currency":"EGP",
+                 "totalSalesAmount":100,"totalDiscountAmount":0,
+                 "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                 "netAmount":100,"totalAmount":100,
                  "lines":[{
                    "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                    "description":"Test Item","unitType":"EA","quantity":1,
@@ -152,6 +155,9 @@ class EtaInvoiceLifecycleIntegrationTest {
                  "sellerData":{"type":"B","name":"Updated Seller"},
                  "buyerData":{"type":"P","name":"Buyer"},
                  "currency":"EGP",
+                 "totalSalesAmount":100,"totalDiscountAmount":0,
+                 "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                 "netAmount":100,"totalAmount":100,
                  "lines":[{
                    "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                    "description":"Test Item","unitType":"EA","quantity":1,
@@ -231,6 +237,9 @@ class EtaInvoiceLifecycleIntegrationTest {
                  "sellerData":{"type":"B","name":"Seller"},
                  "buyerData":{"type":"P","name":"Buyer"},
                  "currency":"EGP",
+                 "totalSalesAmount":100,"totalDiscountAmount":0,
+                 "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
+                 "netAmount":100,"totalAmount":100,
                  "lines":[{
                    "lineNumber":1,"itemType":"GS1","itemCode":"ITM-1",
                    "description":"Test Item","unitType":"EA","quantity":1,

@@ -83,7 +83,7 @@ class EtaArtifactControllerContractTest {
                 .build();
 
         when(artifactRepository.findByDocumentIdAndTypeAndTenant(
-                docId, ArtifactType.SIGNED_JSON, companyId,
+                docId, ArtifactType.SIGNED_JSON, companyId, (short) 2,
                 TransactionType.INVOICE))
                 .thenReturn(List.of(artifact));
 
@@ -104,7 +104,7 @@ class EtaArtifactControllerContractTest {
     void downloadArtifact_returns404WhenNotFound() throws Exception {
         when(artifactRepository.findByDocumentIdAndTypeAndTenant(
                 any(), any(ArtifactType.class), any(UUID.class),
-                any(TransactionType.class)))
+                any(Short.class), any(TransactionType.class)))
                 .thenReturn(List.of());
 
         mockMvc.perform(get(
@@ -140,7 +140,7 @@ class EtaArtifactControllerContractTest {
                 .build();
 
         when(artifactRepository.findByDocumentIdAndTypeAndAttemptAndTenant(
-                docId, ArtifactType.SIGNED_JSON, 2, companyId,
+                docId, ArtifactType.SIGNED_JSON, 2, companyId, (short) 2,
                 TransactionType.INVOICE))
                 .thenReturn(List.of(artifact));
 
@@ -171,7 +171,7 @@ class EtaArtifactControllerContractTest {
                 .build();
 
         when(artifactRepository.findByDocumentIdAndTypeAndTenant(
-                docId, ArtifactType.SIGNED_XML, companyId,
+                docId, ArtifactType.SIGNED_XML, companyId, (short) 2,
                 TransactionType.INVOICE))
                 .thenReturn(List.of(artifact));
 
