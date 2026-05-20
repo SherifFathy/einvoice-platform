@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
-import { SubmissionAttemptResponse } from '../eta/services/eta-invoice.service';
+import { SubmissionAttemptResponse } from '../../invoices/eta/services/eta-invoice.service';
 
 @Component({
   selector: 'app-submission-history',

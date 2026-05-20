@@ -35,7 +35,7 @@ npm test; npm run lint
 Java 17+ (backend), TypeScript 5.x (frontend): Follow standard conventions
 
 ## Recent Changes
-- 009-zatca-docs-submission: Added Java 17 (backend), TypeScript 5.x (frontend, Angular 19)
+- 009-zatca-docs-submission: Phase 9 code complete; manual validation T115/T116/T120–T123 pending. Wave 8 adds ZATCA Standard/Simplified document tables (V54–V56), ZATCA chain integrity with pessimistic acquisition (~30 s bounded wait), XAdES-BES signing, SHA-256 hash chain, QR TLV Phase-2 9 tags, 7-state lifecycle reused from Wave 7, uncapped bulk Check Status with NDJSON streaming + cancellation, optimistic-concurrency drafts, per-class authority status (clearance for Standard, reporting for Simplified).
 - 008-eta-docs-submission: Phase 8 complete. Wave 7 adds ETA invoice/receipt document tables (V48–V53 + V53a), submission engine, lifecycle state machine (7 states), CAdES signing, append-only operational tables with explicit allow-list trigger, optimistic locking, 5-decimal money math, Angular invoice/receipt CRUD + submission UI, bulk check-status, artifact download, conflict resolution. ETA Pre-Production hostname confirmed as `api.preproduction.invoicing.eta.gov.eg`.
 - 007-wave6-master-data-configs: Added Java 17 (backend), TypeScript 5.x (frontend, Angular 19)
 

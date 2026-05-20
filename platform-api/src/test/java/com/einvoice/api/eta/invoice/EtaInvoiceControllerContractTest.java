@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.einvoice.api.eta.invoice.service.EtaInvoiceFormMapper.EtaInvoiceResponse;
 import com.einvoice.api.eta.invoice.service.EtaInvoiceService;
 import com.einvoice.core.domain.eta.document.EtaInvoiceDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.OptimisticLockConflictException;
@@ -75,7 +75,7 @@ class EtaInvoiceControllerContractTest {
                 "EGP",
                 new BigDecimal("100.00000"), BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.ZERO, new BigDecimal("100.00000"), new BigDecimal("114.00000"),
-                null, EtaInvoiceState.DRAFT, 0,
+                null, DocumentState.DRAFT, 0,
                 null, null, null,
                 null, OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());
@@ -145,7 +145,7 @@ class EtaInvoiceControllerContractTest {
                 "EGP", new BigDecimal("200.00000"), BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO,
                 new BigDecimal("200.00000"), new BigDecimal("228.00000"),
-                null, EtaInvoiceState.DRAFT, 1,
+                null, DocumentState.DRAFT, 1,
                 null, null, null, null, OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());
         when(service.update(eq(docId), any(), eq(0))).thenReturn(updated);

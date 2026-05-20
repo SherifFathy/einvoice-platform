@@ -1,10 +1,9 @@
 package com.einvoice.core.codegen;
 
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
-import com.einvoice.core.domain.eta.lifecycle.LifecycleAction;
-import com.einvoice.core.lifecycle.EtaInvoiceLifecycle;
-import com.einvoice.core.lifecycle.EtaReceiptLifecycle;
+import com.einvoice.core.domain.shared.DocumentState;
+import com.einvoice.core.domain.shared.LifecycleAction;
+import com.einvoice.core.domain.shared.LifecycleTransitions;
+import com.einvoice.core.domain.shared.TransactionType;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -21,8 +20,8 @@ public final class EtaStatesTsGenerator {
 
     private static final String HEADER = """
             // THIS FILE IS GENERATED -- DO NOT EDIT
-            // Generated from EtaInvoiceState, EtaReceiptState Java enums
-            // and EtaInvoiceLifecycle / EtaReceiptLifecycle transition matrices.
+            // Generated from DocumentState Java enum
+            // and LifecycleTransitions transition matrices.
             // Re-run: mvn -pl platform-core process-classes
             """;
 
@@ -46,14 +45,19 @@ public final class EtaStatesTsGenerator {
         StringBuilder sb = new StringBuilder();
         sb.append(HEADER).append('\n');
 
-        appendEnumConst(sb, "EtaInvoiceState", EtaInvoiceState.values());
-        appendEnumConst(sb, "EtaReceiptState", EtaReceiptState.values());
+        appendEnumConst(sb, "DocumentState", DocumentState.values());
         appendEnumConst(sb, "LifecycleAction", LifecycleAction.values());
 
-        appendTransitionMap(sb, "invoiceTransitions", EtaInvoiceState.values(),
-                EtaInvoiceLifecycle::allowed, EtaInvoiceLifecycle::next);
-        appendTransitionMap(sb, "receiptTransitions", EtaReceiptState.values(),
-                EtaReceiptLifecycle::allowed, EtaReceiptLifecycle::next);
+        appendTransitionMap(sb, "invoiceTransitions", DocumentState.values(),
+                (state, action) -> LifecycleTransitions.allowed(
+                        state, action, TransactionType.INVOICE),
+                (state, action) -> LifecycleTransitions.next(
+                        state, action, TransactionType.INVOICE));
+        appendTransitionMap(sb, "receiptTransitions", DocumentState.values(),
+                (state, action) -> LifecycleTransitions.allowed(
+                        state, action, TransactionType.RECEIPT),
+                (state, action) -> LifecycleTransitions.next(
+                        state, action, TransactionType.RECEIPT));
 
         sb.append("""
                 export function isAllowed(

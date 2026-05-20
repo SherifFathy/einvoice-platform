@@ -166,19 +166,24 @@ public class EtaArtifactController {
         return switch (type) {
           case SIGNED_JSON -> "signed_document.json";
           case SIGNED_XML -> "signed_document.xml";
-          case CLEARED_XML -> "cleared_document.xml";
+          case UBL_XML -> "ubl_document.xml";
+          case SIGNED_UBL_XML -> "signed_ubl_document.xml";
           case QR_CODE -> "qr_code.png";
+          case QR_PNG -> "qr_code.png";
+          case CLEARED_XML -> "cleared_document.xml";
           case ETA_RESPONSE -> "eta_response.json";
           case ZATCA_RESPONSE -> "zatca_response.json";
+          case ZATCA_REQUEST -> "zatca_request.json";
         };
     }
 
     private MediaType resolveMediaType(ArtifactType type) {
         return switch (type) {
-          case SIGNED_JSON, ETA_RESPONSE -> MediaType.APPLICATION_JSON;
-          case SIGNED_XML, CLEARED_XML ->
-                  MediaType.APPLICATION_XML;
-          case QR_CODE -> MediaType.IMAGE_PNG;
+          case SIGNED_JSON, ETA_RESPONSE,
+                  ZATCA_REQUEST -> MediaType.APPLICATION_JSON;
+          case SIGNED_XML, CLEARED_XML, UBL_XML,
+                  SIGNED_UBL_XML -> MediaType.APPLICATION_XML;
+          case QR_CODE, QR_PNG -> MediaType.IMAGE_PNG;
           case ZATCA_RESPONSE -> MediaType.APPLICATION_JSON;
         };
     }

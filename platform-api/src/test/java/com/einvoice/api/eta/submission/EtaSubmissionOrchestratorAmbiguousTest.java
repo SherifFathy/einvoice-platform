@@ -14,8 +14,8 @@ import com.einvoice.api.eta.submission.service.EtaSubmissionOrchestrator;
 import com.einvoice.core.authority.AuthorityResponse;
 import com.einvoice.core.authority.SignedPayload;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
 import com.einvoice.core.domain.shared.ArtifactType;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.shared.InvoiceArtifact;
 import com.einvoice.core.domain.shared.SubmissionResult;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
@@ -76,7 +76,7 @@ class EtaSubmissionOrchestratorAmbiguousTest {
                 .id(headerId)
                 .companyId(companyId)
                 .authorityEnvironmentId((short) 1)
-                .state(EtaInvoiceState.DRAFT)
+                .state(DocumentState.DRAFT)
                 .build();
 
         doAnswer(inv -> {
@@ -111,7 +111,7 @@ class EtaSubmissionOrchestratorAmbiguousTest {
 
         EtaInvoiceHeader result = orchestrator.submit(header);
 
-        assertEquals(EtaInvoiceState.SUBMISSION_AMBIGUOUS, result.getState());
+        assertEquals(DocumentState.IN_REVIEW, result.getState());
 
         ArgumentCaptor<InvoiceArtifact> artifactCaptor = ArgumentCaptor.forClass(InvoiceArtifact.class);
         verify(artifactRepository, times(1)).save(artifactCaptor.capture());
@@ -130,7 +130,7 @@ class EtaSubmissionOrchestratorAmbiguousTest {
 
         EtaInvoiceHeader result = orchestrator.submit(header);
 
-        assertEquals(EtaInvoiceState.SUBMISSION_AMBIGUOUS, result.getState());
+        assertEquals(DocumentState.IN_REVIEW, result.getState());
 
         ArgumentCaptor<InvoiceArtifact> artifactCaptor = ArgumentCaptor.forClass(InvoiceArtifact.class);
         verify(artifactRepository, times(1)).save(artifactCaptor.capture());

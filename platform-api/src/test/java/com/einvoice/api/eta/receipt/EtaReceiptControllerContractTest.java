@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.einvoice.api.eta.receipt.service.EtaReceiptFormMapper.EtaReceiptResponse;
 import com.einvoice.api.eta.receipt.service.EtaReceiptService;
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.MissingOriginalDocumentException;
@@ -76,7 +76,7 @@ class EtaReceiptControllerContractTest {
                 new BigDecimal("50.00000"), BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.ZERO, new BigDecimal("50.00000"),
                 new BigDecimal("57.00000"),
-                null, EtaReceiptState.DRAFT, 0,
+                null, DocumentState.DRAFT, 0,
                 null, null,
                 null, OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());
@@ -156,7 +156,7 @@ class EtaReceiptControllerContractTest {
                 BigDecimal.ZERO, BigDecimal.ZERO,
                 new BigDecimal("100.00000"),
                 new BigDecimal("114.00000"),
-                null, EtaReceiptState.DRAFT, 1,
+                null, DocumentState.DRAFT, 1,
                 null, null, null,
                 OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());

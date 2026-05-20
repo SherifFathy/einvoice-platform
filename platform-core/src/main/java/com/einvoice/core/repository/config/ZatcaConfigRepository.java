@@ -16,6 +16,13 @@ import org.springframework.stereotype.Repository;
 public interface ZatcaConfigRepository
         extends JpaRepository<ZatcaConfig, UUID>, JpaSpecificationExecutor<ZatcaConfig> {
 
+    @Query("SELECT e FROM ZatcaConfig e "
+            + "WHERE e.companyId = :companyId "
+            + "AND e.authorityEnvironmentId = :authorityEnvironmentId")
+    Optional<ZatcaConfig> findByCompanyAndAuthorityEnvironment(
+            @Param("companyId") UUID companyId,
+            @Param("authorityEnvironmentId") Short authorityEnvironmentId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM ZatcaConfig e "
             + "WHERE e.companyId = :companyId "

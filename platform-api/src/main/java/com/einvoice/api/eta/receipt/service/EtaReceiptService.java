@@ -5,8 +5,8 @@ import com.einvoice.api.eta.receipt.service.EtaReceiptFormMapper.EtaReceiptWrite
 import com.einvoice.core.domain.company.Company;
 import com.einvoice.core.domain.eta.EtaReceiptHeader;
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
-import com.einvoice.core.domain.eta.lifecycle.LifecycleAction;
+import com.einvoice.core.domain.shared.DocumentState;
+import com.einvoice.core.domain.shared.LifecycleAction;
 import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.DuplicateReceiptNumberException;
 import com.einvoice.core.error.IncompatibleOriginalDocumentException;
@@ -15,7 +15,6 @@ import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.MissingOriginalDocumentException;
 import com.einvoice.core.error.OptimisticLockConflictException;
 import com.einvoice.core.error.TotalsInconsistentException;
-import com.einvoice.core.lifecycle.EtaReceiptLifecycle;
 import com.einvoice.core.money.EtaMoneyMath;
 import com.einvoice.core.repository.company.CompanyRepository;
 import com.einvoice.core.repository.eta.EtaReceiptHeaderRepository;
@@ -103,7 +102,7 @@ public class EtaReceiptService {
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(EtaReceiptSpecifications.inState(
-                    EtaReceiptState.valueOf(status)));
+                    DocumentState.valueOf(status)));
         }
         if (receiptType != null && !receiptType.isBlank()) {
             spec = spec.and(EtaReceiptSpecifications.withDocumentType(
@@ -180,7 +179,7 @@ public class EtaReceiptService {
             Integer ifMatchVersion) {
         EtaReceiptHeader header = loadWithinTenant(docId);
 
-        if (header.getState() != EtaReceiptState.DRAFT) {
+        if (header.getState() != DocumentState.DRAFT) {
             throw new DocumentNotDraftException(
                     "Only DRAFT receipts can be edited",
                     header.getState().name());
@@ -254,7 +253,7 @@ public class EtaReceiptService {
      */
     public void delete(UUID docId) {
         EtaReceiptHeader header = loadWithinTenant(docId);
-        if (header.getState() != EtaReceiptState.DRAFT) {
+        if (header.getState() != DocumentState.DRAFT) {
             throw new DocumentNotDraftException(
                     "Only DRAFT receipts can be deleted",
                     header.getState().name());
@@ -274,7 +273,7 @@ public class EtaReceiptService {
     public EtaReceiptResponse cloneAsDraft(UUID rejectedDocId,
             String newReceiptNumber) {
         EtaReceiptHeader source = loadWithinTenant(rejectedDocId);
-        if (source.getState() != EtaReceiptState.REJECTED) {
+        if (source.getState() != DocumentState.REJECTED) {
             throw new InvalidLifecycleTransitionException(
                     "Source must be REJECTED to clone",
                     source.getState().name(), "CLONE_TO_NEW_DRAFT");

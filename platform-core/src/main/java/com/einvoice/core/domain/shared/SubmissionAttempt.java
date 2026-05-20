@@ -51,6 +51,9 @@ public class SubmissionAttempt {
     @Column(name = "submitted_by")
     private UUID submittedBy;
 
+    @Column(name = "chain_counter_snapshot")
+    private Long chainCounterSnapshot;
+
     @Column(length = 20)
     @Enumerated(EnumType.STRING)
     private SubmissionResult result;

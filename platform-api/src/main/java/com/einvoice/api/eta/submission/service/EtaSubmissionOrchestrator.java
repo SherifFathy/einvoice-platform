@@ -5,17 +5,15 @@ import com.einvoice.core.authority.AuthorityResponse;
 import com.einvoice.core.authority.CancelInput;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
 import com.einvoice.core.domain.eta.EtaReceiptHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
-import com.einvoice.core.domain.eta.lifecycle.LifecycleAction;
 import com.einvoice.core.domain.shared.ArtifactType;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.shared.InvoiceArtifact;
+import com.einvoice.core.domain.shared.LifecycleAction;
+import com.einvoice.core.domain.shared.LifecycleTransitions;
 import com.einvoice.core.domain.shared.SubmissionAttempt;
 import com.einvoice.core.domain.shared.SubmissionResult;
 import com.einvoice.core.domain.shared.TransactionType;
 import com.einvoice.core.error.InvalidLifecycleTransitionException;
-import com.einvoice.core.lifecycle.EtaInvoiceLifecycle;
-import com.einvoice.core.lifecycle.EtaReceiptLifecycle;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
 import com.einvoice.core.repository.eta.EtaReceiptHeaderRepository;
 import com.einvoice.core.repository.shared.InvoiceArtifactRepository;
@@ -105,8 +103,9 @@ public class EtaSubmissionOrchestrator {
      */
     public EtaInvoiceHeader cancel(EtaInvoiceHeader header,
             String reason) {
-        EtaInvoiceState targetState = EtaInvoiceLifecycle.next(
-                header.getState(), LifecycleAction.CANCEL);
+        DocumentState targetState = LifecycleTransitions.next(
+                header.getState(), LifecycleAction.CANCEL,
+                TransactionType.INVOICE);
         UUID headerId = header.getId();
         UUID companyId = header.getCompanyId();
         Short authEnvId = header.getAuthorityEnvironmentId();
@@ -174,8 +173,9 @@ public class EtaSubmissionOrchestrator {
      * @return the updated header
      */
     public EtaInvoiceHeader checkStatus(EtaInvoiceHeader header) {
-        if (!EtaInvoiceLifecycle.allowed(header.getState(),
-                LifecycleAction.CHECK_STATUS)) {
+        if (!LifecycleTransitions.allowed(header.getState(),
+                LifecycleAction.CHECK_STATUS,
+                TransactionType.INVOICE)) {
             return header;
         }
 
@@ -187,12 +187,13 @@ public class EtaSubmissionOrchestrator {
                         header.getId(),
                         header.getEtaSubmissionId()));
 
-        EtaInvoiceState resolved = resolveState(response);
-        EtaInvoiceState beforeState = header.getState();
-        EtaInvoiceState newState = resolved;
+        DocumentState resolved = resolveState(response);
+        DocumentState beforeState = header.getState();
+        DocumentState newState = resolved;
         if (newState != null && newState != beforeState) {
             LifecycleAction outcomeAction = mapOutcomeToAction(newState);
-            if (!EtaInvoiceLifecycle.allowed(beforeState, outcomeAction)) {
+            if (!LifecycleTransitions.allowed(beforeState, outcomeAction,
+                    TransactionType.INVOICE)) {
                 newState = beforeState;
             }
         } else {
@@ -200,7 +201,7 @@ public class EtaSubmissionOrchestrator {
         }
 
         UUID headerId = header.getId();
-        final EtaInvoiceState targetState = newState;
+        final DocumentState targetState = newState;
         return txTemplate.execute(status -> {
             EtaInvoiceHeader h = headerRepository.findById(headerId)
                     .orElseThrow();
@@ -224,8 +225,8 @@ public class EtaSubmissionOrchestrator {
 
     private EtaInvoiceHeader doSubmit(EtaInvoiceHeader header,
             LifecycleAction action) {
-        EtaInvoiceState targetState = EtaInvoiceLifecycle.next(
-                header.getState(), action);
+        DocumentState targetState = LifecycleTransitions.next(
+                header.getState(), action, TransactionType.INVOICE);
 
         UUID headerId = header.getId();
         UUID companyId = header.getCompanyId();
@@ -287,7 +288,7 @@ public class EtaSubmissionOrchestrator {
 
             EtaInvoiceHeader h = headerRepository.findById(headerId)
                     .orElseThrow();
-            h.setState(EtaInvoiceState.SUBMISSION_AMBIGUOUS);
+            h.setState(DocumentState.IN_REVIEW);
             headerRepository.saveAndFlush(h);
 
             recordArtifactWithAttempt(h, ArtifactType.SIGNED_JSON,
@@ -296,7 +297,7 @@ public class EtaSubmissionOrchestrator {
             auditService.record("SUBMIT_INVOICE", "ETA_INVOICE",
                     headerId.toString(), null,
                     Map.of("state",
-                            EtaInvoiceState.SUBMISSION_AMBIGUOUS.name(),
+                            DocumentState.IN_REVIEW.name(),
                             "error", String.valueOf(errorMessage)));
             return h;
         });
@@ -304,7 +305,7 @@ public class EtaSubmissionOrchestrator {
 
     private EtaInvoiceHeader finalizeSubmission(UUID headerId,
             UUID attemptId, String signedBase64,
-            AuthorityResponse response, EtaInvoiceState fromState,
+            AuthorityResponse response, DocumentState fromState,
             int attemptNumber) {
         return txTemplate.execute(status -> {
             SubmissionResult result = mapResult(response);
@@ -323,12 +324,13 @@ public class EtaSubmissionOrchestrator {
                         response.rawResponse(), attemptNumber);
             }
 
-            EtaInvoiceState outcomeState = resolveState(response);
+            DocumentState outcomeState = resolveState(response);
             if (outcomeState != null) {
                 LifecycleAction outcomeAction =
                         mapOutcomeToAction(outcomeState);
-                if (!EtaInvoiceLifecycle.allowed(
-                        fromState, outcomeAction)) {
+                if (!LifecycleTransitions.allowed(
+                        fromState, outcomeAction,
+                        TransactionType.INVOICE)) {
                     throw new InvalidLifecycleTransitionException(
                             "Transition not allowed: " + fromState
                                     + " + " + outcomeAction,
@@ -337,7 +339,7 @@ public class EtaSubmissionOrchestrator {
                 }
                 h.setState(outcomeState);
             } else {
-                h.setState(EtaInvoiceState.SUBMISSION_AMBIGUOUS);
+                h.setState(DocumentState.IN_REVIEW);
             }
 
             h.setEtaUuid(response.etaUuid());
@@ -395,29 +397,29 @@ public class EtaSubmissionOrchestrator {
         return SubmissionResult.AMBIGUOUS;
     }
 
-    private EtaInvoiceState resolveState(
+    private DocumentState resolveState(
             AuthorityResponse response) {
         if (response == null) {
             return null;
         }
         if (response.success()) {
-            return EtaInvoiceState.VALID;
+            return DocumentState.ACCEPTED;
         }
         if ("REJECTED".equals(response.result())) {
-            return EtaInvoiceState.REJECTED;
+            return DocumentState.REJECTED;
         }
         return null;
     }
 
     private LifecycleAction mapOutcomeToAction(
-            EtaInvoiceState state) {
-        if (state == EtaInvoiceState.VALID) {
-            return LifecycleAction.MARK_VALID;
+            DocumentState state) {
+        if (state == DocumentState.ACCEPTED) {
+            return LifecycleAction.MARK_ACCEPTED;
         }
-        if (state == EtaInvoiceState.REJECTED) {
+        if (state == DocumentState.REJECTED) {
             return LifecycleAction.MARK_REJECTED;
         }
-        if (state == EtaInvoiceState.IN_REVIEW) {
+        if (state == DocumentState.IN_REVIEW) {
             return LifecycleAction.MARK_IN_REVIEW;
         }
         return LifecycleAction.MARK_AMBIGUOUS;
@@ -467,8 +469,9 @@ public class EtaSubmissionOrchestrator {
      */
     public EtaReceiptHeader cancelReceipt(EtaReceiptHeader header,
             String reason) {
-        EtaReceiptState targetState = EtaReceiptLifecycle.next(
-                header.getState(), LifecycleAction.CANCEL);
+        DocumentState targetState = LifecycleTransitions.next(
+                header.getState(), LifecycleAction.CANCEL,
+                TransactionType.RECEIPT);
         UUID headerId = header.getId();
         UUID companyId = header.getCompanyId();
         Short authEnvId = header.getAuthorityEnvironmentId();
@@ -533,8 +536,9 @@ public class EtaSubmissionOrchestrator {
      * @return the updated header
      */
     public EtaReceiptHeader checkReceiptStatus(EtaReceiptHeader header) {
-        if (!EtaReceiptLifecycle.allowed(header.getState(),
-                LifecycleAction.CHECK_STATUS)) {
+        if (!LifecycleTransitions.allowed(header.getState(),
+                LifecycleAction.CHECK_STATUS,
+                TransactionType.RECEIPT)) {
             return header;
         }
 
@@ -546,12 +550,13 @@ public class EtaSubmissionOrchestrator {
                         header.getId(),
                         header.getEtaSubmissionId()));
 
-        EtaReceiptState resolved = resolveReceiptState(response);
-        EtaReceiptState beforeState = header.getState();
-        EtaReceiptState newState = resolved;
+        DocumentState resolved = resolveReceiptState(response);
+        DocumentState beforeState = header.getState();
+        DocumentState newState = resolved;
         if (newState != null && newState != beforeState) {
             LifecycleAction outcomeAction = mapReceiptOutcomeToAction(newState);
-            if (!EtaReceiptLifecycle.allowed(beforeState, outcomeAction)) {
+            if (!LifecycleTransitions.allowed(beforeState, outcomeAction,
+                    TransactionType.RECEIPT)) {
                 newState = beforeState;
             }
         } else {
@@ -559,7 +564,7 @@ public class EtaSubmissionOrchestrator {
         }
 
         UUID headerId = header.getId();
-        final EtaReceiptState targetState = newState;
+        final DocumentState targetState = newState;
         return txTemplate.execute(status -> {
             EtaReceiptHeader h = receiptHeaderRepository.findById(headerId)
                     .orElseThrow();
@@ -580,8 +585,8 @@ public class EtaSubmissionOrchestrator {
 
     private EtaReceiptHeader doSubmitReceipt(EtaReceiptHeader header,
             LifecycleAction action) {
-        EtaReceiptState targetState = EtaReceiptLifecycle.next(
-                header.getState(), action);
+        DocumentState targetState = LifecycleTransitions.next(
+                header.getState(), action, TransactionType.RECEIPT);
 
         UUID headerId = header.getId();
         UUID companyId = header.getCompanyId();
@@ -643,7 +648,7 @@ public class EtaSubmissionOrchestrator {
 
             EtaReceiptHeader h = receiptHeaderRepository.findById(headerId)
                     .orElseThrow();
-            h.setState(EtaReceiptState.SUBMISSION_AMBIGUOUS);
+            h.setState(DocumentState.IN_REVIEW);
             receiptHeaderRepository.saveAndFlush(h);
 
             recordReceiptArtifactWithAttempt(h, ArtifactType.SIGNED_JSON,
@@ -652,7 +657,7 @@ public class EtaSubmissionOrchestrator {
             auditService.record("SUBMIT_RECEIPT", "ETA_RECEIPT",
                     headerId.toString(), null,
                     Map.of("state",
-                            EtaReceiptState.SUBMISSION_AMBIGUOUS.name(),
+                            DocumentState.IN_REVIEW.name(),
                             "error", String.valueOf(errorMessage)));
             return h;
         });
@@ -660,7 +665,7 @@ public class EtaSubmissionOrchestrator {
 
     private EtaReceiptHeader finalizeReceiptSubmission(UUID headerId,
             UUID attemptId, String signedBase64,
-            AuthorityResponse response, EtaReceiptState fromState,
+            AuthorityResponse response, DocumentState fromState,
             int attemptNumber) {
         return txTemplate.execute(status -> {
             SubmissionResult result = mapResult(response);
@@ -679,12 +684,13 @@ public class EtaSubmissionOrchestrator {
                         response.rawResponse(), attemptNumber);
             }
 
-            EtaReceiptState outcomeState = resolveReceiptState(response);
+            DocumentState outcomeState = resolveReceiptState(response);
             if (outcomeState != null) {
                 LifecycleAction outcomeAction =
                         mapReceiptOutcomeToAction(outcomeState);
-                if (!EtaReceiptLifecycle.allowed(
-                        fromState, outcomeAction)) {
+                if (!LifecycleTransitions.allowed(
+                        fromState, outcomeAction,
+                        TransactionType.RECEIPT)) {
                     throw new InvalidLifecycleTransitionException(
                             "Transition not allowed: " + fromState
                                     + " + " + outcomeAction,
@@ -693,7 +699,7 @@ public class EtaSubmissionOrchestrator {
                 }
                 h.setState(outcomeState);
             } else {
-                h.setState(EtaReceiptState.SUBMISSION_AMBIGUOUS);
+                h.setState(DocumentState.IN_REVIEW);
             }
 
             h.setEtaReceiptUuid(response.etaUuid());
@@ -724,29 +730,29 @@ public class EtaSubmissionOrchestrator {
         artifactRepository.save(artifact);
     }
 
-    private EtaReceiptState resolveReceiptState(
+    private DocumentState resolveReceiptState(
             AuthorityResponse response) {
         if (response == null) {
             return null;
         }
         if (response.success()) {
-            return EtaReceiptState.VALID;
+            return DocumentState.ACCEPTED;
         }
         if ("REJECTED".equals(response.result())) {
-            return EtaReceiptState.REJECTED;
+            return DocumentState.REJECTED;
         }
         return null;
     }
 
     private LifecycleAction mapReceiptOutcomeToAction(
-            EtaReceiptState state) {
-        if (state == EtaReceiptState.VALID) {
-            return LifecycleAction.MARK_VALID;
+            DocumentState state) {
+        if (state == DocumentState.ACCEPTED) {
+            return LifecycleAction.MARK_ACCEPTED;
         }
-        if (state == EtaReceiptState.REJECTED) {
+        if (state == DocumentState.REJECTED) {
             return LifecycleAction.MARK_REJECTED;
         }
-        if (state == EtaReceiptState.IN_REVIEW) {
+        if (state == DocumentState.IN_REVIEW) {
             return LifecycleAction.MARK_IN_REVIEW;
         }
         return LifecycleAction.MARK_AMBIGUOUS;

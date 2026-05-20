@@ -1,6 +1,6 @@
-package com.einvoice.core.domain.eta.lifecycle;
+package com.einvoice.core.domain.shared;
 
-/** Javadoc. */
+/** Actions that can trigger a lifecycle state transition. */
 public enum LifecycleAction {
     EDIT,
     DELETE,
@@ -9,8 +9,9 @@ public enum LifecycleAction {
     RETRY,
     CHECK_STATUS,
     CLONE_TO_NEW_DRAFT,
-    MARK_VALID,
     MARK_REJECTED,
     MARK_IN_REVIEW,
-    MARK_AMBIGUOUS
+    MARK_AMBIGUOUS,
+    MARK_SUBMITTED,
+    MARK_ACCEPTED
 }

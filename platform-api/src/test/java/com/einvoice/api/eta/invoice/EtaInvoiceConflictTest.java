@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.einvoice.api.eta.invoice.service.EtaInvoiceFormMapper.EtaInvoiceResponse;
 import com.einvoice.api.eta.invoice.service.EtaInvoiceService;
 import com.einvoice.core.domain.eta.document.EtaInvoiceDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.error.OptimisticLockConflictException;
 import com.einvoice.security.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,7 +70,7 @@ class EtaInvoiceConflictTest {
                 null, null, null, null, null, null, Map.of(), Map.of(),
                 "EGP", BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
-                null, EtaInvoiceState.DRAFT, 1, null, null, null,
+                null, DocumentState.DRAFT, 1, null, null, null,
                 null, OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());
 

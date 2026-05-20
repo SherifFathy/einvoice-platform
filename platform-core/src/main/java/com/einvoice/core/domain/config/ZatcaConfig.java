@@ -60,6 +60,9 @@ public class ZatcaConfig {
     @Column(name = "production_api_secret", columnDefinition = "TEXT")
     private String productionApiSecret;
 
+    @Column(name = "base_url", length = 255)
+    private String baseUrl;
+
     @Column(name = "certificate_expiry_date")
     private LocalDate certificateExpiryDate;
 

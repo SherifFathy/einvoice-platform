@@ -1,6 +1,5 @@
 import {
-  EtaInvoiceState,
-  EtaReceiptState,
+  DocumentState,
   LifecycleAction,
   invoiceTransitions,
   receiptTransitions,
@@ -9,27 +8,21 @@ import {
 } from './eta-states';
 
 describe('eta-states generated constants', () => {
-  it('EtaInvoiceState has all 7 states', () => {
-    const values = Object.values(EtaInvoiceState);
+  it('DocumentState has all 7 states', () => {
+    const values = Object.values(DocumentState);
     expect(values.length).toBe(7);
     expect(values).toContain('DRAFT');
     expect(values).toContain('SUBMITTING');
+    expect(values).toContain('SUBMITTED');
     expect(values).toContain('IN_REVIEW');
-    expect(values).toContain('VALID');
+    expect(values).toContain('ACCEPTED');
     expect(values).toContain('REJECTED');
-    expect(values).toContain('SUBMISSION_AMBIGUOUS');
     expect(values).toContain('CANCELLED');
   });
 
-  it('EtaReceiptState has all 7 states matching invoice', () => {
-    const invValues = Object.values(EtaInvoiceState);
-    const recValues = Object.values(EtaReceiptState);
-    expect(recValues).toEqual(invValues);
-  });
-
-  it('LifecycleAction has all 11 actions', () => {
+  it('LifecycleAction has all actions', () => {
     const values = Object.values(LifecycleAction);
-    expect(values.length).toBe(11);
+    expect(values.length).toBe(12);
   });
 
   it('invoiceTransitions has entries for all 7 states', () => {

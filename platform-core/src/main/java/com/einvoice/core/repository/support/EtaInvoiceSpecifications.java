@@ -2,7 +2,7 @@ package com.einvoice.core.repository.support;
 
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
 import com.einvoice.core.domain.eta.document.EtaInvoiceDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
@@ -35,7 +35,7 @@ public final class EtaInvoiceSpecifications {
      * @param state the invoice state
      * @return a specification
      */
-    public static Specification<EtaInvoiceHeader> inState(EtaInvoiceState state) {
+    public static Specification<EtaInvoiceHeader> inState(DocumentState state) {
         return (Root<EtaInvoiceHeader> root, CriteriaQuery<?> query, CriteriaBuilder cb) ->
                 cb.equal(root.get("state"), state);
     }

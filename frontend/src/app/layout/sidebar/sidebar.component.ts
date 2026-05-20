@@ -38,8 +38,8 @@ export class SidebarComponent {
 
   private readonly zatcaItems: SidebarItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Standard', icon: 'article', route: '/standard', moduleKey: 'standard' },
-    { label: 'Simplified', icon: 'note', route: '/simplified', moduleKey: 'simplified' },
+    { label: 'Standard', icon: 'article', route: '/standard', permission: ['STANDARD', 'VIEW'] },
+    { label: 'Simplified', icon: 'note', route: '/simplified', permission: ['SIMPLIFIED', 'VIEW'] },
     { label: 'Customers', icon: 'people', route: '/customers', permission: ['customers', 'VIEW'] },
     { label: 'Items', icon: 'inventory', route: '/items', permission: ['items', 'VIEW'] },
     { label: 'Configuration', icon: 'settings', route: '/config', permission: ['configuration', 'VIEW'] },

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { EtaInvoice } from '../eta/services/eta-invoice.service';
+import { EtaInvoice } from '../../invoices/eta/services/eta-invoice.service';
 
 export interface ConflictDialogData {
   expectedVersion: number;

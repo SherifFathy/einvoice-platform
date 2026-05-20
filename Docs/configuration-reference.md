@@ -259,3 +259,71 @@ All monetary columns on invoice/receipt headers and lines use `NUMERIC(18,5)`. T
 - **V54 folded into V52**: The unscheduled V54 migration has been removed. Its columns (`attempt_number` on `invoice_artifacts`, `submitted_by` on `submission_attempts`) and the compound index are now part of V52 directly.
 - **Lifecycle matrix fix**: `IN_REVIEW + CHECK_STATUS` was missing a target state transition in both `EtaInvoiceLifecycle` and `EtaReceiptLifecycle`. Fixed to return `IN_REVIEW` (self-loop). This was caught by the codegen now propagating exceptions instead of swallowing them.
 - **T117 (quickstart A–L)**: Requires ETA Pre-Production sandbox credentials. To be run manually and documented as a follow-up.
+
+---
+
+## Wave 8 — ZATCA Document Tables and Submission Engine
+
+### New Tables
+
+| Table | Purpose | Key Constraints |
+|-------|---------|-----------------|
+| `zatca_standard_headers` | ZATCA Standard B2B tax documents (clearance flow). Buyer mandatory. 7-state lifecycle. `@Version` for optimistic concurrency. | `uq_zatca_standard_number (company_id, authority_environment_id, invoice_number)`; `original_invoice_id` self-reference FK; `CHECK (status IN ('DRAFT','SUBMITTING','SUBMITTED','IN_REVIEW','ACCEPTED','REJECTED','CANCELLED'))` |
+| `zatca_standard_lines` | Lines for Standard documents. VAT inline (no separate tax table — Constitution XI.2). | `uq_zatca_standard_line (header_id, line_number)`; `CHECK (quantity > 0)`; `chk_vat_exempt_reason` CHECK constraint: `(vat_category_code IN ('E','O') AND exemption_reason_code IS NOT NULL AND exemption_reason_text IS NOT NULL) OR vat_category_code IN ('S','Z')` — only exempt/zero-rated categories (E, O) require both reason fields; standard-rated (S) and zero-rated (Z) lines must omit them |
+| `zatca_simplified_headers` | ZATCA Simplified B2C documents (reporting flow). Buyer optional. 7-state lifecycle. `@Version` for optimistic concurrency. | `uq_zatca_simplified_number (company_id, authority_environment_id, invoice_number)`; `reporting_status` column (replaces `clearance_status`); `original_invoice_id` self-reference within Simplified class |
+| `zatca_simplified_lines` | Lines for Simplified documents. Same shape as Standard lines. | Same constraints as `zatca_standard_lines` including `chk_vat_exempt_reason` (`vat_category_code` E/O requires both reason fields; S/Z lines must omit them) |
+
+All four tables are **operational** (Constitution II.5): every read/write filters by `(company_id, authority_environment_id)` from the JWT-derived `TenantContext`. Flyway migrations V54–V57 create these tables, their compound indexes, and the `base_url` config column.
+
+### Permission Scopes — STANDARD and SIMPLIFIED (Constitution XVII.6–8)
+
+Wave 8 uses the STANDARD and SIMPLIFIED permission modules (seeded by V53a for INVOICE/RECEIPT, extended in Wave 8 for ZATCA classes):
+
+| Role | VIEW | CREATE | EDIT | DELETE | CANCEL | TRANSFER | REFRESH | SUBMIT |
+|------|------|--------|------|--------|--------|----------|---------|--------|
+| COMPANY_ADMIN | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| ACCOUNTANT | ✓ | ✓ | — | — | — | — | ✓ | ✓ |
+| VIEWER | ✓ | — | — | — | — | — | — | — |
+
+### ZATCA Base URL Configuration
+
+The `ZatcaHttpClient` resolves the outbound base URL at request time from `zatca_configs.base_url` (Wave 6 singleton per `(company_id, authority_environment_id)`). The platform does not hardcode ZATCA URLs — they are stored in the configuration screen and consumed per submission.
+
+| `authority_environment_id` | Environment | Typical `base_url` |
+|---------------------------|-------------|---------------------|
+| 3 | PRODUCTION | `https://gw-fatoora.zatca.gov.sa/e-invoiceing` |
+| 5 | SANDBOX | `https://gw-fatoora.zatca.gov.sa/e-invoiceing/simulation` |
+
+### Chain-Busy Timeout (FR-009a, Q2)
+
+ZATCA submissions acquire a pessimistic `SELECT FOR UPDATE` lock on the `zatca_chain_state` row with `SET LOCAL lock_timeout = '30s'`. If the lock cannot be acquired within this window:
+- The API returns **HTTP 503** with error code `CHAIN_BUSY`.
+- The document remains in `DRAFT` status.
+- No `submission_attempts` row is created.
+- The `zatca_chain_state.invoice_counter` is unchanged.
+
+This timeout is **not configurable** via environment variable; it is hardcoded in `ZatcaChainService.acquireForUpdate()`.
+
+### Bulk Check Status (FR-018a, Q5)
+
+The bulk check-status endpoint (`POST /zatca/standard/check-status` and `POST /zatca/simplified/check-status`) accepts an unbounded `documentIds[]` list and streams results as NDJSON (`application/x-ndjson`). Key tunables:
+- **Rate pacing**: 300 ms between ZATCA calls (default 200 calls/min). Hardcoded in `BulkCheckStatusService`.
+- **Cancellation**: Each run is tracked by a `Run-Id` response header. `DELETE /api/runs/{runId}` sets the cancel flag, causing remaining documents to emit `CANCELLED_NO_OP`.
+- **Run GC**: Completed runs are garbage-collected after 10 minutes by a scheduled cleanup.
+
+### Wave 8 Error-Code Additions
+
+Full catalogue: [`specs/009-zatca-docs-submission/contracts/error-codes.md`](../specs/009-zatca-docs-submission/contracts/error-codes.md)
+
+| Code | HTTP | When |
+|------|------|------|
+| `DUPLICATE_STANDARD_NUMBER` | 409 | Standard invoice number uniqueness violation within `(companyId, authorityEnvironmentId)` |
+| `DUPLICATE_SIMPLIFIED_NUMBER` | 409 | Simplified invoice number uniqueness violation within `(companyId, authorityEnvironmentId)` |
+| `MISSING_BUYER_FOR_STANDARD` | 400 | Standard document submitted without buyer data (FR-008) |
+| `VAT_EXEMPTION_REASON_REQUIRED` | 400 | VAT category E or O missing `exemptionReasonCode` and `exemptionReasonText` (FR-004) |
+| `CHAIN_BUSY` | 503 | Chain lock acquisition timed out after ~30 s (FR-009a, Q2) |
+| `WRONG_ORIGINAL_CLASS` | 400 | Credit/debit note references an original document of a different class (FR-030) |
+
+### Two-Decimal Money Precision (Constitution XIII.6)
+
+ZATCA document totals and line amounts use `NUMERIC(18,2)` per ZATCA Phase-2 spec. The `ZatcaMoneyMath` helper centralises rounding (`RoundingMode.HALF_EVEN`, 2 fractional digits). Source quantities and unit prices use `NUMERIC(18,5)` for computational precision.

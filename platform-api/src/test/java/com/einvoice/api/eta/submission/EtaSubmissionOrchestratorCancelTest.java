@@ -11,7 +11,7 @@ import com.einvoice.api.audit.service.AuditService;
 import com.einvoice.api.eta.submission.service.EtaSubmissionOrchestrator;
 import com.einvoice.core.authority.AuthorityResponse;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.shared.SubmissionResult;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
 import com.einvoice.core.repository.eta.EtaReceiptHeaderRepository;
@@ -55,7 +55,7 @@ class EtaSubmissionOrchestratorCancelTest {
                 .id(headerId)
                 .companyId(UUID.randomUUID())
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.VALID)
+                .state(DocumentState.ACCEPTED)
                 .etaUuid("eta-uuid-123")
                 .build();
 
@@ -86,7 +86,7 @@ class EtaSubmissionOrchestratorCancelTest {
 
         EtaInvoiceHeader result = orchestrator.cancel(header, "wrong invoice");
 
-        assertEquals(EtaInvoiceState.CANCELLED, result.getState());
+        assertEquals(DocumentState.CANCELLED, result.getState());
 
         verify(attemptRepository).finalizeAttempt(any(),
                 any(SubmissionResult.class), any(), any(), any(), any());
@@ -103,7 +103,7 @@ class EtaSubmissionOrchestratorCancelTest {
 
         EtaInvoiceHeader result = orchestrator.cancel(header, "wrong invoice");
 
-        assertEquals(EtaInvoiceState.VALID, result.getState());
+        assertEquals(DocumentState.ACCEPTED, result.getState());
 
         verify(attemptRepository).finalizeAttempt(any(),
                 any(SubmissionResult.class), any(), any(), any(), any());

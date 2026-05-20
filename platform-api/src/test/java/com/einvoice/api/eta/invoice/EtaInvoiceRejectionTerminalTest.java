@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.einvoice.api.eta.invoice.service.EtaInvoiceFormMapper.EtaInvoiceResponse;
 import com.einvoice.api.eta.invoice.service.EtaInvoiceService;
 import com.einvoice.core.domain.eta.document.EtaInvoiceDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.security.tenant.TenantContext;
 import java.math.BigDecimal;
@@ -93,7 +93,7 @@ class EtaInvoiceRejectionTerminalTest {
         UUID cloneId = UUID.randomUUID();
 
         when(service.cloneAsDraft(eq(docId), eq("CLONE-001")))
-                .thenReturn(buildResponse(cloneId, companyId, "CLONE-001", EtaInvoiceState.DRAFT, 0));
+                .thenReturn(buildResponse(cloneId, companyId, "CLONE-001", DocumentState.DRAFT, 0));
 
         mvc.perform(post("/api/companies/{companyId}/eta/invoices/{docId}/clone-as-draft",
                         companyId, docId)
@@ -108,7 +108,7 @@ class EtaInvoiceRejectionTerminalTest {
 
     private static EtaInvoiceResponse buildResponse(
             UUID id, UUID companyId, String invoiceNumber,
-            EtaInvoiceState state, Integer version) {
+            DocumentState state, Integer version) {
         return new EtaInvoiceResponse(
                 id, companyId, null,
                 invoiceNumber, EtaInvoiceDocumentType.i,

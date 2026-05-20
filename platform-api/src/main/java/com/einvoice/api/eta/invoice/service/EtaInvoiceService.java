@@ -6,8 +6,8 @@ import com.einvoice.api.eta.invoice.service.EtaInvoiceFormMapper.EtaInvoiceWrite
 import com.einvoice.core.domain.company.Company;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
 import com.einvoice.core.domain.eta.document.EtaInvoiceDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
-import com.einvoice.core.domain.eta.lifecycle.LifecycleAction;
+import com.einvoice.core.domain.shared.DocumentState;
+import com.einvoice.core.domain.shared.LifecycleAction;
 import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.DuplicateInvoiceNumberException;
 import com.einvoice.core.error.IncompatibleOriginalDocumentException;
@@ -16,7 +16,6 @@ import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.MissingOriginalDocumentException;
 import com.einvoice.core.error.OptimisticLockConflictException;
 import com.einvoice.core.error.TotalsInconsistentException;
-import com.einvoice.core.lifecycle.EtaInvoiceLifecycle;
 import com.einvoice.core.money.EtaMoneyMath;
 import com.einvoice.core.repository.company.CompanyRepository;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
@@ -99,7 +98,7 @@ public class EtaInvoiceService {
             }
         }
         if (status != null && !status.isBlank()) {
-            spec = spec.and(EtaInvoiceSpecifications.inState(EtaInvoiceState.valueOf(status)));
+            spec = spec.and(EtaInvoiceSpecifications.inState(DocumentState.valueOf(status)));
         }
         if (dateFrom != null || dateTo != null) {
             spec = spec.and(EtaInvoiceSpecifications.issuedBetween(
@@ -167,7 +166,7 @@ public class EtaInvoiceService {
     public EtaInvoiceResponse update(UUID docId, EtaInvoiceWriteForm form, Integer ifMatchVersion) {
         EtaInvoiceHeader header = loadWithinTenant(docId);
 
-        if (header.getState() != EtaInvoiceState.DRAFT) {
+        if (header.getState() != DocumentState.DRAFT) {
             throw new DocumentNotDraftException(
                     "Only DRAFT invoices can be edited",
                     header.getState().name());
@@ -243,7 +242,7 @@ public class EtaInvoiceService {
      */
     public void delete(UUID docId) {
         EtaInvoiceHeader header = loadWithinTenant(docId);
-        if (header.getState() != EtaInvoiceState.DRAFT) {
+        if (header.getState() != DocumentState.DRAFT) {
             throw new DocumentNotDraftException(
                     "Only DRAFT invoices can be deleted",
                     header.getState().name());
@@ -262,7 +261,7 @@ public class EtaInvoiceService {
      */
     public EtaInvoiceResponse cloneAsDraft(UUID rejectedDocId, String newInvoiceNumber) {
         EtaInvoiceHeader source = loadWithinTenant(rejectedDocId);
-        if (source.getState() != EtaInvoiceState.REJECTED) {
+        if (source.getState() != DocumentState.REJECTED) {
             throw new InvalidLifecycleTransitionException(
                     "Source must be REJECTED to clone",
                     source.getState().name(), "CLONE_TO_NEW_DRAFT");

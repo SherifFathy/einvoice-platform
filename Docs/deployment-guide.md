@@ -220,3 +220,49 @@ WHERE schemaname = 'public'
 ### New Endpoint Surface (Wave 7)
 
 Wave 7 adds approximately 24 new REST endpoints for invoice/receipt CRUD, submission, cancellation, retry, check-status (single + bulk), submission history, artifact download, and clone-to-new-draft. All are gated by `@RequiresPermission` with INVOICE or RECEIPT module actions. All reject Admin Mode with `403 COMPANY_CONTEXT_REQUIRED`.
+
+---
+
+## Wave 8 — ZATCA Document Tables and Submission Engine
+
+Wave 8 adds four operational tables for ZATCA Standard (B2B) and Simplified (B2C) documents, with shared submission infrastructure and chain integrity. Migrations V54–V57 apply on top of the Wave 7 V53a baseline.
+
+### Deployment Notes
+
+- **Migrations**: V54 (`zatca_standard_headers` + `zatca_standard_lines`), V55 (`zatca_simplified_headers` + `zatca_simplified_lines`), V56 (compound indexes across all four new tables), V57 (`zatca_configs.base_url` column + `submission_attempts.chain_counter_snapshot` column). These run automatically via Flyway on backend startup — no manual upgrade script is required.
+- **No new environment variables**: Wave 8 does not introduce new env vars. Existing `JWT_SECRET`, `SPRING_DATASOURCE_*`, `BOOTSTRAP_SUPERUSER_*` settings are unchanged.
+- **No new infrastructure components**: No new Docker services, message queues, or external dependencies. Wave 8 uses the existing PostgreSQL instance and the existing Spring Boot application.
+- **Outbound HTTPS access**: The app container must be able to reach ZATCA endpoints (configured per environment in `zatca_configs.base_url`):
+  - Production: `https://gw-fatoora.zatca.gov.sa/e-invoiceing`
+  - Sandbox: `https://gw-fatoora.zatca.gov.sa/e-invoiceing/simulation`
+- **Chain-busy timeout**: The ZATCA submission transaction sets `SET LOCAL lock_timeout = '30s'` on the `zatca_chain_state` row. If the lock cannot be acquired within this window, the API returns 503 `CHAIN_BUSY`. This timeout is not configurable via environment variable; it is hardcoded in `ZatcaChainService`.
+
+### Verifying V54–V57 Applied
+
+After deploying, confirm the migrations applied:
+
+```sql
+SELECT version, description, installed_on
+FROM flyway_schema_history
+WHERE version IN ('54', '55', '56', '57')
+ORDER BY installed_rank;
+```
+
+Verify the four new tables exist:
+
+```sql
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'zatca_standard_headers', 'zatca_standard_lines',
+    'zatca_simplified_headers', 'zatca_simplified_lines'
+  );
+```
+
+Verify the eight compound indexes:
+
+```sql
+SELECT indexname FROM pg_indexes
+WHERE schemaname = 'public'
+  AND indexname LIKE 'idx_zatca_%';
+```

@@ -8,7 +8,7 @@ import com.einvoice.core.domain.eta.EtaReceiptHeader;
 import com.einvoice.core.domain.eta.EtaReceiptLine;
 import com.einvoice.core.domain.eta.EtaReceiptLineTax;
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
+import com.einvoice.core.domain.shared.DocumentState;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -138,7 +138,7 @@ class EtaReceiptSerializerGoldenTest {
                 .totalItemsDiscountAmount(BigDecimal.ZERO)
                 .netAmount(new BigDecimal("50.00000"))
                 .totalAmount(new BigDecimal("57.00000"))
-                .state(EtaReceiptState.DRAFT)
+                .state(DocumentState.DRAFT)
                 .build();
     }
 

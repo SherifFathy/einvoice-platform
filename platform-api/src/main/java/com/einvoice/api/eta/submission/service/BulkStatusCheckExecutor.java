@@ -2,8 +2,7 @@ package com.einvoice.api.eta.submission.service;
 
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
 import com.einvoice.core.domain.eta.EtaReceiptHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.shared.TransactionType;
 import com.einvoice.core.error.BulkBatchLimitExceededException;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
@@ -136,8 +135,8 @@ public class BulkStatusCheckExecutor {
                     null, null, null, null);
         }
 
-        EtaInvoiceState before = header.getState();
-        EtaInvoiceState afterState = before;
+        DocumentState before = header.getState();
+        DocumentState afterState = before;
         String etaResultCode = null;
         String errorSummary = null;
         String outcome = "UNCHANGED";
@@ -177,8 +176,8 @@ public class BulkStatusCheckExecutor {
                     null, null, null, null);
         }
 
-        EtaReceiptState before = header.getState();
-        EtaReceiptState afterState = before;
+        DocumentState before = header.getState();
+        DocumentState afterState = before;
         String etaResultCode = null;
         String errorSummary = null;
         String outcome = "UNCHANGED";

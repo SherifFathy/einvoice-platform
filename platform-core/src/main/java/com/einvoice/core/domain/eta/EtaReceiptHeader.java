@@ -1,7 +1,7 @@
 package com.einvoice.core.domain.eta;
 
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
+import com.einvoice.core.domain.shared.DocumentState;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -119,7 +119,7 @@ public class EtaReceiptHeader {
     @Column(name = "state", nullable = false, length = 40)
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private EtaReceiptState state = EtaReceiptState.DRAFT;
+    private DocumentState state = DocumentState.DRAFT;
 
     @Version
     @Column(name = "version", nullable = false)

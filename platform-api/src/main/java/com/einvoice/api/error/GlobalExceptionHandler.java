@@ -5,6 +5,7 @@ import com.einvoice.core.error.AssignmentExistsException;
 import com.einvoice.core.error.BranchCodeDuplicateException;
 import com.einvoice.core.error.BranchIdNotAllowedException;
 import com.einvoice.core.error.BulkBatchLimitExceededException;
+import com.einvoice.core.error.ChainBusyException;
 import com.einvoice.core.error.CompanyContextRequiredException;
 import com.einvoice.core.error.ConfigNotFoundException;
 import com.einvoice.core.error.CustomerNotFoundException;
@@ -12,6 +13,8 @@ import com.einvoice.core.error.DocumentNotDraftException;
 import com.einvoice.core.error.DuplicateInternalCodeException;
 import com.einvoice.core.error.DuplicateInvoiceNumberException;
 import com.einvoice.core.error.DuplicateReceiptNumberException;
+import com.einvoice.core.error.DuplicateSimplifiedNumberException;
+import com.einvoice.core.error.DuplicateStandardNumberException;
 import com.einvoice.core.error.DuplicateTaxNumberException;
 import com.einvoice.core.error.DuplicateVatNumberException;
 import com.einvoice.core.error.EmailAlreadyExistsException;
@@ -26,12 +29,14 @@ import com.einvoice.core.error.InvalidExpiryDateException;
 import com.einvoice.core.error.InvalidItemTypeException;
 import com.einvoice.core.error.InvalidLifecycleTransitionException;
 import com.einvoice.core.error.InvalidRoleForAuthorityException;
+import com.einvoice.core.error.InvalidSimplifiedTransactionTypeException;
 import com.einvoice.core.error.InvalidUnitValueException;
 import com.einvoice.core.error.InvalidVatCategoryException;
 import com.einvoice.core.error.InvalidVatNumberException;
 import com.einvoice.core.error.InvalidVatRateException;
 import com.einvoice.core.error.ItemNotFoundException;
 import com.einvoice.core.error.LastSuperUserProtectedException;
+import com.einvoice.core.error.MissingBuyerForStandardException;
 import com.einvoice.core.error.MissingOriginalDocumentException;
 import com.einvoice.core.error.NoCertificateConfiguredException;
 import com.einvoice.core.error.OptimisticLockConflictException;
@@ -39,6 +44,8 @@ import com.einvoice.core.error.ProductionTokenRequiredException;
 import com.einvoice.core.error.TaxNumberDuplicateException;
 import com.einvoice.core.error.TotalsInconsistentException;
 import com.einvoice.core.error.UnauthorizedContextException;
+import com.einvoice.core.error.VatExemptionReasonRequiredException;
+import com.einvoice.core.error.WrongOriginalClassException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import jakarta.persistence.OptimisticLockException;
 import java.util.List;
@@ -493,6 +500,94 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse("VALIDATION_ERROR", "Validation failed",
                         Map.of("fieldErrors", fieldErrors)));
+    }
+
+    /**
+     * Handle duplicate standard invoice number.
+     *
+     * @param ex the duplicate-number exception
+     * @return 409 Conflict response carrying companyId + invoiceNumber
+     */
+    @ExceptionHandler(DuplicateStandardNumberException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateStandardNumber(DuplicateStandardNumberException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("companyId", ex.getCompanyId(), "invoiceNumber", ex.getInvoiceNumber())));
+    }
+
+    /**
+     * Handle duplicate simplified invoice number.
+     *
+     * @param ex the duplicate-number exception
+     * @return 409 Conflict response carrying companyId + invoiceNumber
+     */
+    @ExceptionHandler(DuplicateSimplifiedNumberException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateSimplifiedNumber(DuplicateSimplifiedNumberException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("companyId", ex.getCompanyId(), "invoiceNumber", ex.getInvoiceNumber())));
+    }
+
+    /**
+     * Handle missing buyer for standard invoice.
+     *
+     * @param ex the missing-buyer exception
+     * @return 400 Bad Request response
+     */
+    @ExceptionHandler(MissingBuyerForStandardException.class)
+    public ResponseEntity<ErrorResponse> handleMissingBuyerForStandard(MissingBuyerForStandardException ex) {
+        return build(HttpStatus.BAD_REQUEST, ex.getCode(), ex.getMessage());
+    }
+
+    /**
+     * Handle VAT exemption reason required.
+     *
+     * @param ex the missing-exemption-reason exception
+     * @return 400 Bad Request response carrying the VAT category code
+     */
+    @ExceptionHandler(VatExemptionReasonRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleVatExemptionReasonRequired(VatExemptionReasonRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("vatCategoryCode", ex.getVatCategoryCode())));
+    }
+
+    /**
+     * Handle ZATCA chain-busy contention.
+     *
+     * @param ex the chain-busy exception
+     * @return 503 Service Unavailable response
+     */
+    @ExceptionHandler(ChainBusyException.class)
+    public ResponseEntity<ErrorResponse> handleChainBusy(ChainBusyException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getCode(), ex.getMessage());
+    }
+
+    /**
+     * Handle wrong original document class.
+     *
+     * @param ex the wrong-class exception
+     * @return 400 Bad Request response carrying expected + actual class
+     */
+    @ExceptionHandler(WrongOriginalClassException.class)
+    public ResponseEntity<ErrorResponse> handleWrongOriginalClass(WrongOriginalClassException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("expectedClass", ex.getExpectedClass(), "actualClass", ex.getActualClass())));
+    }
+
+    /**
+     * Handle invalid simplified transaction type.
+     *
+     * @param ex the invalid-transaction-type exception
+     * @return 400 Bad Request response carrying the transactionTypeCode
+     */
+    @ExceptionHandler(InvalidSimplifiedTransactionTypeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSimplifiedTransactionType(
+            InvalidSimplifiedTransactionTypeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("transactionTypeCode", ex.getTransactionTypeCode())));
     }
 
     /**

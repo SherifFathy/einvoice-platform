@@ -10,8 +10,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { EtaReceiptService, ConflictBody } from './services/eta-receipt.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
-import { LineItemsEditorComponent } from '../../invoices/shared/line-items-editor.component';
-import { ConflictResolutionDialogComponent } from '../../invoices/shared/conflict-resolution.dialog';
+import { LineItemsEditorComponent } from '../../documents/shared/line-items-editor.component';
+import { ConflictResolutionDialogComponent } from '../../documents/shared/conflict-resolution.dialog';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map, take, switchMap, filter } from 'rxjs/operators';
 

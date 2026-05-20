@@ -279,7 +279,7 @@ export class InvoiceDetailComponent implements OnChanges {
   }
 
   get canCheckStatus(): boolean {
-    return this.invoice?.status === 'IN_REVIEW' || this.invoice?.status === 'SUBMISSION_AMBIGUOUS';
+    return this.invoice?.status === 'IN_REVIEW';
   }
 
   get canCancelEta(): boolean {

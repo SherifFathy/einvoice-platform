@@ -4,7 +4,7 @@ import com.einvoice.core.domain.eta.EtaReceiptHeader;
 import com.einvoice.core.domain.eta.EtaReceiptLine;
 import com.einvoice.core.domain.eta.EtaReceiptLineTax;
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
-import com.einvoice.core.domain.eta.lifecycle.EtaReceiptState;
+import com.einvoice.core.domain.shared.DocumentState;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -216,7 +216,7 @@ public class EtaReceiptFormMapper {
             BigDecimal totalItemsDiscountAmount,
             BigDecimal netAmount, BigDecimal totalAmount,
             UUID originalReceiptId,
-            EtaReceiptState state, Integer version,
+            DocumentState state, Integer version,
             String etaReceiptUuid, String etaSubmissionId,
             UUID createdBy, OffsetDateTime createdAt,
             OffsetDateTime updatedAt,

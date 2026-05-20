@@ -122,7 +122,7 @@ describe('SidebarComponent', () => {
     });
 
     it('should show correct routes for ZATCA items', () => {
-      const routes = (component.items() as TestSidebarItem[]).filter((i) => i.moduleKey).map((i) => i.route);
+      const routes = (component.items() as TestSidebarItem[]).map((i) => i.route);
       expect(routes).toContain('/standard');
       expect(routes).toContain('/simplified');
     });

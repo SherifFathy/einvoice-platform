@@ -91,6 +91,24 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'standard',
+        children: [
+          {
+            path: '',
+            loadChildren: () => import('./standard/standard-routing.module').then(m => m.StandardRoutingModule),
+          },
+        ],
+      },
+      {
+        path: 'simplified',
+        children: [
+          {
+            path: '',
+            loadChildren: () => import('./simplified/simplified-routing.module').then(m => m.SimplifiedRoutingModule),
+          },
+        ],
+      },
+      {
         path: 'receipts/eta',
         children: [
           {

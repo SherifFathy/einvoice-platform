@@ -16,7 +16,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { EtaInvoiceService, EtaInvoiceListResult } from './services/eta-invoice.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
-import { BulkStatusCheckDialogComponent, BulkStatusDialogData } from '../shared/bulk-status-check.dialog';
+import { BulkStatusCheckDialogComponent, BulkStatusDialogData } from '../../documents/shared/bulk-status-check.dialog';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, switchMap } from 'rxjs';

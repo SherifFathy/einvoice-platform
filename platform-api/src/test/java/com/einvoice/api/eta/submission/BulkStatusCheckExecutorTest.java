@@ -12,7 +12,7 @@ import com.einvoice.api.eta.submission.service.BulkStatusCheckExecutor;
 import com.einvoice.api.eta.submission.service.BulkStatusCheckExecutor.BulkStatusOutcome;
 import com.einvoice.api.eta.submission.service.EtaSubmissionOrchestrator;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.shared.TransactionType;
 import com.einvoice.core.error.BulkBatchLimitExceededException;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
@@ -100,7 +100,7 @@ class BulkStatusCheckExecutorTest {
                     .id(id)
                     .companyId(UUID.randomUUID())
                     .authorityEnvironmentId((short) 2)
-                    .state(EtaInvoiceState.IN_REVIEW)
+                    .state(DocumentState.IN_REVIEW)
                     .build();
             when(invoiceHeaderRepository.findById(id))
                     .thenReturn(Optional.of(header));
@@ -136,7 +136,7 @@ class BulkStatusCheckExecutorTest {
                 .id(docId)
                 .companyId(companyId)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.IN_REVIEW)
+                .state(DocumentState.IN_REVIEW)
                 .build();
         when(invoiceHeaderRepository.findById(docId))
                 .thenReturn(Optional.of(header));
@@ -163,13 +163,13 @@ class BulkStatusCheckExecutorTest {
                 .id(allowedId)
                 .companyId(companyId1)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.IN_REVIEW)
+                .state(DocumentState.IN_REVIEW)
                 .build();
         EtaInvoiceHeader forbiddenHeader = EtaInvoiceHeader.builder()
                 .id(forbiddenId)
                 .companyId(companyId2)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.IN_REVIEW)
+                .state(DocumentState.IN_REVIEW)
                 .build();
 
         when(invoiceHeaderRepository.findById(allowedId))
@@ -188,7 +188,7 @@ class BulkStatusCheckExecutorTest {
                 .id(allowedId)
                 .companyId(companyId1)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.VALID)
+                .state(DocumentState.ACCEPTED)
                 .build();
         when(orchestrator.checkStatus(any(EtaInvoiceHeader.class)))
                 .thenReturn(updatedHeader);

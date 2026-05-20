@@ -18,7 +18,7 @@ public interface InvoiceArtifactRepository extends WriteOnlyRepository<InvoiceAr
             + "AND a.companyId = :companyId "
             + "AND a.authorityEnvironmentId = :authorityEnvironmentId "
             + "AND a.transactionType = :transactionType "
-            + "ORDER BY a.createdAt DESC")
+            + "ORDER BY a.attemptNumber DESC NULLS LAST, a.createdAt DESC")
     List<InvoiceArtifact> findByDocumentIdAndTypeAndTenant(
             @Param("documentId") UUID documentId,
             @Param("artifactType") ArtifactType artifactType,

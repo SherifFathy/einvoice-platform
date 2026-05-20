@@ -1,0 +1,259 @@
+import { Component, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ReactiveFormsModule, FormBuilder, FormGroup, FormArray, Validators, AbstractControl } from '@angular/forms';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCardModule } from '@angular/material/card';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { ZatcaStandardService, ConflictBody } from './services/zatca-standard.service';
+import { SessionContextService } from '../shared/services/session-context.service';
+import { LineItemsEditorComponent } from '../documents/shared/line-items-editor.component';
+import { ConflictResolutionDialogComponent } from '../documents/shared/conflict-resolution.dialog';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map, take } from 'rxjs/operators';
+
+function jsonOrNullValidator(control: AbstractControl): null | { invalidJson: true } {
+  const v = control.value;
+  if (v == null || v === '') return null;
+  if (typeof v === 'object') return null;
+  if (typeof v === 'string') {
+    try { JSON.parse(v); return null; } catch { return { invalidJson: true }; }
+  }
+  return { invalidJson: true };
+}
+
+function buyerRequiredFieldsValidator(control: AbstractControl): null | { missingBuyerFields: true } {
+  const v = control.value;
+  if (v == null || v === '') return { missingBuyerFields: true };
+  const obj = typeof v === 'string' ? (() => { try { return JSON.parse(v); } catch { return null; } })() : v;
+  if (!obj || typeof obj !== 'object') return { missingBuyerFields: true };
+  if (!obj.taxRegistrationNumber || !obj.partyName) return { missingBuyerFields: true };
+  return null;
+}
+
+function parseJsonField(v: unknown): Record<string, unknown> | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'string') {
+    try { return JSON.parse(v) as Record<string, unknown>; } catch { return {}; }
+  }
+  return v as Record<string, unknown>;
+}
+
+@Component({
+  selector: 'app-zatca-standard-form',
+  standalone: true,
+  imports: [CommonModule, RouterModule, ReactiveFormsModule,
+            MatButtonModule, MatFormFieldModule, MatInputModule,
+            MatSelectModule, MatCardModule, MatDialogModule,
+            LineItemsEditorComponent],
+  template: `
+    <div class="form-container">
+      <h2>{{ isEdit() ? 'Edit Standard Document' : 'New Standard Document' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-card>
+          <mat-card-content>
+            <mat-form-field><mat-label>Invoice Number</mat-label>
+              <input matInput formControlName="invoiceNumber" required></mat-form-field>
+            <mat-form-field><mat-label>Invoice Type Code</mat-label>
+              <mat-select formControlName="invoiceTypeCode" required>
+                <mat-option value="388">Standard (388)</mat-option>
+                <mat-option value="381">Credit Note (381)</mat-option>
+                <mat-option value="383">Debit Note (383)</mat-option>
+              </mat-select></mat-form-field>
+            <mat-form-field><mat-label>Transaction Type Code</mat-label>
+              <input matInput formControlName="transactionTypeCode" placeholder="0100000" required></mat-form-field>
+            <mat-form-field><mat-label>Issue Date</mat-label>
+              <input matInput formControlName="issueDate" type="date" required></mat-form-field>
+            <mat-form-field><mat-label>Issue Time</mat-label>
+              <input matInput formControlName="issueTime" type="time" required></mat-form-field>
+            <mat-form-field><mat-label>Currency</mat-label>
+              <input matInput formControlName="currency" required></mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card>
+          <mat-card-header><mat-card-title>Seller / Buyer</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="party-row">
+              <mat-form-field class="party-field">
+                <mat-label>Seller Data (JSON)</mat-label>
+                <textarea matInput formControlName="sellerData" rows="6"
+                          placeholder='{"taxRegistrationNumber":"3...","partyName":"Company"}'></textarea>
+              </mat-form-field>
+              <mat-form-field class="party-field">
+                <mat-label>Buyer Data (JSON) — required</mat-label>
+                <textarea matInput formControlName="buyerData" rows="6"
+                          placeholder='{"taxRegistrationNumber":"3...","partyName":"Buyer"}'></textarea>
+              </mat-form-field>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <app-line-items-editor [linesArray]="linesArray" (validityChange)="onLinesValidity($event)"></app-line-items-editor>
+
+        <button mat-raised-button color="primary" type="submit"
+                [disabled]="form.invalid || !linesValid">Save</button>
+        <div *ngIf="error" class="error-message">{{ error }}</div>
+      </form>
+    </div>
+  `,
+  styles: [`.form-container { padding: 16px; } mat-form-field { margin-right: 16px; width: 200px; }
+    .party-row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .party-field { width: 320px; } textarea { font-family: monospace; font-size: 12px; }
+    .error-message { color: #d32f2f; margin-top: 12px; }`]
+})
+export class ZatcaStandardFormComponent {
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private service = inject(ZatcaStandardService);
+  private sessionCtx = inject(SessionContextService);
+  private dialog = inject(MatDialog);
+  private context = toSignal(this.sessionCtx.context$);
+
+  isEdit = toSignal(
+    this.route.paramMap.pipe(map(p => p.has('id'))),
+    { initialValue: false }
+  );
+
+  linesValid = false;
+  currentVersion: number | null = null;
+  error: string | null = null;
+
+  form: FormGroup = this.fb.group({
+    invoiceNumber: ['', Validators.required],
+    invoiceTypeCode: ['388', Validators.required],
+    transactionTypeCode: ['0100000', Validators.required],
+    issueDate: [new Date().toISOString().substring(0, 10), Validators.required],
+    issueTime: ['12:00:00', Validators.required],
+    currency: ['SAR', Validators.required],
+    taxCurrency: ['SAR'],
+    prepaidAmount: [0],
+    sellerData: [{ value: {}, disabled: false }, jsonOrNullValidator],
+    buyerData: [{ value: {}, disabled: false }, [jsonOrNullValidator, buyerRequiredFieldsValidator]],
+    originalInvoiceId: [null],
+    lines: this.fb.array([]),
+  });
+
+  constructor() {
+    const editId = this.route.snapshot.paramMap.get('id');
+    if (editId) {
+      this.loadForEdit(editId);
+    } else {
+      this.sessionCtx.context$.pipe(take(1)).subscribe(ctx => {
+        if (!ctx) return;
+        const active = ctx.companies?.find(c =>
+            c.companyId === ctx.activeCompanyId);
+        if (active) {
+          this.form.patchValue({
+            sellerData: {
+              taxRegistrationNumber: '',
+              partyName: active.companyNameEn,
+            }
+          });
+        }
+      });
+    }
+  }
+
+  private loadForEdit(id: string): void {
+    const companyId = this.context()?.activeCompanyId ?? '';
+    this.service.getById(companyId, id).pipe(take(1)).subscribe({
+      next: resp => {
+        const doc = resp.body;
+        if (!doc) return;
+        this.currentVersion = doc.version;
+        this.form.patchValue({
+          invoiceNumber: doc.invoiceNumber,
+          invoiceTypeCode: doc.invoiceTypeCode,
+          transactionTypeCode: doc.transactionTypeCode,
+          issueDate: doc.issueDate,
+          issueTime: doc.issueTime,
+          currency: doc.currency,
+          taxCurrency: doc.taxCurrency,
+          prepaidAmount: doc.prepaidAmount,
+          sellerData: doc.sellerData,
+          buyerData: doc.buyerData,
+          originalInvoiceId: doc.originalInvoiceId,
+        });
+      },
+      error: err => this.error = err?.message || 'Failed to load document',
+    });
+  }
+
+  get linesArray(): FormArray {
+    return this.form.get('lines') as FormArray;
+  }
+
+  onLinesValidity(valid: boolean): void {
+    this.linesValid = valid;
+  }
+
+  onSubmit(): void {
+    if (this.form.invalid || !this.linesValid) return;
+    this.error = null;
+    const companyId = this.context()?.activeCompanyId ?? '';
+    const raw = this.form.value;
+    const payload = {
+      ...raw,
+      sellerData: parseJsonField(raw.sellerData),
+      buyerData: parseJsonField(raw.buyerData),
+    };
+    if (this.isEdit()) {
+      const id = this.route.snapshot.paramMap.get('id')!;
+      this.service.update(companyId, id, payload,
+          String(this.currentVersion ?? 0))
+        .subscribe({
+          next: resp => {
+            this.currentVersion = resp.body?.version ?? this.currentVersion;
+            this.router.navigate(['/standard', id]);
+          },
+          error: (err: ConflictBody | any) => {
+            if (err?.code === 'OPTIMISTIC_LOCK_CONFLICT') {
+              this.handleConflict(err as ConflictBody, companyId, id);
+            } else {
+              this.error = err?.error?.message || err?.message || 'Update failed';
+            }
+          },
+        });
+    } else {
+      this.service.create(companyId, payload).subscribe({
+        next: resp => {
+          const newId = resp.body?.id;
+          if (newId) {
+            this.router.navigate(['/standard', newId]);
+          }
+        },
+        error: err => this.error = err?.error?.message || err?.message || 'Create failed',
+      });
+    }
+  }
+
+  private handleConflict(conflict: ConflictBody, companyId: string, id: string): void {
+    const ref = this.dialog.open(ConflictResolutionDialogComponent, {
+      data: { expectedVersion: conflict.expectedVersion, actualVersion: conflict.actualVersion, current: conflict.current, pendingChanges: this.form.value },
+      width: '600px',
+    });
+    ref.afterClosed().subscribe(result => {
+      if (result?.action === 'overwrite') {
+        const payload = {
+          ...this.form.value,
+          sellerData: parseJsonField(this.form.value.sellerData),
+          buyerData: parseJsonField(this.form.value.buyerData),
+        };
+        this.service.update(companyId, id, payload,
+            String(conflict.actualVersion))
+          .subscribe({
+            next: resp => {
+              this.currentVersion = resp.body?.version ?? this.currentVersion;
+              this.router.navigate(['/standard', id]);
+            },
+            error: err => this.error = err?.error?.message || err?.message || 'Overwrite failed',
+          });
+      }
+    });
+  }
+}

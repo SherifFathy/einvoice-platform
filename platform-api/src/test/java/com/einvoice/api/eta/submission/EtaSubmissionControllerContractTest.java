@@ -9,7 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.einvoice.api.eta.invoice.service.EtaInvoiceService;
 import com.einvoice.api.eta.submission.service.EtaSubmissionOrchestrator;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.security.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
@@ -62,7 +62,7 @@ class EtaSubmissionControllerContractTest {
         EtaInvoiceHeader header = EtaInvoiceHeader.builder()
                 .id(docId).companyId(companyId)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.VALID)
+                .state(DocumentState.ACCEPTED)
                 .etaUuid("eta-uuid-123")
                 .build();
         when(invoiceService.loadWithinTenant(docId)).thenReturn(header);
@@ -72,7 +72,7 @@ class EtaSubmissionControllerContractTest {
                         + "/invoices/{docId}/submit",
                         companyId, docId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.state").value("VALID"))
+                .andExpect(jsonPath("$.state").value("ACCEPTED"))
                 .andExpect(jsonPath("$.etaUuid").value("eta-uuid-123"));
     }
 
@@ -81,7 +81,7 @@ class EtaSubmissionControllerContractTest {
         EtaInvoiceHeader header = EtaInvoiceHeader.builder()
                 .id(docId).companyId(companyId)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.SUBMITTING)
+                .state(DocumentState.SUBMITTING)
                 .etaUuid("eta-uuid-456")
                 .etaSubmissionId("sub-456")
                 .build();
@@ -101,13 +101,13 @@ class EtaSubmissionControllerContractTest {
         EtaInvoiceHeader cancelled = EtaInvoiceHeader.builder()
                 .id(docId).companyId(companyId)
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.CANCELLED)
+                .state(DocumentState.CANCELLED)
                 .build();
         when(invoiceService.loadWithinTenant(docId)).thenReturn(
                 EtaInvoiceHeader.builder()
                         .id(docId).companyId(companyId)
                         .authorityEnvironmentId((short) 2)
-                        .state(EtaInvoiceState.VALID)
+                        .state(DocumentState.ACCEPTED)
                         .etaUuid("eta-uuid-789")
                         .build());
         when(orchestrator.cancel(any(), any())).thenReturn(cancelled);

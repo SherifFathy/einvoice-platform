@@ -11,7 +11,7 @@ import com.einvoice.api.eta.submission.service.EtaSubmissionOrchestrator;
 import com.einvoice.core.authority.AuthorityResponse;
 import com.einvoice.core.authority.SignedPayload;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
-import com.einvoice.core.domain.eta.lifecycle.EtaInvoiceState;
+import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.shared.SubmissionResult;
 import com.einvoice.core.repository.eta.EtaInvoiceHeaderRepository;
 import com.einvoice.core.repository.eta.EtaReceiptHeaderRepository;
@@ -54,7 +54,7 @@ class EtaSubmissionOrchestratorRetryTest {
                 .id(headerId)
                 .companyId(UUID.randomUUID())
                 .authorityEnvironmentId((short) 2)
-                .state(EtaInvoiceState.SUBMISSION_AMBIGUOUS)
+                .state(DocumentState.IN_REVIEW)
                 .build();
 
         when(txTemplate.execute(any())).thenAnswer(inv -> {
@@ -92,7 +92,7 @@ class EtaSubmissionOrchestratorRetryTest {
 
         EtaInvoiceHeader result = orchestrator.retry(header);
 
-        assertEquals(EtaInvoiceState.VALID, result.getState());
+        assertEquals(DocumentState.ACCEPTED, result.getState());
 
         verify(attemptRepository).finalizeAttempt(any(),
                 any(SubmissionResult.class), any(), any(), any(), any());
@@ -108,7 +108,7 @@ class EtaSubmissionOrchestratorRetryTest {
 
         EtaInvoiceHeader result = orchestrator.retry(header);
 
-        assertEquals(EtaInvoiceState.REJECTED, result.getState());
+        assertEquals(DocumentState.REJECTED, result.getState());
     }
 
     @Test

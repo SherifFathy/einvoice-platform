@@ -1,31 +1,19 @@
 // THIS FILE IS GENERATED -- DO NOT EDIT
-// Generated from EtaInvoiceState, EtaReceiptState Java enums
-// and EtaInvoiceLifecycle / EtaReceiptLifecycle transition matrices.
+// Generated from DocumentState Java enum
+// and LifecycleTransitions transition matrices.
 // Re-run: mvn -pl platform-core process-classes
 
-export const EtaInvoiceState = {
+export const DocumentState = {
   DRAFT: 'DRAFT',
   SUBMITTING: 'SUBMITTING',
+  SUBMITTED: 'SUBMITTED',
   IN_REVIEW: 'IN_REVIEW',
-  VALID: 'VALID',
+  ACCEPTED: 'ACCEPTED',
   REJECTED: 'REJECTED',
-  SUBMISSION_AMBIGUOUS: 'SUBMISSION_AMBIGUOUS',
   CANCELLED: 'CANCELLED',
 } as const;
 
-export type EtaInvoiceStateType = typeof EtaInvoiceState[keyof typeof EtaInvoiceState];
-
-export const EtaReceiptState = {
-  DRAFT: 'DRAFT',
-  SUBMITTING: 'SUBMITTING',
-  IN_REVIEW: 'IN_REVIEW',
-  VALID: 'VALID',
-  REJECTED: 'REJECTED',
-  SUBMISSION_AMBIGUOUS: 'SUBMISSION_AMBIGUOUS',
-  CANCELLED: 'CANCELLED',
-} as const;
-
-export type EtaReceiptStateType = typeof EtaReceiptState[keyof typeof EtaReceiptState];
+export type DocumentStateType = typeof DocumentState[keyof typeof DocumentState];
 
 export const LifecycleAction = {
   EDIT: 'EDIT',
@@ -35,10 +23,11 @@ export const LifecycleAction = {
   RETRY: 'RETRY',
   CHECK_STATUS: 'CHECK_STATUS',
   CLONE_TO_NEW_DRAFT: 'CLONE_TO_NEW_DRAFT',
-  MARK_VALID: 'MARK_VALID',
   MARK_REJECTED: 'MARK_REJECTED',
   MARK_IN_REVIEW: 'MARK_IN_REVIEW',
   MARK_AMBIGUOUS: 'MARK_AMBIGUOUS',
+  MARK_SUBMITTED: 'MARK_SUBMITTED',
+  MARK_ACCEPTED: 'MARK_ACCEPTED',
 } as const;
 
 export type LifecycleActionType = typeof LifecycleAction[keyof typeof LifecycleAction];
@@ -50,23 +39,26 @@ export const invoiceTransitions: Record<string, Record<string, string | null>> =
     SUBMIT: 'SUBMITTING',
   },
   SUBMITTING: {
-    MARK_AMBIGUOUS: 'SUBMISSION_AMBIGUOUS',
+    MARK_ACCEPTED: 'ACCEPTED',
+    MARK_AMBIGUOUS: 'IN_REVIEW',
     MARK_IN_REVIEW: 'IN_REVIEW',
     MARK_REJECTED: 'REJECTED',
-    MARK_VALID: 'VALID',
+  },
+  SUBMITTED: {
+    MARK_ACCEPTED: 'ACCEPTED',
+    MARK_IN_REVIEW: 'IN_REVIEW',
+    MARK_REJECTED: 'REJECTED',
   },
   IN_REVIEW: {
     CHECK_STATUS: 'IN_REVIEW',
+    MARK_ACCEPTED: 'ACCEPTED',
     MARK_REJECTED: 'REJECTED',
-    MARK_VALID: 'VALID',
+    RETRY: 'SUBMITTING',
   },
-  VALID: {
+  ACCEPTED: {
     CANCEL: 'CANCELLED',
   },
   REJECTED: {
-  },
-  SUBMISSION_AMBIGUOUS: {
-    RETRY: 'SUBMITTING',
   },
   CANCELLED: {
   },
@@ -79,23 +71,26 @@ export const receiptTransitions: Record<string, Record<string, string | null>> =
     SUBMIT: 'SUBMITTING',
   },
   SUBMITTING: {
-    MARK_AMBIGUOUS: 'SUBMISSION_AMBIGUOUS',
+    MARK_ACCEPTED: 'ACCEPTED',
+    MARK_AMBIGUOUS: 'IN_REVIEW',
     MARK_IN_REVIEW: 'IN_REVIEW',
     MARK_REJECTED: 'REJECTED',
-    MARK_VALID: 'VALID',
+  },
+  SUBMITTED: {
+    MARK_ACCEPTED: 'ACCEPTED',
+    MARK_IN_REVIEW: 'IN_REVIEW',
+    MARK_REJECTED: 'REJECTED',
   },
   IN_REVIEW: {
     CHECK_STATUS: 'IN_REVIEW',
+    MARK_ACCEPTED: 'ACCEPTED',
     MARK_REJECTED: 'REJECTED',
-    MARK_VALID: 'VALID',
+    RETRY: 'SUBMITTING',
   },
-  VALID: {
+  ACCEPTED: {
     CANCEL: 'CANCELLED',
   },
   REJECTED: {
-  },
-  SUBMISSION_AMBIGUOUS: {
-    RETRY: 'SUBMITTING',
   },
   CANCELLED: {
   },
