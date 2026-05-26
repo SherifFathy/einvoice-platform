@@ -82,7 +82,7 @@ class EtaReceiptCrossEnvIsolationTest {
              "issueDatetime":"2026-05-14T14:30:00+02:00",
              "sellerData":{"type":"B","name":"Seller"},
              "currency":"EGP",
-             "totalSalesAmount":50,"totalDiscountAmount":0,
+             "totalSalesAmount":50,"totalCommercialDiscount":0,
              "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
              "netAmount":50,"totalAmount":57,
              "lines":[{
@@ -297,7 +297,7 @@ class EtaReceiptCrossEnvIsolationTest {
                  "issueDatetime":"2026-05-14T14:30:00+02:00",
                  "sellerData":{"type":"B","name":"Seller Prod"},
                  "currency":"EGP",
-                 "totalSalesAmount":100,"totalDiscountAmount":0,
+                 "totalSalesAmount":100,"totalCommercialDiscount":0,
                  "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                  "netAmount":100,"totalAmount":114,
                  "lines":[{

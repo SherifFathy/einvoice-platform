@@ -65,6 +65,22 @@ public class ZatcaStandardHeader {
     @Column(name = "transaction_type_code", nullable = false, length = 10)
     private String transactionTypeCode;
 
+    @Column(name = "business_process_code", length = 40)
+    @Builder.Default
+    private String businessProcessCode = "reporting:1.0";
+
+    @Column(name = "issuance_reason", length = 127)
+    private String issuanceReason;
+
+    @Column(name = "billing_reference_id", length = 100)
+    private String billingReferenceId;
+
+    @Column(name = "original_invoice_number", length = 100)
+    private String originalInvoiceNumber;
+
+    @Column(name = "erp_reference_id", length = 100)
+    private String erpReferenceId;
+
     @Column(name = "issue_date", nullable = false)
     private LocalDate issueDate;
 
@@ -81,9 +97,58 @@ public class ZatcaStandardHeader {
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> sellerData;
 
+    @Column(name = "seller_party_id", length = 50)
+    private String sellerPartyId;
+
+    @Column(name = "seller_party_id_scheme", length = 10)
+    private String sellerPartyIdScheme;
+
+    @Column(name = "seller_vat_number", length = 15)
+    private String sellerVatNumber;
+
+    @Column(name = "seller_group_vat_number", length = 15)
+    private String sellerGroupVatNumber;
+
+    @Column(name = "seller_building_number", length = 4)
+    private String sellerBuildingNumber;
+
+    @Column(name = "seller_additional_number", length = 4)
+    private String sellerAdditionalNumber;
+
+    @Column(name = "seller_postal_code", length = 5)
+    private String sellerPostalCode;
+
+    @Column(name = "seller_country_code", length = 2)
+    @Builder.Default
+    private String sellerCountryCode = "SA";
+
     @Column(name = "buyer_data", nullable = false, columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> buyerData;
+
+    @Column(name = "buyer_party_id", length = 50)
+    private String buyerPartyId;
+
+    @Column(name = "buyer_party_id_scheme", length = 10)
+    private String buyerPartyIdScheme;
+
+    @Column(name = "buyer_vat_number", length = 15)
+    private String buyerVatNumber;
+
+    @Column(name = "buyer_group_vat_number", length = 15)
+    private String buyerGroupVatNumber;
+
+    @Column(name = "buyer_building_number", length = 4)
+    private String buyerBuildingNumber;
+
+    @Column(name = "buyer_additional_number", length = 4)
+    private String buyerAdditionalNumber;
+
+    @Column(name = "buyer_postal_code", length = 5)
+    private String buyerPostalCode;
+
+    @Column(name = "buyer_country_code", length = 2)
+    private String buyerCountryCode;
 
     @Column(name = "currency", nullable = false, length = 3)
     @Builder.Default
@@ -92,6 +157,20 @@ public class ZatcaStandardHeader {
     @Column(name = "tax_currency", length = 3)
     @Builder.Default
     private String taxCurrency = "SAR";
+
+    @Column(name = "tax_amount_accounting_currency", precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal taxAmountAccountingCurrency = BigDecimal.ZERO;
+
+    @Column(name = "rounding_amount", precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal roundingAmount = BigDecimal.ZERO;
+
+    @Column(name = "payment_means_code", length = 3)
+    private String paymentMeansCode;
+
+    @Column(name = "payment_means_text", length = 50)
+    private String paymentMeansText;
 
     @Column(name = "line_extension_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default

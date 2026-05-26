@@ -209,7 +209,7 @@ class AuditEmissionCoverageTest {
                  "issueDatetime":"2026-05-13T14:30:00+02:00",
                  "sellerData":{"type":"B","name":"Seller"},
                  "currency":"EGP",
-                 "totalSalesAmount":50,"totalDiscountAmount":0,
+                 "totalSalesAmount":50,"totalCommercialDiscount":0,
                  "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                  "netAmount":50,"totalAmount":57,
                  "lines":[{
@@ -702,7 +702,7 @@ class AuditEmissionCoverageTest {
                      "issueDatetime":"2026-05-13T14:30:00+02:00",
                      "sellerData":{"type":"B","name":"Updated Seller"},
                      "currency":"EGP",
-                     "totalSalesAmount":50,"totalDiscountAmount":0,
+                     "totalSalesAmount":50,"totalCommercialDiscount":0,
                      "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                      "netAmount":50,"totalAmount":57,
                      "lines":[{
@@ -882,7 +882,7 @@ class AuditEmissionCoverageTest {
                      "issueDatetime":"2026-05-13T14:30:00+02:00",
                      "sellerData":{"type":"B","name":"First Edit"},
                      "currency":"EGP",
-                     "totalSalesAmount":50,"totalDiscountAmount":0,
+                     "totalSalesAmount":50,"totalCommercialDiscount":0,
                      "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                      "netAmount":50,"totalAmount":57,
                      "lines":[{
@@ -925,7 +925,7 @@ class AuditEmissionCoverageTest {
                      "issueDatetime":"2026-05-13T14:30:00+02:00",
                      "sellerData":{"type":"B","name":"Overwritten"},
                      "currency":"EGP",
-                     "totalSalesAmount":50,"totalDiscountAmount":0,
+                     "totalSalesAmount":50,"totalCommercialDiscount":0,
                      "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                      "netAmount":50,"totalAmount":57,
                      "lines":[{

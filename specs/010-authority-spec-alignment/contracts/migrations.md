@@ -68,6 +68,7 @@ Each migration is a separate PR (per Clarifications 2026-05-26). The PR boundary
    - Adds `unit_price NUMERIC(18,5)` and backfills currency-aware (per spec.md Edge Case).
    - Adds `commercial_discount_data JSONB DEFAULT '[]'` and `item_discount_data JSONB DEFAULT '[]'`; migrates flat values into the arrays.
    - Drops `unit_value`, `discount_rate`, `discount_amount`, `items_discount`.
+6a. Before the `unit_value` drop, V60 also backfills `eta_receipt_headers.exchange_rate` from the first non-null `unit_value->>'currencyExchangeRate'` per header (V58 added the column with `DEFAULT NULL` but deferred the backfill to V60 because the source JSONB lives on lines that V60 itself drops). Multiple-line disagreement emits `RAISE NOTICE` per spec.md Edge Case.
 7. No `CHECK` / `UNIQUE` / `FK` / `NOT NULL` (deferred — see `deferred-validation.md` §V60).
 8. The paired PR adds `ZatcaStandardLineAllowance` and `ZatcaSimplifiedLineAllowance` entities; renames `ZatcaStandardLine.unitPrice → itemNetPrice` (and mirror for Simplified); adds BT-148..150 + KSA-12 fields; modifies `EtaReceiptLine` to drop `unitValue` and add the scalar + JSONB array fields. `EtaReceiptSerialiser` updated to emit `unitPrice` + `commercialDiscountData` + `itemDiscountData` per the v1.2 SDK §10 sample.
 

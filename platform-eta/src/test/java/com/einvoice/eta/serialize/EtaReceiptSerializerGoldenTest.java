@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,6 +64,18 @@ class EtaReceiptSerializerGoldenTest {
         assertNotNull(result.canonicalBytes());
 
         String goldenPath = "/golden/receipts/" + suffix + ".json";
+        byte[] canonical = result.canonicalBytes();
+        if ("1".equals(System.getenv("UPDATE_GOLDEN"))) {
+            Path moduleLocal = Path.of(
+                    "src/test/resources/golden/receipts/" + suffix + ".json");
+            Path target = Files.isDirectory(Path.of("src/test/resources"))
+                    ? moduleLocal
+                    : Path.of("platform-eta/src/test/resources/golden/receipts/"
+                            + suffix + ".json");
+            Files.createDirectories(target.getParent());
+            Files.write(target, normalize(canonical));
+            return;
+        }
         InputStream is = getClass().getResourceAsStream(goldenPath);
         if (is == null) {
             throw new IOException("Golden file not found: " + goldenPath);
@@ -70,7 +84,7 @@ class EtaReceiptSerializerGoldenTest {
 
         assertArrayEquals(
                 normalize(expected),
-                normalize(result.canonicalBytes()),
+                normalize(canonical),
                 "Serialized output does not match golden file for type "
                         + suffix);
     }
@@ -133,7 +147,7 @@ class EtaReceiptSerializerGoldenTest {
                 .paymentMethod("CASH")
                 .currency("EGP")
                 .totalSalesAmount(new BigDecimal("50.00000"))
-                .totalDiscountAmount(BigDecimal.ZERO)
+                .totalCommercialDiscount(BigDecimal.ZERO)
                 .extraDiscountAmount(BigDecimal.ZERO)
                 .totalItemsDiscountAmount(BigDecimal.ZERO)
                 .netAmount(new BigDecimal("50.00000"))

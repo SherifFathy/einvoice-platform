@@ -207,12 +207,27 @@ public class EtaReceiptService {
         header.setPaymentMethod(form.paymentMethod());
         header.setCurrency(form.currency());
         header.setTotalSalesAmount(form.totalSalesAmount());
-        header.setTotalDiscountAmount(form.totalDiscountAmount());
+        header.setTotalCommercialDiscount(form.totalCommercialDiscount());
         header.setExtraDiscountAmount(form.extraDiscountAmount());
         header.setTotalItemsDiscountAmount(
                 form.totalItemsDiscountAmount());
         header.setNetAmount(form.netAmount());
         header.setTotalAmount(form.totalAmount());
+        header.setExchangeRate(form.exchangeRate());
+        header.setPreviousUuid(form.previousUuid());
+        header.setReferenceOldUuid(form.referenceOldUuid());
+        header.setSOrderNameCode(form.sOrderNameCode());
+        header.setOrderDeliveryMode(form.orderDeliveryMode());
+        header.setGrossWeight(form.grossWeight());
+        header.setNetWeight(form.netWeight());
+        header.setTaxTotals(form.taxTotals());
+        header.setExtraReceiptDiscountData(form.extraReceiptDiscountData());
+        header.setContractorData(form.contractorData());
+        header.setBeneficiaryData(form.beneficiaryData());
+        header.setFeesAmount(form.feesAmount());
+        header.setAdjustment(form.adjustment());
+        header.setErpReferenceId(form.erpReferenceId());
+        header.setOriginalInvoiceNumber(form.originalInvoiceNumber());
         header.setOriginalReceiptId(form.originalReceiptId());
 
         header.getLines().clear();
@@ -295,12 +310,27 @@ public class EtaReceiptService {
                 .paymentMethod(source.getPaymentMethod())
                 .currency(source.getCurrency())
                 .totalSalesAmount(source.getTotalSalesAmount())
-                .totalDiscountAmount(source.getTotalDiscountAmount())
+                .totalCommercialDiscount(source.getTotalCommercialDiscount())
                 .extraDiscountAmount(source.getExtraDiscountAmount())
                 .totalItemsDiscountAmount(
                         source.getTotalItemsDiscountAmount())
                 .netAmount(source.getNetAmount())
                 .totalAmount(source.getTotalAmount())
+                .exchangeRate(source.getExchangeRate())
+                .previousUuid(source.getPreviousUuid())
+                .referenceOldUuid(source.getReferenceOldUuid())
+                .sOrderNameCode(source.getSOrderNameCode())
+                .orderDeliveryMode(source.getOrderDeliveryMode())
+                .grossWeight(source.getGrossWeight())
+                .netWeight(source.getNetWeight())
+                .taxTotals(source.getTaxTotals())
+                .extraReceiptDiscountData(source.getExtraReceiptDiscountData())
+                .contractorData(source.getContractorData())
+                .beneficiaryData(source.getBeneficiaryData())
+                .feesAmount(source.getFeesAmount())
+                .adjustment(source.getAdjustment())
+                .erpReferenceId(source.getErpReferenceId())
+                .originalInvoiceNumber(source.getOriginalInvoiceNumber())
                 .originalReceiptId(source.getOriginalReceiptId())
                 .createdBy(TenantContext.getUserId())
                 .build();
@@ -337,7 +367,7 @@ public class EtaReceiptService {
         }
         EtaMoneyMath.reconcileHeaderTotals(
                 header.getTotalSalesAmount(),
-                header.getTotalDiscountAmount(),
+                header.getTotalCommercialDiscount(),
                 header.getExtraDiscountAmount(),
                 header.getTotalItemsDiscountAmount(),
                 header.getNetAmount(), header.getTotalAmount(),

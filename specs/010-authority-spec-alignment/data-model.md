@@ -85,7 +85,7 @@ Mirror of Standard for the same fields. Differences:
 | `feesAmount`, `adjustment` | `NUMERIC(18,5)` × 2 | `0` | SDK reserved (allow any non-negative) |
 | `erpReferenceId`, `originalInvoiceNumber` | `VARCHAR(100)` × 2 | NULL | Sprint 1 ingestion |
 
-**Backfill of `exchangeRate`**: from line-level `unit_value->>'currencyExchangeRate'` (first non-null per header). If multiple lines disagree, RAISE NOTICE per the spec.md Edge-Case bullet.
+**Backfill of `exchangeRate`** *(deferred to V60 — see V58 migration inline comment)*: V58 adds the column with `DEFAULT NULL`. The actual backfill runs in V60 because it sources from `eta_receipt_lines.unit_value->>'currencyExchangeRate'`, and `unit_value` is the JSONB column that V60 itself drops — so the read must happen before the drop, in the same migration script. Rule: take the first non-null `currencyExchangeRate` per header; if multiple lines disagree, `RAISE NOTICE` per the spec.md Edge-Case bullet.
 
 ---
 

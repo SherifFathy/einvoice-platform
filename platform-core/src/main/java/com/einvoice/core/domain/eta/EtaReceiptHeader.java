@@ -87,9 +87,9 @@ public class EtaReceiptHeader {
     @Builder.Default
     private BigDecimal totalSalesAmount = BigDecimal.ZERO;
 
-    @Column(name = "total_discount_amount", nullable = false, precision = 18, scale = 5)
+    @Column(name = "total_commercial_discount", nullable = false, precision = 18, scale = 5)
     @Builder.Default
-    private BigDecimal totalDiscountAmount = BigDecimal.ZERO;
+    private BigDecimal totalCommercialDiscount = BigDecimal.ZERO;
 
     @Column(name = "extra_discount_amount", nullable = false, precision = 18, scale = 5)
     @Builder.Default
@@ -106,6 +106,57 @@ public class EtaReceiptHeader {
     @Column(name = "total_amount", nullable = false, precision = 18, scale = 5)
     @Builder.Default
     private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    @Column(name = "exchange_rate", precision = 18, scale = 5)
+    private BigDecimal exchangeRate;
+
+    @Column(name = "previous_uuid", columnDefinition = "TEXT")
+    private String previousUuid;
+
+    @Column(name = "reference_old_uuid", columnDefinition = "TEXT")
+    private String referenceOldUuid;
+
+    @Column(name = "s_order_name_code", length = 200)
+    private String sOrderNameCode;
+
+    @Column(name = "order_delivery_mode", length = 30)
+    private String orderDeliveryMode;
+
+    @Column(name = "gross_weight", precision = 18, scale = 5)
+    private BigDecimal grossWeight;
+
+    @Column(name = "net_weight", precision = 18, scale = 5)
+    private BigDecimal netWeight;
+
+    @Column(name = "tax_totals", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> taxTotals;
+
+    @Column(name = "extra_receipt_discount_data", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> extraReceiptDiscountData;
+
+    @Column(name = "contractor_data", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> contractorData;
+
+    @Column(name = "beneficiary_data", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> beneficiaryData;
+
+    @Column(name = "fees_amount", precision = 18, scale = 5)
+    @Builder.Default
+    private BigDecimal feesAmount = BigDecimal.ZERO;
+
+    @Column(name = "adjustment", precision = 18, scale = 5)
+    @Builder.Default
+    private BigDecimal adjustment = BigDecimal.ZERO;
+
+    @Column(name = "erp_reference_id", length = 100)
+    private String erpReferenceId;
+
+    @Column(name = "original_invoice_number", length = 100)
+    private String originalInvoiceNumber;
 
     @Column(name = "eta_receipt_uuid", length = 255)
     private String etaReceiptUuid;

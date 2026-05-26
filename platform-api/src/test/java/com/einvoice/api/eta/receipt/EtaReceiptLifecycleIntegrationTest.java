@@ -146,7 +146,7 @@ class EtaReceiptLifecycleIntegrationTest {
                  "issueDatetime":"2026-05-13T14:30:00+02:00",
                  "sellerData":{"type":"B","name":"Seller"},
                  "currency":"EGP",
-                 "totalSalesAmount":50,"totalDiscountAmount":0,
+                 "totalSalesAmount":50,"totalCommercialDiscount":0,
                  "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                  "netAmount":50,"totalAmount":57,
                  "lines":[{
@@ -176,7 +176,7 @@ class EtaReceiptLifecycleIntegrationTest {
                  "issueDatetime":"2026-05-13T14:30:00+02:00",
                  "sellerData":{"type":"B","name":"Updated Seller"},
                  "currency":"EGP",
-                 "totalSalesAmount":50,"totalDiscountAmount":0,
+                 "totalSalesAmount":50,"totalCommercialDiscount":0,
                  "extraDiscountAmount":0,"totalItemsDiscountAmount":0,
                  "netAmount":50,"totalAmount":57,
                  "lines":[{

@@ -42,8 +42,8 @@ public class EtaReceiptFormMapper {
                 .currency(form.currency() != null ? form.currency() : "EGP")
                 .totalSalesAmount(form.totalSalesAmount() != null
                         ? form.totalSalesAmount() : BigDecimal.ZERO)
-                .totalDiscountAmount(form.totalDiscountAmount() != null
-                        ? form.totalDiscountAmount() : BigDecimal.ZERO)
+                .totalCommercialDiscount(form.totalCommercialDiscount() != null
+                        ? form.totalCommercialDiscount() : BigDecimal.ZERO)
                 .extraDiscountAmount(form.extraDiscountAmount() != null
                         ? form.extraDiscountAmount() : BigDecimal.ZERO)
                 .totalItemsDiscountAmount(
@@ -54,6 +54,23 @@ public class EtaReceiptFormMapper {
                         ? form.netAmount() : BigDecimal.ZERO)
                 .totalAmount(form.totalAmount() != null
                         ? form.totalAmount() : BigDecimal.ZERO)
+                .exchangeRate(form.exchangeRate())
+                .previousUuid(form.previousUuid())
+                .referenceOldUuid(form.referenceOldUuid())
+                .sOrderNameCode(form.sOrderNameCode())
+                .orderDeliveryMode(form.orderDeliveryMode())
+                .grossWeight(form.grossWeight())
+                .netWeight(form.netWeight())
+                .taxTotals(form.taxTotals())
+                .extraReceiptDiscountData(form.extraReceiptDiscountData())
+                .contractorData(form.contractorData())
+                .beneficiaryData(form.beneficiaryData())
+                .feesAmount(form.feesAmount() != null
+                        ? form.feesAmount() : BigDecimal.ZERO)
+                .adjustment(form.adjustment() != null
+                        ? form.adjustment() : BigDecimal.ZERO)
+                .erpReferenceId(form.erpReferenceId())
+                .originalInvoiceNumber(form.originalInvoiceNumber())
                 .originalReceiptId(form.originalReceiptId())
                 .createdBy(userId)
                 .build();
@@ -145,10 +162,24 @@ public class EtaReceiptFormMapper {
                 header.getSellerData(), header.getBuyerData(),
                 header.getPosSerial(), header.getPaymentMethod(),
                 header.getCurrency(),
-                header.getTotalSalesAmount(), header.getTotalDiscountAmount(),
+                header.getTotalSalesAmount(), header.getTotalCommercialDiscount(),
                 header.getExtraDiscountAmount(),
                 header.getTotalItemsDiscountAmount(),
                 header.getNetAmount(), header.getTotalAmount(),
+                header.getExchangeRate(),
+                header.getPreviousUuid(),
+                header.getReferenceOldUuid(),
+                header.getSOrderNameCode(),
+                header.getOrderDeliveryMode(),
+                header.getGrossWeight(),
+                header.getNetWeight(),
+                header.getTaxTotals(),
+                header.getExtraReceiptDiscountData(),
+                header.getContractorData(),
+                header.getBeneficiaryData(),
+                header.getFeesAmount(), header.getAdjustment(),
+                header.getErpReferenceId(),
+                header.getOriginalInvoiceNumber(),
                 header.getOriginalReceiptId(),
                 header.getState(), header.getVersion(),
                 header.getEtaReceiptUuid(), header.getEtaSubmissionId(),
@@ -168,11 +199,26 @@ public class EtaReceiptFormMapper {
             String paymentMethod,
             String currency,
             BigDecimal totalSalesAmount,
-            BigDecimal totalDiscountAmount,
+            BigDecimal totalCommercialDiscount,
             BigDecimal extraDiscountAmount,
             BigDecimal totalItemsDiscountAmount,
             BigDecimal netAmount,
             BigDecimal totalAmount,
+            BigDecimal exchangeRate,
+            String previousUuid,
+            String referenceOldUuid,
+            String sOrderNameCode,
+            String orderDeliveryMode,
+            BigDecimal grossWeight,
+            BigDecimal netWeight,
+            Map<String, Object> taxTotals,
+            Map<String, Object> extraReceiptDiscountData,
+            Map<String, Object> contractorData,
+            Map<String, Object> beneficiaryData,
+            BigDecimal feesAmount,
+            BigDecimal adjustment,
+            String erpReferenceId,
+            String originalInvoiceNumber,
             UUID originalReceiptId,
             List<EtaReceiptLineForm> lines) {}
 
@@ -211,10 +257,24 @@ public class EtaReceiptFormMapper {
             Map<String, Object> buyerData,
             String posSerial, String paymentMethod,
             String currency,
-            BigDecimal totalSalesAmount, BigDecimal totalDiscountAmount,
+            BigDecimal totalSalesAmount, BigDecimal totalCommercialDiscount,
             BigDecimal extraDiscountAmount,
             BigDecimal totalItemsDiscountAmount,
             BigDecimal netAmount, BigDecimal totalAmount,
+            BigDecimal exchangeRate,
+            String previousUuid,
+            String referenceOldUuid,
+            String sOrderNameCode,
+            String orderDeliveryMode,
+            BigDecimal grossWeight,
+            BigDecimal netWeight,
+            Map<String, Object> taxTotals,
+            Map<String, Object> extraReceiptDiscountData,
+            Map<String, Object> contractorData,
+            Map<String, Object> beneficiaryData,
+            BigDecimal feesAmount, BigDecimal adjustment,
+            String erpReferenceId,
+            String originalInvoiceNumber,
             UUID originalReceiptId,
             DocumentState state, Integer version,
             String etaReceiptUuid, String etaSubmissionId,

@@ -203,6 +203,12 @@ public class ZatcaSimplifiedService {
         header.setInvoiceTypeCode(form.invoiceTypeCode() != null
                 ? form.invoiceTypeCode() : header.getInvoiceTypeCode());
         header.setTransactionTypeCode(form.transactionTypeCode());
+        header.setBusinessProcessCode(form.businessProcessCode() != null
+                ? form.businessProcessCode() : header.getBusinessProcessCode());
+        header.setIssuanceReason(form.issuanceReason());
+        header.setBillingReferenceId(form.billingReferenceId());
+        header.setOriginalInvoiceNumber(form.originalInvoiceNumber());
+        header.setErpReferenceId(form.erpReferenceId());
         header.setIssueDate(form.issueDate());
         header.setIssueTime(form.issueTime());
         header.setSupplyDate(form.supplyDate());
@@ -212,7 +218,12 @@ public class ZatcaSimplifiedService {
         header.setCurrency(form.currency());
         header.setTaxCurrency(form.taxCurrency());
         header.setPrepaidAmount(form.prepaidAmount());
+        header.setPaymentMeansCode(form.paymentMeansCode());
+        header.setPaymentMeansText(form.paymentMeansText());
         header.setOriginalInvoiceId(form.originalInvoiceId());
+
+        ZatcaSimplifiedFormMapper.promoteSellerFields(header, form.sellerData());
+        ZatcaSimplifiedFormMapper.promoteBuyerFields(header, form.buyerData());
 
         header.getLines().clear();
         repository.flush();
@@ -288,12 +299,19 @@ public class ZatcaSimplifiedService {
                         .invoiceTypeCode(source.getInvoiceTypeCode())
                         .transactionTypeCode(
                                 source.getTransactionTypeCode())
+                        .businessProcessCode(source.getBusinessProcessCode())
+                        .issuanceReason(source.getIssuanceReason())
+                        .billingReferenceId(source.getBillingReferenceId())
+                        .originalInvoiceNumber(source.getOriginalInvoiceNumber())
+                        .erpReferenceId(source.getErpReferenceId())
                         .issueDate(source.getIssueDate())
                         .issueTime(source.getIssueTime())
                         .supplyDate(source.getSupplyDate())
                         .supplyEndDate(source.getSupplyEndDate())
                         .sellerData(source.getSellerData())
                         .buyerData(source.getBuyerData())
+                        .sellerVatNumber(source.getSellerVatNumber())
+                        .sellerCountryCode(source.getSellerCountryCode())
                         .currency(source.getCurrency())
                         .taxCurrency(source.getTaxCurrency())
                         .lineExtensionAmount(
@@ -303,10 +321,15 @@ public class ZatcaSimplifiedService {
                         .taxExclusiveAmount(
                                 source.getTaxExclusiveAmount())
                         .taxAmount(source.getTaxAmount())
+                        .taxAmountAccountingCurrency(
+                                source.getTaxAmountAccountingCurrency())
                         .taxInclusiveAmount(
                                 source.getTaxInclusiveAmount())
                         .prepaidAmount(source.getPrepaidAmount())
+                        .roundingAmount(source.getRoundingAmount())
                         .payableAmount(source.getPayableAmount())
+                        .paymentMeansCode(source.getPaymentMeansCode())
+                        .paymentMeansText(source.getPaymentMeansText())
                         .originalInvoiceId(
                                 source.getOriginalInvoiceId())
                         .createdBy(TenantContext.getUserId())
@@ -403,7 +426,14 @@ public class ZatcaSimplifiedService {
                 header.getTaxExclusiveAmount().add(vatSum)));
         header.setPayableAmount(ZatcaMoneyMath.round2(
                 header.getTaxInclusiveAmount()
-                        .subtract(header.getPrepaidAmount())));
+                        .subtract(header.getPrepaidAmount())
+                        .add(header.getRoundingAmount() != null
+                                ? header.getRoundingAmount()
+                                : BigDecimal.ZERO)));
+
+        if ("SAR".equals(header.getCurrency())) {
+            header.setTaxAmountAccountingCurrency(header.getTaxAmount());
+        }
     }
 
     private void validateVatExemptionReason(

@@ -1,10 +1,16 @@
 {
-  "documentType" : "r",
-  "documentTypeVersion" : "1.2",
-  "dateTimeIssued" : "2026-05-13T14:30+02:00",
-  "internalID" : "REC-001",
-  "posSerial" : "POS-001",
-  "paymentMethod" : "CASH",
+  "header" : {
+    "dateTimeIssued" : "2026-05-13T14:30+02:00",
+    "receiptNumber" : "REC-001",
+    "uuid" : "",
+    "previousUUID" : "",
+    "referenceOldUUID" : null,
+    "currency" : "EGP"
+  },
+  "documentType" : {
+    "receiptType" : "r",
+    "typeVersion" : "1.2"
+  },
   "seller" : {
     "branchNumber" : "0",
     "buildingNumber" : "1",
@@ -16,17 +22,10 @@
     "postalCode" : "12345",
     "regionCity" : "Nasr City",
     "street" : "Test Street",
-    "type" : "B"
+    "type" : "B",
+    "deviceSerialNumber" : "POS-001"
   },
-  "documentTotals" : {
-    "totalSalesAmount" : "50.00000",
-    "totalDiscountAmount" : "0.00000",
-    "extraDiscountAmount" : "0.00000",
-    "totalItemsDiscountAmount" : "0.00000",
-    "netAmount" : "50.00000",
-    "totalAmount" : "57.00000"
-  },
-  "receiptLines" : [ {
+  "itemData" : [ {
     "internalCode" : "ITEM002",
     "itemType" : "EGS",
     "itemCode" : "EGS-001",
@@ -51,5 +50,17 @@
       "rate" : "14.00000",
       "amount" : "7.00000"
     } ]
-  } ]
+  } ],
+  "totalSales" : "50.00000",
+  "totalCommercialDiscount" : "0.00000",
+  "totalItemsDiscount" : "0.00000",
+  "extraReceiptDiscountData" : [ ],
+  "netAmount" : "50.00000",
+  "feesAmount" : "0.00000",
+  "totalAmount" : "57.00000",
+  "taxTotals" : [ ],
+  "paymentMethod" : "CASH",
+  "adjustment" : "0.00000",
+  "contractor" : null,
+  "beneficiary" : null
 }

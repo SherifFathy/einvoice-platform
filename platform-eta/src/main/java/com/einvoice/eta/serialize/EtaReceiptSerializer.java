@@ -44,43 +44,62 @@ public class EtaReceiptSerializer {
         validateRequiredFields(header);
 
         ObjectNode root = etaObjectMapper.createObjectNode();
-        root.put("documentType",
-                header.getDocumentType().name());
-        root.put("documentTypeVersion",
-                header.getDocumentTypeVersion());
-        root.put("dateTimeIssued",
-                header.getIssueDatetime().toString());
-        root.put("internalID", header.getReceiptNumber());
-        root.put("posSerial", header.getPosSerial());
-        root.put("paymentMethod", header.getPaymentMethod());
 
-        if (header.getOriginalReceiptId() != null) {
-            root.put("originalReceiptId",
-                    header.getOriginalReceiptId().toString());
+        ObjectNode headerNode = root.putObject("header");
+        headerNode.put("dateTimeIssued",
+                header.getIssueDatetime().toString());
+        headerNode.put("receiptNumber", header.getReceiptNumber());
+        headerNode.put("uuid",
+                header.getEtaReceiptUuid() != null
+                        ? header.getEtaReceiptUuid() : "");
+        headerNode.put("previousUUID",
+                header.getPreviousUuid() != null
+                        ? header.getPreviousUuid() : "");
+        headerNode.put("referenceOldUUID",
+                header.getReferenceOldUuid());
+        headerNode.put("currency", header.getCurrency());
+        if (header.getExchangeRate() != null) {
+            headerNode.put("exchangeRate",
+                    formatMoney(header.getExchangeRate()));
+        }
+        if (header.getSOrderNameCode() != null) {
+            headerNode.put("sOrderNameCode",
+                    header.getSOrderNameCode());
+        }
+        if (header.getOrderDeliveryMode() != null) {
+            headerNode.put("orderdeliveryMode",
+                    header.getOrderDeliveryMode());
+        }
+        if (header.getGrossWeight() != null) {
+            headerNode.put("grossWeight",
+                    formatMoney(header.getGrossWeight()));
+        }
+        if (header.getNetWeight() != null) {
+            headerNode.put("netWeight",
+                    formatMoney(header.getNetWeight()));
         }
 
+        ObjectNode docTypeNode = root.putObject("documentType");
+        docTypeNode.put("receiptType",
+                header.getDocumentType().name());
+        docTypeNode.put("typeVersion",
+                header.getDocumentTypeVersion());
+
         if (header.getSellerData() != null) {
-            root.set("seller",
-                    etaObjectMapper.valueToTree(header.getSellerData()));
+            ObjectNode sellerNode = etaObjectMapper.valueToTree(
+                    header.getSellerData()).deepCopy();
+            if (header.getPosSerial() != null) {
+                sellerNode.put("deviceSerialNumber",
+                        header.getPosSerial());
+            }
+            root.set("seller", sellerNode);
         }
         if (header.getBuyerData() != null) {
             root.set("buyer",
                     etaObjectMapper.valueToTree(header.getBuyerData()));
         }
 
-        ObjectNode totals = root.putObject("documentTotals");
-        totals.put("totalSalesAmount",
-                formatMoney(header.getTotalSalesAmount()));
-        totals.put("totalDiscountAmount",
-                formatMoney(header.getTotalDiscountAmount()));
-        totals.put("extraDiscountAmount",
-                formatMoney(header.getExtraDiscountAmount()));
-        totals.put("totalItemsDiscountAmount",
-                formatMoney(header.getTotalItemsDiscountAmount()));
-        totals.put("netAmount", formatMoney(header.getNetAmount()));
-        totals.put("totalAmount", formatMoney(header.getTotalAmount()));
-
-        ArrayNode linesNode = root.putArray("receiptLines");
+        ArrayNode linesNode = root.putArray("itemData");
         for (EtaReceiptLine line : header.getLines()) {
             ObjectNode lineNode = linesNode.addObject();
             lineNode.put("internalCode", line.getInternalCode());
@@ -129,6 +148,43 @@ public class EtaReceiptSerializer {
                 taxNode.put("amount", formatMoney(tax.getTaxAmount()));
             }
         }
+
+        root.put("totalSales",
+                formatMoney(header.getTotalSalesAmount()));
+        root.put("totalCommercialDiscount",
+                formatMoney(header.getTotalCommercialDiscount()));
+        root.put("totalItemsDiscount",
+                formatMoney(header.getTotalItemsDiscountAmount()));
+        root.put("extraReceiptDiscountData",
+                header.getExtraReceiptDiscountData() != null
+                        ? etaObjectMapper.valueToTree(
+                                header.getExtraReceiptDiscountData())
+                        : etaObjectMapper.createArrayNode());
+        root.put("netAmount", formatMoney(header.getNetAmount()));
+        root.put("feesAmount",
+                formatMoney(header.getFeesAmount() != null
+                        ? header.getFeesAmount() : BigDecimal.ZERO));
+        root.put("totalAmount",
+                formatMoney(header.getTotalAmount()));
+        root.put("taxTotals",
+                header.getTaxTotals() != null
+                        ? etaObjectMapper.valueToTree(
+                                header.getTaxTotals())
+                        : etaObjectMapper.createArrayNode());
+        root.put("paymentMethod", header.getPaymentMethod());
+        root.put("adjustment",
+                formatMoney(header.getAdjustment() != null
+                        ? header.getAdjustment() : BigDecimal.ZERO));
+        root.set("contractor",
+                header.getContractorData() != null
+                        ? etaObjectMapper.valueToTree(
+                                header.getContractorData())
+                        : null);
+        root.set("beneficiary",
+                header.getBeneficiaryData() != null
+                        ? etaObjectMapper.valueToTree(
+                                header.getBeneficiaryData())
+                        : null);
 
         try {
             byte[] bytes = etaObjectMapper
