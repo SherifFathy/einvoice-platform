@@ -2,8 +2,9 @@
 
 **Branch:** `009-zatca-docs-submission`  
 **Last Flyway migration:** V57  
-**Next migration:** V58  
+**Next migration:** V58 (extends beyond `erp_reference_id` — see Step 2 and §10)
 **Created:** 2026-05-20  
+**Decisions locked:** 2026-05-25 (see §10)  
 
 ---
 
@@ -345,7 +346,7 @@ public record EtaReceiptIngestionRequest(
     ) {}
 
     public record DocumentType(
-        @NotBlank @Pattern(regexp = "s") String receiptType,        // v1.2: only "s"
+        @NotBlank @Pattern(regexp = "s|r|rr|rrwr|cr|crr|gs|gsr") String receiptType,  // resolved 2026-05-25: keep legacy codes accepted
         @NotBlank @Pattern(regexp = "1\\.2") String typeVersion     // v1.2: only "1.2"
     ) {}
 
@@ -495,6 +496,9 @@ public record EtaInvoiceIngestionRequest(
     @Size(max = 255) String etaSubmissionId,
 
     // ── reference (credit/debit notes only) ───────────────────────────────
+    // Per resolved-2026-05-25 decision: hybrid resolution.
+    // Service tries to resolve to a UUID (originalDocumentId FK) when found in DB;
+    // always stores the raw number string in the new originalInvoiceNumber column.
     @Size(max = 100) String originalInvoiceNumber,
 
     // ── lines ─────────────────────────────────────────────────────────────
@@ -1391,15 +1395,34 @@ Follow this order to avoid compilation errors:
 
 ---
 
-## 10. Open Questions (Deferred)
+## 10. Resolved Decisions (2026-05-25)
 
-| # | Question | Impact |
+All open questions from the original plan have been resolved. Implementation proceeds on these locked assumptions.
+
+| # | Question | Resolution |
 |---|---|---|
-| Q1 | Should `companyRegistrationNumber` match `taxNumber` or `crNumber` for ZATCA companies? Currently planned as `taxNumber` for both. | Changes `CompanyResolutionService` lookup if ZATCA uses CR number |
-| Q2 | Should a second POST with the same document number return the existing record (idempotent) or throw 409? Sprint 1 throws 409. | Sprint 2 decision |
-| Q3 | `EtaReceiptIngestionRequest.DocumentType.receiptType` locked to "s" via `@Pattern`. If ETA activates other v1.2 types in future, this constraint must be relaxed. | Minor DTO update when ETA publishes update |
-| Q4 | `feesAmount` and `adjustment` in ETA Receipt are marked "reserved: 0.0 only" in SDK. Sprint 1 accepts any non-negative value. Should a `@DecimalMax("0")` be added? | Change the `@DecimalMin` annotations if strict enforcement is required |
-| Q5 | ZATCA `originalInvoiceNumber` resolution: if the original was created via the internal UI (not via ingestion), it will exist in the DB and resolve correctly. If it was never ingested, `MissingOriginalDocumentException` is thrown. Is this the desired behaviour? | May need a relaxed mode that stores the string without resolving |
+| Q1 | `companyRegistrationNumber` field for ZATCA | **`tax_number` for both ETA and ZATCA.** ZATCA's 15-digit VAT number is stored in `companies.tax_number`. Single lookup, no CR-number branching. |
+| Q2 | Idempotent re-submit or 409? | **HTTP 409 Conflict** via existing `Duplicate*Exception` classes. Idempotent retry is a future-sprint concern. |
+| Q3 | `receiptType` pattern strictness | **Keep all legacy codes** accepted (`s|r|rr|rrwr|cr|crr|gs|gsr`). DTO `@Pattern` updated in Step 7. |
+| Q4 | `feesAmount` / `adjustment` strict 0.0? | **Allow any non-negative** (`@DecimalMin("0")` only). No `@DecimalMax`. |
+| Q5 | `originalInvoiceNumber` resolution behavior | **Hybrid: resolve to UUID if found, otherwise store as string.** Requires a new `original_invoice_number VARCHAR(100)` column on all four header tables. Service populates the string always; populates the `original_*_id` FK only when the referenced document exists locally. |
+
+### Additional decisions affecting Sprint 1
+
+- **`header.uuid` generation (ETA Receipt)** — ERP generates the SHA-256; the gateway only validates the format (`[a-fA-F0-9]{64}`). No canonicalisation logic in the platform.
+- **Anonymous buyer (ETA Receipt)** — DTO requires the `buyer` object with `type`, but `id`/`name` are nullable. Service validates conditional requirements (B type, P type ≥150k EGP).
+
+### Migration scope expansion
+
+The original Step 2 V58 added only `erp_reference_id`. The resolved decisions expand V58 (or split into V58–V61 — see `Docs/zatca-spec-alignment.md` §11 and `Docs/eta-receipt-sdk-v1-2-alignment.md` §11) to additionally:
+
+1. Add `original_invoice_number VARCHAR(100)` to all four header tables.
+2. Rename `eta_receipt_headers.total_discount_amount` → `total_commercial_discount`.
+3. Add scalar `unit_price NUMERIC(18,5)` to `eta_receipt_lines`, backfill from `unit_value`, drop `unit_value` JSONB.
+4. Add `exchange_rate NUMERIC(18,5)` to `eta_receipt_headers`.
+5. Apply the full ZATCA structural changes catalogued in `Docs/zatca-spec-alignment.md` (V58–V61).
+
+**Sprint 1 should not begin until the alignment migrations land.** Implementation order in §9 is revised to reference `specs/010-authority-spec-alignment/` as a prerequisite.
 
 ---
 

@@ -2,8 +2,9 @@
 
 **Source:** https://sdk.preprod.invoicing.eta.gov.eg/documents/receipt-v1-2/
 **Investigated:** 2026-05-20
+**Decisions locked:** 2026-05-25
 **Scope:** Diff between published ETA Receipt SDK v1.2 and current `EtaReceiptIngestionRequest` DTO + DB schema.
-**Status:** DTO to be updated now. DB migration deferred — will be completed before launch.
+**Status:** Open questions resolved (see §13). DTO and DB migration ready for inclusion in `specs/010-authority-spec-alignment/`.
 
 ---
 
@@ -143,7 +144,7 @@ SDK uses a nested object — not an enum:
 
 The current DTO enum (`r`, `rr`, `rrwr`, `cr`, `crr`, `gs`, `gsr`, etc.) comes from an older spec. The published v1.2 SDK defines only `receiptType: "s"` (sales receipt). These extensive receipt type codes are **not present** in the v1.2 SDK documentation.
 
-**Decision required:** Confirm with ETA whether the multiple receipt types are still valid under v1.2, or if all receipts now use `receiptType: "s"` with differentiation handled another way.
+**Resolved (2026-05-25):** Keep all legacy codes accepted in both the DTO and the DB CHECK constraint. DTO pattern is `s|r|rr|rrwr|cr|crr|gs|gsr`. Rationale: defensive against ETA reactivating older types and avoids breaking historic test data on dev/staging.
 
 ---
 
@@ -456,9 +457,26 @@ Quick lookup for the mapper class (`EtaReceiptIngestionMapper`):
 
 ---
 
-## 13. Open Questions Before Implementation
+## 13. Resolved Decisions (2026-05-25)
 
-1. **Receipt type codes** — The v1.2 SDK shows only `receiptType: "s"`. Confirm whether the existing `document_type` enum values (`rr`, `cr`, `gs`, etc.) are valid under v1.2 or are from an older spec.
-2. **`totalCommercialDiscount` rename** — Decide Option A (add alias column) vs Option B (rename in place). Option B is cleaner but breaks any existing queries.
-3. **`buyer` required status** — SDK marks `buyer` as required at root. Decide if the ingestion API enforces this (send `{ "type": "P" }` with nulls for anonymous retail) or allows the field to be omitted entirely.
-4. **`header.uuid` generation** — The SDK says UUID is "generated based on receipt content". Clarify: does the ERP generate this before sending, or does the gateway generate it on ingestion?
+All open questions have been resolved. Locked-in decisions are summarised here and now drive `specs/010-authority-spec-alignment/`.
+
+1. **Receipt type codes** — **Keep all legacy codes** (`s|r|rr|rrwr|cr|crr|gs|gsr`) valid in both the DTO `@Pattern` and the existing DB CHECK. Do not narrow to `"s"` only.
+
+2. **`totalCommercialDiscount` rename** — **Rename in place** (Option B). The migration runs `ALTER TABLE eta_receipt_headers RENAME COLUMN total_discount_amount TO total_commercial_discount`. All entity/service references update in the same PR. Pre-production so no compatibility window needed.
+
+3. **`buyer` required status** — **Required object with `type` always present**; `id` and `name` are nullable in the DTO and become required at the service layer when `type = B`, or when `type = P` and `totalAmount ≥ 150,000 EGP`. Anonymous retail sends `{ "type": "P", "id": null, "name": null }`.
+
+4. **`header.uuid` generation** — **ERP generates, gateway validates format only.** DTO enforces `@Pattern(regexp = "[a-fA-F0-9]{64}")`. No canonicalisation algorithm is implemented in the platform; this responsibility stays with the ERP.
+
+### Additional decisions resolved during the same review
+
+5. **`unit_value` JSONB** — **Drop the JSONB column** (`eta_receipt_lines.unit_value`); add scalar `unit_price NUMERIC(18,5)` to lines; add `exchange_rate NUMERIC(18,5)` to `eta_receipt_headers`. Backfill `unit_price` from `unit_value->>'amountSold'` before dropping. This aligns lines with v1.2 receipt structure.
+
+6. **`feesAmount` / `adjustment` strictness** — DTO uses `@DecimalMin("0")` only (allow any non-negative). Do not enforce `@DecimalMax("0")`. If ETA reactivates these fields, no DTO change required.
+
+7. **Duplicate document number** — Return **HTTP 409** via existing `DuplicateReceiptNumberException`. Idempotent behavior deferred to a future sprint.
+
+8. **Company lookup** — Always resolve `companyRegistrationNumber` against `companies.tax_number` (no `cr_number` branch).
+
+9. **Original receipt resolution** — Not applicable to receipts (no credit/debit notes in receipt flow). See ZATCA / ETA Invoice alignment for the equivalent invoice-level decision.
