@@ -1,0 +1,13 @@
+<mat-sidenav-container class="app-container">
+  <mat-sidenav #sidenav mode="side" opened class="app-sidenav">
+    <mat-toolbar color="primary">
+      <span>E-Invoice</span>
+    </mat-toolbar>
+    <app-sidebar />
+  </mat-sidenav>
+
+  <mat-sidenav-content class="app-content">
+    <app-header />
+    <router-outlet />
+  </mat-sidenav-content>
+</mat-sidenav-container>

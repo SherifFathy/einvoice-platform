@@ -1,0 +1,175 @@
+@if (loading) {
+  <p>Loading invoice...</p>
+} @else if (invoice) {
+  <div class="header">
+    <div class="header-title">
+      <h2>{{ invoice.invoiceNumber || 'Draft' }}</h2>
+      <app-status-badge [status]="invoice.status"></app-status-badge>
+    </div>
+    <div class="actions-bar">
+      <button mat-stroked-button (click)="onBack()">
+        <mat-icon>arrow_back</mat-icon> Back
+      </button>
+      @if (invoice.status === 'DRAFT') {
+        <button mat-raised-button color="primary" (click)="onEdit()">
+          <mat-icon>edit</mat-icon> Edit
+        </button>
+      }
+      @if (canSubmit) {
+        <button mat-raised-button color="primary" (click)="onSubmit()" [disabled]="submitting">
+          @if (submitting) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>send</mat-icon>
+          }
+          {{ submitting ? 'Submitting...' : 'Submit' }}
+        </button>
+      }
+      @if (canRetry) {
+        <button mat-raised-button color="accent" (click)="onRetry()" [disabled]="retrying">
+          @if (retrying) {
+            <mat-spinner diameter="18"></mat-spinner>
+          } @else {
+            <mat-icon>refresh</mat-icon>
+          }
+          {{ retrying ? 'Retrying...' : 'Retry' }}
+        </button>
+      }
+      @if (canReturnToDraft) {
+        <button mat-stroked-button color="warn" (click)="onReturnToDraft()" [disabled]="returningToDraft">
+          <mat-icon>undo</mat-icon> Return to Draft
+        </button>
+      }
+      @if (canCheckStatus) {
+        <button mat-stroked-button (click)="onCheckStatus()">
+          <mat-icon>sync</mat-icon> Check Status
+        </button>
+      }
+      @if (canCancelEta) {
+        <button mat-raised-button color="warn" (click)="onCancelEta()" [disabled]="cancelling">
+          <mat-icon>cancel</mat-icon> Cancel
+        </button>
+      }
+    </div>
+  </div>
+
+  <mat-card>
+    <mat-card-content>
+      <div class="meta-grid">
+        <div><div class="meta-label">Type</div><div class="meta-value">{{ invoice.type }}</div></div>
+        <div><div class="meta-label">Issue Date</div><div class="meta-value">{{ invoice.issueDate }}</div></div>
+        <div><div class="meta-label">Currency</div><div class="meta-value">{{ invoice.currency }}</div></div>
+        <div><div class="meta-label">Authority</div><div class="meta-value">{{ invoice.authority }}</div></div>
+        <div><div class="meta-label">Environment</div><div class="meta-value">{{ invoice.environment }}</div></div>
+        <div><div class="meta-label">Buyer</div><div class="meta-value">{{ invoice.buyerName || '-' }}</div></div>
+        <div><div class="meta-label">Supply Date</div><div class="meta-value">{{ invoice.supplyDate || '-' }}</div></div>
+        <div><div class="meta-label">Payment Means</div><div class="meta-value">{{ invoice.paymentMeansCode || '-' }}</div></div>
+        <div><div class="meta-label">Payment Terms</div><div class="meta-value">{{ invoice.paymentTerms || '-' }}</div></div>
+        @if (invoice.originalInvoiceId) {
+          <div><div class="meta-label">Original Invoice</div><div class="meta-value">{{ invoice.originalInvoiceId }}</div></div>
+        }
+        @if (invoice.externalInvoiceReference) {
+          <div><div class="meta-label">External Reference</div><div class="meta-value">{{ invoice.externalInvoiceReference }}</div></div>
+        }
+      </div>
+
+      @if (invoice.notes) {
+        <div><div class="meta-label">Notes</div><div class="meta-value">{{ invoice.notes }}</div></div>
+      }
+
+      <mat-divider style="margin: 16px 0;"></mat-divider>
+      <h4>Line Items</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Description</th><th class="amount">Qty</th><th>Unit</th>
+            <th class="amount">Unit Price</th><th class="amount">Discount</th>
+            <th class="amount">Net</th><th class="amount">VAT</th><th class="amount">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of invoice.lines; track line.sortOrder) {
+            <tr>
+              <td>{{ line.sortOrder }}</td>
+              <td>{{ line.descriptionEn }}</td>
+              <td class="amount">{{ line.quantity }}</td>
+              <td>{{ line.unit }}</td>
+              <td class="amount">{{ line.unitPrice | number:'1.4-4' }}</td>
+              <td class="amount">{{ line.discountAmount | number:'1.2-2' }}</td>
+              <td class="amount">{{ line.lineNetAmount | number:'1.2-2' }}</td>
+              <td class="amount">{{ line.lineVatAmount | number:'1.2-2' }}</td>
+              <td class="amount">{{ line.lineTotal | number:'1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="totals-section">
+        <div class="totals-row"><span>Total Line Net</span><span>{{ invoice.totalLineNet | number:'1.2-2' }}</span></div>
+        <div class="totals-row"><span>Allowances</span><span>- {{ invoice.totalAllowances | number:'1.2-2' }}</span></div>
+        <div class="totals-row"><span>Total Without VAT</span><span>{{ invoice.totalWithoutVat | number:'1.2-2' }}</span></div>
+        <div class="totals-row"><span>Total VAT</span><span>{{ invoice.totalVat | number:'1.2-2' }}</span></div>
+        <div class="totals-row grand"><span>Total With VAT</span><span>{{ invoice.totalWithVat | number:'1.2-2' }}</span></div>
+        <div class="totals-row"><span>Prepaid</span><span>- {{ invoice.prepaidAmount | number:'1.2-2' }}</span></div>
+        <div class="totals-row grand"><span>Amount Due</span><span>{{ invoice.amountDue | number:'1.2-2' }}</span></div>
+      </div>
+
+      @if (invoice.vatBreakdown && invoice.vatBreakdown.length > 0) {
+        <div class="vat-section">
+          <h4>VAT Breakdown</h4>
+          <table style="width: auto;">
+            <thead>
+              <tr><th>Category</th><th>Rate %</th><th class="amount">Taxable Amount</th><th class="amount">Tax Amount</th></tr>
+            </thead>
+            <tbody>
+              @for (vb of invoice.vatBreakdown; track vb.vatCategoryCode + vb.vatRate) {
+                <tr>
+                  <td>{{ vb.vatCategoryCode }}</td>
+                  <td>{{ vb.vatRate }}</td>
+                  <td class="amount">{{ vb.taxableAmount | number:'1.2-2' }}</td>
+                  <td class="amount">{{ vb.taxAmount | number:'1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  @if (submissionAttempts.length > 0) {
+    <mat-card style="margin-top: 16px;">
+      <mat-card-header>
+        <mat-card-title class="section-title">Submission Timeline</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <app-submission-timeline [attempts]="submissionAttempts"></app-submission-timeline>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (hasArtifacts) {
+    <mat-card style="margin-top: 16px;">
+      <mat-card-header>
+        <mat-card-title class="section-title">Artifacts</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="artifact-list">
+          @for (artifact of artifacts; track artifact.type) {
+            <button mat-stroked-button (click)="onDownloadArtifact(artifact.type)">
+              <mat-icon>download</mat-icon>
+              {{ formatArtifactType(artifact.type) }}
+            </button>
+          }
+          @if (invoice.authority === 'ETA' && (invoice.status === 'ACCEPTED' || invoice.status === 'IN_REVIEW')) {
+            <button mat-stroked-button color="accent" (click)="onDownloadEtaPdf()">
+              <mat-icon>picture_as_pdf</mat-icon> ETA PDF
+            </button>
+          }
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+} @else {
+  <p>Select an invoice to view details.</p>
+}

@@ -1,0 +1,456 @@
+openapi: 3.1.0
+info:
+  title: Wave 8 — ZATCA Simplified (B2C) API
+  version: "1.0.0"
+  description: |
+    REST contract for ZATCA Simplified tax document management (B2C, reporting
+    flow). Structure parallels the Standard API with three differences:
+
+    - `buyerData` is **optional** (FR-008 — Simplified is B2C).
+    - `transactionTypeCode` must start with `02`.
+    - The authority-side status field is `reportingStatus` (vs. Standard's
+      `clearanceStatus`). The platform `status` is identical (FR-007b).
+
+    Authentication, tenant scope, optimistic concurrency, chain integrity,
+    and rate-paced uncapped bulk Check Status (Q5) all follow the same
+    contract as `zatca-standard-api.openapi.yaml` — see that file for the
+    cross-cutting narrative.
+servers:
+  - url: /api/companies/{id}
+    variables:
+      id:
+        default: "00000000-0000-0000-0000-000000000000"
+        description: Active company UUID; must match the JWT companyId claim.
+
+tags:
+  - name: simplified
+  - name: lifecycle
+  - name: artifacts
+
+paths:
+  /zatca/simplified:
+    get:
+      tags: [simplified]
+      summary: List ZATCA Simplified documents visible to the user in the active environment
+      parameters:
+        - { name: company,  in: query, required: false, schema: { type: string, format: uuid } }
+        - { name: status,   in: query, required: false, schema: { $ref: '#/components/schemas/DocumentState' } }
+        - { name: dateFrom, in: query, required: false, schema: { type: string, format: date } }
+        - { name: dateTo,   in: query, required: false, schema: { type: string, format: date } }
+        - { name: page,     in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size,     in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500, default: 50 } }
+      responses:
+        "200":
+          description: Paged list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedSimplifiedList' }
+        "403":
+          description: User not assigned to the active company
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    post:
+      tags: [simplified]
+      summary: Create a new draft Simplified document
+      description: |
+        Creates the document in `DRAFT`. Requires `SIMPLIFIED.CREATE`.
+        Validates: VAT-exemption-reason (FR-004), totals consistency (FR-031),
+        original-class compatibility for credit/debit notes (FR-030),
+        document-number uniqueness (FR-006). `buyerData` is optional (FR-008).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrUpdateSimplified' }
+      responses:
+        "201":
+          description: Created
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Simplified' }
+        "400":
+          description: Validation failure (`VAT_EXEMPTION_REASON_REQUIRED`, `MISSING_ORIGINAL_DOCUMENT`, `WRONG_ORIGINAL_CLASS`, `TOTALS_INCONSISTENT`)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        "409":
+          description: "`DUPLICATE_SIMPLIFIED_NUMBER`"
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /zatca/simplified/{docId}:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [simplified]
+      summary: Get a Simplified document with lines, chain snapshot, submission summary, and ZATCA response
+      responses:
+        "200":
+          description: OK
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Simplified' }
+        "404":
+          description: Not found (also returned to mask cross-environment access — FR-024)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    put:
+      tags: [simplified]
+      summary: Update a draft Simplified document (optimistic concurrency)
+      parameters:
+        - { name: If-Match, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrUpdateSimplified' }
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Simplified' }
+        "400":
+          description: Validation failure
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        "409":
+          description: |
+            One of `DOCUMENT_NOT_DRAFT`, `OPTIMISTIC_LOCK_CONFLICT`, `DUPLICATE_SIMPLIFIED_NUMBER`
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/Error' }
+                  - { $ref: '#/components/schemas/ConflictBody' }
+    delete:
+      tags: [simplified]
+      summary: Delete a draft Simplified document
+      responses:
+        "204": { description: Deleted }
+        "409":
+          description: "`DOCUMENT_NOT_DRAFT`"
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /zatca/simplified/{docId}/clone-as-draft:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [simplified]
+      summary: Clone a REJECTED Simplified document into a new DRAFT (FR-007a, Q1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newInvoiceNumber]
+              properties:
+                newInvoiceNumber: { type: string, maxLength: 100 }
+      responses:
+        "201":
+          description: New draft created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Simplified' }
+        "409":
+          description: "`DUPLICATE_SIMPLIFIED_NUMBER`"
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /zatca/simplified/{docId}/submit:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Submit a draft Simplified document to ZATCA reporting
+      description: |
+        Identical mechanics to Standard submit — chain lock, advance, build,
+        sign, hash, QR, persist artifacts, call ZATCA — but the endpoint is
+        `POST {zatca_configs.base_url}/invoices/reporting/single` and the
+        authority status field is `reportingStatus`. Constitution XII.5 still
+        applies: rejection advances the chain counter.
+      responses:
+        "200":
+          description: Submission completed (the body carries the outcome)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: |
+            One of `NO_CERTIFICATE_CONFIGURED`, `INVALID_LIFECYCLE_TRANSITION`, `TOTALS_INCONSISTENT`, `VAT_EXEMPTION_REASON_REQUIRED`
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        "503":
+          description: "`CHAIN_BUSY`"
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /zatca/simplified/{docId}/cancel:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Cancel a previously ACCEPTED Simplified document (forwarded verbatim, FR-019)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200":
+          description: ZATCA processed the cancellation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: "`INVALID_LIFECYCLE_TRANSITION` — document is not in ACCEPTED"
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /zatca/simplified/{docId}/retry:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Retry an ambiguous submission (FR-017)
+      responses:
+        "200":
+          description: Retry outcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+        "409":
+          description: Document is not in an ambiguous state
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /zatca/simplified/{docId}/check-status:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [lifecycle]
+      summary: Refresh the ZATCA-side status of a single document (FR-018)
+      responses:
+        "200":
+          description: Latest status from ZATCA
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubmissionOutcome' }
+
+  /zatca/simplified/check-status:
+    post:
+      tags: [lifecycle]
+      summary: Bulk refresh ZATCA-side status (FR-018a, Q5 — uncapped, NDJSON, cancellable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentIds]
+              properties:
+                documentIds:
+                  type: array
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: NDJSON stream of per-document outcomes
+          headers:
+            Run-Id: { schema: { type: string, format: uuid } }
+          content:
+            application/x-ndjson:
+              schema: { $ref: '#/components/schemas/BulkStatusOutcome' }
+
+  /zatca/simplified/{docId}/submissions:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [artifacts]
+      summary: List submission attempts for a document
+      responses:
+        "200":
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SubmissionAttempt' }
+
+  /zatca/simplified/{docId}/artifacts/{type}:
+    parameters:
+      - { name: docId, in: path, required: true, schema: { type: string, format: uuid } }
+      - name: type
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [UBL_XML, SIGNED_UBL_XML, QR_PNG, ZATCA_REQUEST, ZATCA_RESPONSE]
+    get:
+      tags: [artifacts]
+      summary: Download a stored artifact (immutable, append-only — FR-021)
+      description: |
+        Simplified does not produce a `CLEARED_XML` artifact (that is Standard's
+        clearance-only output). The other artifact types are identical to
+        Standard.
+      responses:
+        "200":
+          description: Artifact payload
+          content:
+            application/xml: { schema: { type: string, format: binary } }
+            image/png:       { schema: { type: string, format: binary } }
+            application/json:{ schema: { type: string, format: binary } }
+        "404":
+          description: Artifact type not present for this document
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+components:
+  schemas:
+    DocumentState:
+      type: string
+      enum: [DRAFT, SUBMITTING, SUBMITTED, IN_REVIEW, ACCEPTED, REJECTED, CANCELLED]
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+
+    ConflictBody:
+      type: object
+      required: [code, message, expectedVersion, actualVersion, current]
+      properties:
+        code:            { type: string, enum: [OPTIMISTIC_LOCK_CONFLICT] }
+        message:         { type: string }
+        expectedVersion: { type: integer, format: int64 }
+        actualVersion:   { type: integer, format: int64 }
+        current:         { $ref: '#/components/schemas/Simplified' }
+
+    Party:
+      type: object
+      required: [taxRegistrationNumber, partyName]
+      properties:
+        taxRegistrationNumber:     { type: string }
+        partyName:                 { type: string }
+        addressStreet:             { type: string }
+        addressCityName:           { type: string }
+        addressPostalZone:         { type: string }
+        addressCountryCode:        { type: string, minLength: 2, maxLength: 2 }
+        partyIdentificationId:     { type: string }
+        partyIdentificationScheme: { type: string }
+
+    SimplifiedLine:
+      type: object
+      required: [lineNumber, description, quantity, unitPrice, vatCategoryCode]
+      properties:
+        id:                    { type: string, format: uuid, readOnly: true }
+        lineNumber:            { type: integer, minimum: 1 }
+        itemId:                { type: string, format: uuid }
+        itemCode:              { type: string }
+        description:           { type: string }
+        unitType:              { type: string }
+        quantity:              { type: number, multipleOf: 0.00001 }
+        unitPrice:             { type: number, multipleOf: 0.00001 }
+        lineExtensionAmount:   { type: number, multipleOf: 0.01 }
+        discountAmount:        { type: number, multipleOf: 0.01 }
+        allowanceAmount:       { type: number, multipleOf: 0.01 }
+        netAmount:             { type: number, multipleOf: 0.01 }
+        vatCategoryCode:       { type: string, enum: [S, Z, E, O] }
+        vatRate:               { type: number }
+        vatAmount:             { type: number, multipleOf: 0.01 }
+        exemptionReasonCode:   { type: string }
+        exemptionReasonText:   { type: string }
+
+    CreateOrUpdateSimplified:
+      type: object
+      required: [invoiceNumber, invoiceTypeCode, transactionTypeCode, issueDate, issueTime, sellerData, lines]
+      properties:
+        invoiceNumber:       { type: string, maxLength: 100 }
+        invoiceTypeCode:     { type: string, description: "388 standard / 381 credit / 383 debit" }
+        transactionTypeCode: { type: string, description: "Must start with 02 for Simplified" }
+        issueDate:           { type: string, format: date }
+        issueTime:           { type: string }
+        supplyDate:          { type: string, format: date }
+        supplyEndDate:       { type: string, format: date }
+        sellerData:          { $ref: '#/components/schemas/Party' }
+        buyerData:           { $ref: '#/components/schemas/Party', description: "Optional — Simplified is B2C (FR-008)" }
+        currency:            { type: string, default: SAR }
+        taxCurrency:         { type: string, default: SAR }
+        prepaidAmount:       { type: number, multipleOf: 0.01, default: 0 }
+        originalInvoiceId:   { type: string, format: uuid, description: "Required for credit/debit notes; must reference a Simplified (FR-030)" }
+        lines:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/SimplifiedLine' }
+
+    Simplified:
+      allOf:
+        - $ref: '#/components/schemas/CreateOrUpdateSimplified'
+        - type: object
+          required: [id, status, version, chainSnapshot, totals, createdAt, updatedAt]
+          properties:
+            id:                { type: string, format: uuid, readOnly: true }
+            status:            { $ref: '#/components/schemas/DocumentState' }
+            version:           { type: integer, format: int64, readOnly: true }
+            zatcaUuid:         { type: string }
+            reportingStatus:   { type: string, description: "ZATCA-side string (REPORTED, NOT_REPORTED, IN_REVIEW, …); separate from `status` (FR-007b)" }
+            zatcaResponseData: { type: object, additionalProperties: true }
+            chainSnapshot:
+              type: object
+              properties:
+                invoiceCounterValue: { type: integer, format: int64 }
+                previousInvoiceHash: { type: string }
+                invoiceHash:         { type: string }
+                qrCodeBase64:        { type: string }
+            totals:
+              type: object
+              properties:
+                lineExtensionAmount:  { type: number, multipleOf: 0.01 }
+                allowanceTotalAmount: { type: number, multipleOf: 0.01 }
+                taxExclusiveAmount:   { type: number, multipleOf: 0.01 }
+                taxAmount:            { type: number, multipleOf: 0.01 }
+                taxInclusiveAmount:   { type: number, multipleOf: 0.01 }
+                payableAmount:        { type: number, multipleOf: 0.01 }
+            createdAt: { type: string, format: date-time, readOnly: true }
+            updatedAt: { type: string, format: date-time, readOnly: true }
+
+    PagedSimplifiedList:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Simplified' } }
+        page:  { type: integer }
+        size:  { type: integer }
+        total: { type: integer, format: int64 }
+
+    SubmissionAttempt:
+      type: object
+      required: [id, attemptNumber, result, startedAt]
+      properties:
+        id:                   { type: string, format: uuid }
+        attemptNumber:        { type: integer }
+        chainCounterSnapshot: { type: integer, format: int64 }
+        result:               { type: string, enum: [SUCCESS, REJECTED, ERROR, TIMEOUT, AMBIGUOUS] }
+        errorSummary:         { type: string }
+        startedAt:            { type: string, format: date-time }
+        finalisedAt:          { type: string, format: date-time }
+        submittedBy:          { type: string, format: uuid }
+
+    SubmissionOutcome:
+      type: object
+      required: [state, attempt]
+      properties:
+        state:           { $ref: '#/components/schemas/DocumentState' }
+        reportingStatus: { type: string }
+        attempt:         { $ref: '#/components/schemas/SubmissionAttempt' }
+
+    BulkStatusOutcome:
+      type: object
+      required: [documentId, outcome]
+      properties:
+        documentId:      { type: string, format: uuid }
+        outcome:         { type: string, enum: [ACCEPTED, REJECTED, IN_REVIEW, ERROR, CANCELLED_NO_OP] }
+        reportingStatus: { type: string }
+        errorSummary:    { type: string }
+        completedAt:     { type: string, format: date-time }

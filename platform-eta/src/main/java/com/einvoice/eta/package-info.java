@@ -1,4 +1,2 @@
-/**
- * ETA (Egypt) e-invoicing compliance adapter.
- */
+/** Placeholder for future eta module. */
 package com.einvoice.eta;

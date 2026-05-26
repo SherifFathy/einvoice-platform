@@ -1,4 +1,2 @@
-/**
- * PDF generation for invoices and reports.
- */
+/** Placeholder for future pdf module. */
 package com.einvoice.pdf;

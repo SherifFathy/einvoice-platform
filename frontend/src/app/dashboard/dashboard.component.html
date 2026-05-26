@@ -1,21 +1,32 @@
 <h2>Dashboard</h2>
 
-@if (healthData) {
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>{{ healthData.message }}</mat-card-title>
-    </mat-card-header>
-    <mat-card-content>
-      <p><strong>Timestamp:</strong> {{ healthData.timestamp | date:'medium' }}</p>
-      <p><strong>Active Profiles:</strong> {{ healthData.profiles.join(', ') || 'none' }}</p>
-    </mat-card-content>
-  </mat-card>
-} @else if (error) {
-  <mat-card>
-    <mat-card-content>
-      <p>{{ error }}</p>
-    </mat-card-content>
-  </mat-card>
-} @else {
-  <p>Loading backend status...</p>
+@if (isAdminMode) {
+  <div class="admin-banner">
+    Admin Mode — operational features require logout and re-login with a company selected.
+  </div>
 }
+
+@if (isSuperUserOperational) {
+  <div class="dashboard-header">
+    <span></span>
+    <a mat-raised-button color="primary" routerLink="/admin/companies">
+      <mat-icon>add</mat-icon> Create Company
+    </a>
+  </div>
+}
+
+<div class="dashboard-grid">
+  @for (company of companies; track company.companyId) {
+    <mat-card class="company-card" [class.inactive]="!company.isActive">
+      <div class="card-header">
+        <div>
+          <div class="company-name">{{ company.companyNameEn }}</div>
+          <div class="company-name-ar">{{ company.companyNameAr }}</div>
+        </div>
+        @if (!company.isActive) {
+          <mat-chip disabled color="warn">Inactive</mat-chip>
+        }
+      </div>
+    </mat-card>
+  }
+</div>

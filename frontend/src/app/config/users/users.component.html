@@ -1,0 +1,55 @@
+<h2>User Management</h2>
+
+@if (loading) {
+  <p>Loading...</p>
+} @else if (users.length === 0) {
+  <p>No users assigned to this company yet.</p>
+} @else {
+  <table mat-table [dataSource]="users">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let user">{{ user.name }}</td>
+    </ng-container>
+    <ng-container matColumnDef="email">
+      <th mat-header-cell *matHeaderCellDef>Email</th>
+      <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+    </ng-container>
+    <ng-container matColumnDef="role">
+      <th mat-header-cell *matHeaderCellDef>Role</th>
+      <td mat-cell *matCellDef="let user">{{ user.role }}</td>
+    </ng-container>
+    <ng-container matColumnDef="environments">
+      <th mat-header-cell *matHeaderCellDef>Environments</th>
+      <td mat-cell *matCellDef="let user">
+        @for (env of user.permittedEnvironments; track env) {
+          <span class="env-chip">{{ env }}</span>
+        }
+        @if (user.permittedEnvironments.length === 0) {
+          <span class="inactive-badge">None</span>
+        }
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let user">
+        <span [class.active-badge]="user.isActive" [class.inactive-badge]="!user.isActive">
+          {{ user.isActive ? 'Active' : 'Inactive' }}
+        </span>
+      </td>
+    </ng-container>
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>Actions</th>
+      <td mat-cell *matCellDef="let user">
+        <button mat-icon-button color="primary" (click)="openPermissionMatrix(user)" title="Edit Permissions">
+          <mat-icon>vpn_key</mat-icon>
+        </button>
+        <button mat-icon-button [color]="user.isActive ? 'warn' : 'accent'" (click)="toggleActive(user)"
+                [title]="user.isActive ? 'Deactivate' : 'Activate'">
+          <mat-icon>{{ user.isActive ? 'person_off' : 'person' }}</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+}

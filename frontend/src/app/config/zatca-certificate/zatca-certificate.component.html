@@ -1,0 +1,56 @@
+<mat-card class="cert-container">
+  <mat-card-header>
+    <mat-card-title>ZATCA Certificate Status</mat-card-title>
+    <mat-card-subtitle>Branch {{ branchId }}</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (loading) {
+      <div style="text-align: center; padding: 32px;">
+        <mat-spinner diameter="40"></mat-spinner>
+      </div>
+    }
+
+    @if (!loading && status) {
+      <div class="cert-status">
+        <mat-icon [class]="getStatusClass()" class="status-icon">
+          {{ getStatusIcon() }}
+        </mat-icon>
+        <div>
+          <h3>@if (status.hasCertificate) { Certificate Present } @else { No Certificate }</h3>
+          <p>Onboarding Status: {{ status.onboardingStatus }}</p>
+        </div>
+      </div>
+
+      @if (status.hasCertificate && status.expiryDate) {
+        <div>
+          <div class="detail-row">
+            <span class="detail-label">Expiry Date</span>
+            <span>{{ status.expiryDate | date:'mediumDate' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Days Until Expiry</span>
+            <span>{{ status.daysUntilExpiry }}</span>
+          </div>
+        </div>
+      }
+
+      @if (status.expiryWarning) {
+        <div class="warning-banner">
+          <mat-icon>warning</mat-icon>
+          Certificate expires in {{ status.daysUntilExpiry }} days. Consider renewing.
+        </div>
+      }
+
+      @if (status.hasCertificate) {
+        <button mat-raised-button color="primary" (click)="renewCertificate()" [disabled]="renewing">
+          @if (renewing) { Renewing... } @else { Renew Certificate }
+        </button>
+      }
+    }
+
+    @if (!loading && !status) {
+      <p>No ZATCA configuration found for this branch.</p>
+    }
+  </mat-card-content>
+</mat-card>

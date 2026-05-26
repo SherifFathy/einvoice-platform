@@ -1,0 +1,105 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>{{ isEdit ? 'Edit ZATCA Customer' : 'New ZATCA Customer' }}</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Name (English) *</mat-label>
+          <input matInput formControlName="nameEn" placeholder="Customer name in English">
+          @if (form.get('nameEn')?.hasError('required') && form.get('nameEn')?.touched) {
+            <mat-error>Name (English) is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Name (Arabic)</mat-label>
+          <input matInput formControlName="nameAr" placeholder="اسم العميل" dir="rtl">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>VAT Number</mat-label>
+          <input matInput formControlName="vatNumber" placeholder="300000000000003" maxlength="15">
+          @if (form.get('vatNumber')?.hasError('vatFormat') && form.get('vatNumber')?.touched) {
+            <mat-error>{{ form.get('vatNumber')?.getError('vatFormat') }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Customer Type *</mat-label>
+          <mat-select formControlName="customerType">
+            @for (ct of customerTypes; track ct.value) {
+              <mat-option [value]="ct.value">{{ ct.label }}</mat-option>
+            }
+          </mat-select>
+          @if (form.get('customerType')?.hasError('required') && form.get('customerType')?.touched) {
+            <mat-error>Customer type is required</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="slide-toggle-field">
+          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+        </div>
+      </div>
+
+      <h3 class="section-title">Address</h3>
+      <div formGroupName="addressData" class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Street Name *</mat-label>
+          <input matInput formControlName="streetName" placeholder="King Fahd Road">
+          @if (form.get('addressData.streetName')?.hasError('required') && form.get('addressData.streetName')?.touched) {
+            <mat-error>Street name is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Building Number *</mat-label>
+          <input matInput formControlName="buildingNumber" placeholder="1234">
+          @if (form.get('addressData.buildingNumber')?.hasError('required') && form.get('addressData.buildingNumber')?.touched) {
+            <mat-error>Building number is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>City *</mat-label>
+          <input matInput formControlName="city" placeholder="Riyadh">
+          @if (form.get('addressData.city')?.hasError('required') && form.get('addressData.city')?.touched) {
+            <mat-error>City is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Postal Code *</mat-label>
+          <input matInput formControlName="postalCode" placeholder="12211">
+          @if (form.get('addressData.postalCode')?.hasError('required') && form.get('addressData.postalCode')?.touched) {
+            <mat-error>Postal code is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>District Name *</mat-label>
+          <input matInput formControlName="districtName" placeholder="Al Olaya">
+          @if (form.get('addressData.districtName')?.hasError('required') && form.get('addressData.districtName')?.touched) {
+            <mat-error>District name is required</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Country *</mat-label>
+          <input matInput formControlName="country" placeholder="SA">
+          @if (form.get('addressData.country')?.hasError('required') && form.get('addressData.country')?.touched) {
+            <mat-error>Country is required</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <div class="form-actions" *appHasPermission="'CUSTOMERS/EDIT'">
+        <button mat-button type="button" (click)="onCancel()">Cancel</button>
+        <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
+          @if (submitting) { Saving... } @else { {{ isEdit ? 'Update' : 'Create' }} Customer }
+        </button>
+      </div>
+    </form>
+  </mat-card-content>
+</mat-card>

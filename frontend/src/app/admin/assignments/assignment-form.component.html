@@ -1,0 +1,64 @@
+<h2 mat-dialog-title>Create Assignment</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form">
+    <mat-form-field>
+      <mat-label>Company</mat-label>
+      <mat-select formControlName="companyId" required>
+        @for (company of companies; track company.id) {
+          <mat-option [value]="company.id">{{ company.nameEn }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('companyId')?.hasError('required') && form.get('companyId')?.touched) {
+        <mat-error>Company is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Authority Environment</mat-label>
+      <mat-select formControlName="authorityEnvironmentId" required>
+        @for (env of authorityEnvironments; track env.id) {
+          <mat-option [value]="env.id">{{ env.label }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('authorityEnvironmentId')?.hasError('required') && form.get('authorityEnvironmentId')?.touched) {
+        <mat-error>Authority environment is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Transaction Type</mat-label>
+      <mat-select formControlName="transactionType" required>
+        @for (tt of transactionTypes; track tt) {
+          <mat-option [value]="tt">{{ tt }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('transactionType')?.hasError('required') && form.get('transactionEnvironmentId')?.touched) {
+        <mat-error>Transaction type is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Role</mat-label>
+      <mat-select formControlName="roleCode" required>
+        @for (role of roleCodes; track role) {
+          <mat-option [value]="role">{{ role }}</mat-option>
+        }
+      </mat-select>
+      @if (form.get('roleCode')?.hasError('required') && form.get('roleCode')?.touched) {
+        <mat-error>Role is required</mat-error>
+      }
+    </mat-form-field>
+  </form>
+
+  @if (errorMessage) {
+    <div class="form-error">{{ errorMessage }}</div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="submitting || form.invalid">
+    @if (submitting) { Saving... } @else { Save }
+  </button>
+</mat-dialog-actions>

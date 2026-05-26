@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: Invoice Artifact Download API (Wave 3 additions)
+  version: 1.0.0
+  description: >
+    Wave 3 extends the existing invoice artifact endpoints with an ETA-PDF proxy
+    (cached in invoice_artifacts) and, conditionally, a ZATCA PDF endpoint.
+    The ZATCA PDF path is only exposed when the Wave 2 research spike concluded
+    a platform-generated PDF is required.
+
+servers:
+  - url: /api
+
+paths:
+  /invoices/{id}/eta-pdf:
+    get:
+      summary: Download the ETA-issued official PDF for an accepted ETA invoice
+      operationId: getInvoiceEtaPdf
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: The PDF bytes (served from cache after the first fetch)
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          description: Invoice not ETA-accepted, or caller lacks access
+
+  /invoices/{id}/zatca-pdf:
+    get:
+      summary: Download the platform-generated bilingual ZATCA customer PDF (conditional)
+      description: >
+        Exposed only if the Wave 2 ZATCA PDF decision required platform generation.
+        When that decision concluded "no PDF is required", this endpoint returns 404.
+      operationId: getInvoiceZatcaPdf
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Bilingual AR/EN PDF with embedded QR matching the signed XML
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '404':
+          description: Not available — feature disabled or invoice not cleared
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

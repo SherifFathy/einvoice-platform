@@ -1,0 +1,91 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>ETA Configuration</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    @if (loading) {
+      <p>Loading...</p>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="form-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Client ID *</mat-label>
+            <input matInput formControlName="clientId" placeholder="ETA API client identifier">
+            @if (form.get('clientId')?.hasError('required') && form.get('clientId')?.touched) {
+              <mat-error>Client ID is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Client Secret 1 *</mat-label>
+            <input matInput formControlName="clientSecret1" placeholder="Primary client secret">
+            @if (form.get('clientSecret1')?.hasError('required') && form.get('clientSecret1')?.touched) {
+              <mat-error>Client Secret 1 is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Client Secret 2 *</mat-label>
+            <input matInput formControlName="clientSecret2" placeholder="Secondary client secret">
+            @if (form.get('clientSecret2')?.hasError('required') && form.get('clientSecret2')?.touched) {
+              <mat-error>Client Secret 2 is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Token Name {{ isProductionEnv ? '*' : '' }}</mat-label>
+            <input matInput formControlName="tokenName" placeholder="{{ isProductionEnv ? 'Required for Production' : 'Optional' }}">
+            @if (isProductionEnv && form.get('tokenName')?.hasError('required') && form.get('tokenName')?.touched) {
+              <mat-error>Token Name is required for Production</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Token Password {{ isProductionEnv ? '*' : '' }}</mat-label>
+            <input matInput formControlName="tokenPass" placeholder="{{ isProductionEnv ? 'Required for Production' : 'Optional' }}">
+            @if (isProductionEnv && form.get('tokenPass')?.hasError('required') && form.get('tokenPass')?.touched) {
+              <mat-error>Token Password is required for Production</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Token URL *</mat-label>
+            <input matInput formControlName="tokenUrl" placeholder="https://api.example.com/oauth/token">
+            @if (form.get('tokenUrl')?.hasError('required') && form.get('tokenUrl')?.touched) {
+              <mat-error>Token URL is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Submission URL *</mat-label>
+            <input matInput formControlName="submissionUrl" placeholder="https://api.example.com/submissions">
+            @if (form.get('submissionUrl')?.hasError('required') && form.get('submissionUrl')?.touched) {
+              <mat-error>Submission URL is required</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>POS Serial</mat-label>
+            <input matInput formControlName="posSerial" placeholder="POS device serial number">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>POS OS Version</mat-label>
+            <input matInput formControlName="posOsVersion" placeholder="POS operating system version">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>POS Model</mat-label>
+            <input matInput formControlName="posModel" placeholder="POS device model">
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions" *appHasPermission="'CONFIG/EDIT'">
+          <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || submitting">
+            @if (submitting) { Saving... } @else { Save Configuration }
+          </button>
+        </div>
+      </form>
+    }
+  </mat-card-content>
+</mat-card>

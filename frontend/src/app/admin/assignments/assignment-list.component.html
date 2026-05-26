@@ -1,0 +1,71 @@
+<h2>Assignment Management</h2>
+
+<div class="toolbar">
+  <mat-form-field class="user-selector">
+    <mat-label>Select User</mat-label>
+    <mat-select [(ngModel)]="selectedUserId" (selectionChange)="onUserChange()">
+      @for (user of users; track user.id) {
+        <mat-option [value]="user.id">
+          {{ user.name }} ({{ user.email }})
+        </mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <button mat-raised-button color="primary" (click)="openCreateDialog()" [disabled]="!selectedUserId">
+    <mat-icon>add_circle</mat-icon> Add Assignment
+  </button>
+</div>
+
+@if (loading) {
+  <p>Loading assignments...</p>
+} @else {
+  <table mat-table [dataSource]="assignments">
+    <ng-container matColumnDef="company">
+      <th mat-header-cell *matHeaderCellDef>Company</th>
+      <td mat-cell *matCellDef="let assignment">{{ getCompanyName(assignment.companyId) }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="authorityEnv">
+      <th mat-header-cell *matHeaderCellDef>Authority Env</th>
+      <td mat-cell *matCellDef="let assignment">{{ assignment.authorityEnvironmentId }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="transactionType">
+      <th mat-header-cell *matHeaderCellDef>Transaction Type</th>
+      <td mat-cell *matCellDef="let assignment">{{ assignment.transactionType }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="roleCode">
+      <th mat-header-cell *matHeaderCellDef>Role</th>
+      <td mat-cell *matCellDef="let assignment">{{ assignment.roleCode }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="isActive">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let assignment">
+        <span [class.active-badge]="assignment.isActive">
+          {{ assignment.isActive ? 'Active' : 'Inactive' }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>Actions</th>
+      <td mat-cell *matCellDef="let assignment">
+        <div class="actions">
+          <button mat-icon-button color="warn" (click)="deleteAssignment(assignment)" matTooltip="Delete">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+  </table>
+
+  @if (assignments.length === 0 && selectedUserId) {
+    <p style="text-align: center; color: #999; margin-top: 24px;">No assignments found for this user.</p>
+  }
+}

@@ -1,0 +1,71 @@
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>{{ isEdit ? 'Edit Invoice' : 'New Invoice' }}</mat-card-title>
+  </mat-card-header>
+  <mat-card-content>
+    <form [formGroup]="form">
+      <mat-stepper linear #stepper labelPosition="bottom"
+                   (selectionChange)="onStepperSelectionChange($event)">
+        <mat-step [completed]="isStepValid(0)" [stepControl]="form" label="Header">
+          <app-header-step
+            [form]="form"
+            [companyId]="companyId"
+            (authorityChanged)="onAuthorityChanged($event)">
+          </app-header-step>
+          <div class="form-actions">
+            <button mat-button type="button" (click)="onCancel()">Cancel</button>
+            <button mat-raised-button color="primary" type="button" matStepperNext [disabled]="!isStepValid(0)">
+              Next
+            </button>
+          </div>
+        </mat-step>
+
+        <mat-step [completed]="isStepValid(1)" [stepControl]="form" label="Buyer">
+          <app-buyer-step
+            [form]="form"
+            [authority]="form.get('authority')?.value || 'ZATCA'"
+            [invoiceType]="form.get('type')?.value || ''"
+            [subtypeFlags]="form.get('subtypeFlags')?.value || null">
+          </app-buyer-step>
+          <div class="form-actions">
+            <button mat-button type="button" matStepperPrevious>Back</button>
+            <button mat-button type="button" (click)="onCancel()">Cancel</button>
+            <button mat-raised-button color="primary" type="button" matStepperNext [disabled]="!isStepValid(1)">
+              Next
+            </button>
+          </div>
+        </mat-step>
+
+        <mat-step [completed]="isStepValid(2)" [stepControl]="form" label="Line Items">
+          <app-lines-step
+            [form]="form"
+            [authority]="form.get('authority')?.value || 'ZATCA'">
+          </app-lines-step>
+          <div class="form-actions">
+            <button mat-button type="button" matStepperPrevious>Back</button>
+            <button mat-button type="button" (click)="onCancel()">Cancel</button>
+            <button mat-raised-button color="primary" type="button" matStepperNext [disabled]="!isStepValid(2)">
+              Review
+            </button>
+          </div>
+        </mat-step>
+
+        <mat-step label="Review">
+          <app-review-step
+            [form]="form"
+            [invoiceId]="invoice?.id ?? null"
+            (validationComplete)="onValidationComplete($event)">
+          </app-review-step>
+          <div class="form-actions">
+            <button mat-button type="button" matStepperPrevious>Back</button>
+            <button mat-button type="button" (click)="onCancel()">Cancel</button>
+            <button mat-raised-button color="primary" type="button"
+                    (click)="onSubmit()" [disabled]="!canSubmit()">
+              @if (submitting) { Saving... } @else { {{ isEdit ? 'Update' : 'Create' }} Invoice }
+            </button>
+          </div>
+        </mat-step>
+      </mat-stepper>
+    </form>
+  </mat-card-content>
+</mat-card>

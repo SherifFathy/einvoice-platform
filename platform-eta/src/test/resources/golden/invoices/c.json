@@ -1,0 +1,59 @@
+{
+  "documentType" : "c",
+  "documentTypeVersion" : "1.0",
+  "dateTimeIssued" : "2026-05-13T10:00+02:00",
+  "taxpayerActivityCode" : "4610",
+  "internalID" : "00000000-0000-0000-0000-000000000001",
+  "purchaseOrderReference" : null,
+  "purchaseOrderDescription" : null,
+  "salesOrderReference" : null,
+  "salesOrderDescription" : null,
+  "seller" : {
+    "country" : "EG",
+    "governate" : "Cairo",
+    "id" : "123456789",
+    "name" : "Test Company",
+    "type" : "B"
+  },
+  "buyer" : {
+    "country" : "EG",
+    "governate" : "Cairo",
+    "id" : "987654321",
+    "name" : "Test Buyer",
+    "type" : "B"
+  },
+  "documentTotals" : {
+    "totalSalesAmount" : "100.00000",
+    "totalDiscountAmount" : "0.00000",
+    "extraDiscountAmount" : "0.00000",
+    "totalItemsDiscountAmount" : "0.00000",
+    "netAmount" : "100.00000",
+    "totalAmount" : "114.00000"
+  },
+  "invoiceLines" : [ {
+    "internalCode" : "ITEM001",
+    "itemType" : "GS1",
+    "itemCode" : "1234567890123",
+    "description" : "Test Item",
+    "unitType" : "EA",
+    "quantity" : "1.00000",
+    "unitValue" : {
+      "amountEGP" : "100.00000",
+      "amountSold" : "100.00000",
+      "currencyExchangeRate" : "1.00000",
+      "currencySold" : "EGP"
+    },
+    "salesTotal" : "100.00000",
+    "discount" : "0.00000",
+    "itemsDiscount" : "0.00000",
+    "valueDifference" : "0.00000",
+    "totalTaxableFees" : "0.00000",
+    "netTotal" : "100.00000",
+    "total" : "114.00000",
+    "taxableItems" : [ {
+      "taxType" : "T1",
+      "rate" : "14.00000",
+      "amount" : "14.00000"
+    } ]
+  } ]
+}

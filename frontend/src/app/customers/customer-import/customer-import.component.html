@@ -1,0 +1,75 @@
+@if (!result) {
+  <div class="upload-zone"
+      [class.dragover]="dragover"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave()"
+      (drop)="onDrop($event)"
+      (click)="fileInput.click()">
+    <input type="file" #fileInput accept=".xlsx" (change)="onFileSelected($event)" hidden>
+    <mat-icon style="font-size: 48px; width: 48px; height: 48px;">cloud_upload</mat-icon>
+    <p>Drag &amp; drop an Excel file here, or click to browse</p>
+    @if (selectedFile) {
+      <p><strong>Selected:</strong> {{ selectedFile.name }}</p>
+    }
+  </div>
+}
+
+@if (uploading) {
+  <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+}
+
+@if (result) {
+  <mat-card class="result-card">
+    <mat-card-header>
+      <mat-card-title>Import Results</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">{{ result.processed + result.failed }}</div>
+          <div class="stat-label">Total Rows</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" style="color: green;">{{ result.processed }}</div>
+          <div class="stat-label">Imported</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value" style="color: red;">{{ result.failed }}</div>
+          <div class="stat-label">Errors</div>
+        </div>
+      </div>
+
+      @if (result.errors.length > 0) {
+        <h4>Error Details</h4>
+        <table mat-table [dataSource]="result.errors" class="error-table">
+          <ng-container matColumnDef="row">
+            <th mat-header-cell *matHeaderCellDef>Row</th>
+            <td mat-cell *matCellDef="let e">{{ e.row }}</td>
+          </ng-container>
+          <ng-container matColumnDef="field">
+            <th mat-header-cell *matHeaderCellDef>Field</th>
+            <td mat-cell *matCellDef="let e">{{ e.field }}</td>
+          </ng-container>
+          <ng-container matColumnDef="message">
+            <th mat-header-cell *matHeaderCellDef>Error</th>
+            <td mat-cell *matCellDef="let e">{{ e.message }}</td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="errorColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: errorColumns;"></tr>
+        </table>
+      }
+
+      <div style="margin-top: 16px; display: flex; gap: 12px;">
+        <button mat-raised-button color="primary" (click)="selectedFile = null; result = null">Import Another</button>
+        <button mat-button (click)="onCancel()">Close</button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+} @else if (selectedFile && !uploading) {
+  <div style="display: flex; gap: 12px; margin-top: 8px;">
+    <button mat-raised-button color="primary" (click)="upload()">
+      <mat-icon>upload</mat-icon> Import {{ selectedFile.name }}
+    </button>
+    <button mat-button (click)="onCancel()">Cancel</button>
+  </div>
+}

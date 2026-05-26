@@ -1,0 +1,721 @@
+openapi: 3.0.3
+info:
+  title: Wave 6 — Master Data API
+  version: "0.1.0"
+  description: |
+    Authority-separated CRUD for customers and items.
+
+    All endpoints require an authenticated session (Wave 5 JWT) in
+    OPERATIONAL_MODE with a non-null companyId. Admin Mode requests
+    are rejected with 403 / COMPANY_CONTEXT_REQUIRED.
+
+    The path parameter `companyId` MUST match the JWT's currentCompanyId;
+    a mismatch yields 401 / UNAUTHORIZED_CONTEXT. The active
+    authorityEnvironmentId is taken from the JWT and is never accepted
+    as a request parameter (FR-003).
+
+    Operational repositories enforce the (company_id, authority_environment_id)
+    filter on every query (Constitution XV.7; research Decision 1).
+
+servers:
+  - url: /api
+
+tags:
+  - name: ETA Customers
+  - name: ETA Items
+  - name: ZATCA Customers
+  - name: ZATCA Items
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CompanyIdPath:
+      name: companyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Must match JWT currentCompanyId; otherwise UNAUTHORIZED_CONTEXT.
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        default: name_en,asc
+      description: |
+        `field,asc|desc`. Allowed fields per resource: customers — `name_en`,
+        `name_ar`, `tax_number`/`vat_number`, `created_at`. Items — `name_en`,
+        `internal_code`, `created_at`.
+    SearchParam:
+      name: q
+      in: query
+      required: false
+      schema:
+        type: string
+      description: |
+        Substring match (case-insensitive). Customers: matched against
+        `name_en`, `name_ar`, `tax_number`/`vat_number`. Items: matched
+        against `name_en`, `name_ar`, `internal_code`. (FR-024, FR-025)
+    IncludeInactiveParam:
+      name: includeInactive
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+      description: |
+        When false (default), only `is_active=true` rows are returned.
+        When true, both active and inactive are returned (Decision 7).
+    CompanyFilterParam:
+      name: companyId
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: |
+        Optional filter by company within the user's assigned set
+        (FR-022). Without this parameter the list spans all assigned
+        companies in the active authority+environment.
+
+  schemas:
+    AddressDataEta:
+      type: object
+      additionalProperties: true
+      required: [country, governorate, regionCity, street, buildingNumber]
+      properties:
+        country: { type: string, example: "EG" }
+        governorate: { type: string, example: "Cairo" }
+        regionCity: { type: string, example: "Nasr City" }
+        street: { type: string }
+        buildingNumber: { type: string }
+        postalCode: { type: string }
+        floor: { type: string }
+        room: { type: string }
+        landmark: { type: string }
+        additionalInformation: { type: string }
+
+    AddressDataZatca:
+      type: object
+      additionalProperties: true
+      required: [streetName, buildingNumber, city, postalCode, districtName, country]
+      properties:
+        streetName: { type: string }
+        buildingNumber: { type: string }
+        additionalNumber: { type: string }
+        city: { type: string }
+        postalCode: { type: string }
+        districtName: { type: string }
+        country: { type: string, example: "SA" }
+
+    EtaCustomer:
+      type: object
+      required: [id, companyId, nameEn, addressData, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        customerType:
+          type: string
+          enum: [B, P, F]
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        taxNumber: { type: string, maxLength: 100, nullable: true }
+        idType: { type: string, maxLength: 50, nullable: true }
+        idValue: { type: string, maxLength: 100, nullable: true }
+        addressData: { $ref: '#/components/schemas/AddressDataEta' }
+        contactEmail: { type: string, format: email, nullable: true }
+        contactPhone: { type: string, maxLength: 50, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    EtaCustomerWriteRequest:
+      type: object
+      required: [nameEn, addressData]
+      properties:
+        customerType: { type: string, enum: [B, P, F] }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        taxNumber: { type: string, maxLength: 100, nullable: true }
+        idType: { type: string, maxLength: 50, nullable: true }
+        idValue: { type: string, maxLength: 100, nullable: true }
+        addressData: { $ref: '#/components/schemas/AddressDataEta' }
+        contactEmail: { type: string, format: email, nullable: true }
+        contactPhone: { type: string, maxLength: 50, nullable: true }
+        isActive: { type: boolean, default: true }
+
+    ZatcaCustomer:
+      type: object
+      required: [id, companyId, nameEn, addressData, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        customerType: { type: string, enum: [B, P] }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        vatNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: ZATCA business customers must provide a 15-digit number ending in 3.
+        idType: { type: string, maxLength: 50, nullable: true }
+        idValue: { type: string, maxLength: 100, nullable: true }
+        addressData: { $ref: '#/components/schemas/AddressDataZatca' }
+        contactEmail: { type: string, format: email, nullable: true }
+        contactPhone: { type: string, maxLength: 50, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ZatcaCustomerWriteRequest:
+      type: object
+      required: [nameEn, addressData]
+      properties:
+        customerType: { type: string, enum: [B, P] }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        vatNumber: { type: string, maxLength: 100, nullable: true }
+        idType: { type: string, maxLength: 50, nullable: true }
+        idValue: { type: string, maxLength: 100, nullable: true }
+        addressData: { $ref: '#/components/schemas/AddressDataZatca' }
+        contactEmail: { type: string, format: email, nullable: true }
+        contactPhone: { type: string, maxLength: 50, nullable: true }
+        isActive: { type: boolean, default: true }
+
+    EtaItem:
+      type: object
+      required: [id, companyId, internalCode, itemType, itemCode, nameEn, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        internalCode: { type: string, maxLength: 100 }
+        itemType: { type: string, enum: [GS1, EGS] }
+        itemCode: { type: string, maxLength: 100 }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        unitType: { type: string, maxLength: 50, nullable: true }
+        unitPrice: { type: number, format: double, nullable: true }
+        taxType: { type: string, maxLength: 30, nullable: true }
+        taxSubtype: { type: string, maxLength: 30, nullable: true }
+        taxRate: { type: number, format: double, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    EtaItemWriteRequest:
+      type: object
+      required: [internalCode, itemType, itemCode, nameEn]
+      properties:
+        internalCode: { type: string, maxLength: 100 }
+        itemType: { type: string, enum: [GS1, EGS] }
+        itemCode: { type: string, maxLength: 100 }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        unitType: { type: string, maxLength: 50, nullable: true }
+        unitPrice: { type: number, format: double, nullable: true, minimum: 0 }
+        taxType: { type: string, maxLength: 30, nullable: true }
+        taxSubtype: { type: string, maxLength: 30, nullable: true }
+        taxRate: { type: number, format: double, nullable: true, minimum: 0 }
+        isActive: { type: boolean, default: true }
+
+    ZatcaItem:
+      type: object
+      required: [id, companyId, internalCode, nameEn, vatCategory, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        internalCode: { type: string, maxLength: 100 }
+        itemCode: { type: string, maxLength: 100, nullable: true }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        unitType: { type: string, maxLength: 50, nullable: true }
+        unitPrice: { type: number, format: double, nullable: true }
+        vatCategory: { type: string, enum: [S, Z, E, O] }
+        vatRate: { type: number, format: double, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ZatcaItemWriteRequest:
+      type: object
+      required: [internalCode, nameEn, vatCategory]
+      properties:
+        internalCode: { type: string, maxLength: 100 }
+        itemCode: { type: string, maxLength: 100, nullable: true }
+        nameAr: { type: string, maxLength: 255, nullable: true }
+        nameEn: { type: string, maxLength: 255 }
+        unitType: { type: string, maxLength: 50, nullable: true }
+        unitPrice: { type: number, format: double, nullable: true, minimum: 0 }
+        vatCategory: { type: string, enum: [S, Z, E, O] }
+        vatRate: { type: number, format: double, nullable: true, minimum: 0 }
+        isActive: { type: boolean, default: true }
+
+    PageMeta:
+      type: object
+      required: [page, size, total]
+      properties:
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+
+    EtaCustomerListResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EtaCustomer' }
+        page: { $ref: '#/components/schemas/PageMeta' }
+
+    ZatcaCustomerListResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ZatcaCustomer' }
+        page: { $ref: '#/components/schemas/PageMeta' }
+
+    EtaItemListResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/EtaItem' }
+        page: { $ref: '#/components/schemas/PageMeta' }
+
+    ZatcaItemListResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ZatcaItem' }
+        page: { $ref: '#/components/schemas/PageMeta' }
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Validation or business-rule failure.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthenticated:
+      description: Token missing, invalid, or expired.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnauthorizedContext:
+      description: 401 UNAUTHORIZED_CONTEXT or COMPANY_CONTEXT_REQUIRED.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Authenticated user lacks required permission, or Admin Mode rejection.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource not found in the active tenant scope.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Uniqueness or constraint violation (DUPLICATE_*).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /companies/{companyId}/eta/customers:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+    get:
+      tags: [ETA Customers]
+      summary: List ETA customers in the active tenant scope
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/IncludeInactiveParam'
+        - $ref: '#/components/parameters/CompanyFilterParam'
+      responses:
+        '200':
+          description: Page of ETA customers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaCustomerListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ETA Customers]
+      summary: Create an ETA customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EtaCustomerWriteRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaCustomer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /companies/{companyId}/eta/customers/{customerId}:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+      - name: customerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [ETA Customers]
+      summary: Read one ETA customer
+      responses:
+        '200':
+          description: The customer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaCustomer' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ETA Customers]
+      summary: Update an ETA customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EtaCustomerWriteRequest' }
+      responses:
+        '200':
+          description: The updated customer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaCustomer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [ETA Customers]
+      summary: Hard-delete an ETA customer (Wave 6 — Q1)
+      description: |
+        In Wave 6 this is a true hard delete — the row is removed.
+        Wave 7 will introduce a pre-delete reference check that may
+        return 409 CUSTOMER_REFERENCED_BY_INVOICES.
+      responses:
+        '204':
+          description: Deleted.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /companies/{companyId}/eta/items:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+    get:
+      tags: [ETA Items]
+      summary: List ETA items
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/IncludeInactiveParam'
+        - $ref: '#/components/parameters/CompanyFilterParam'
+      responses:
+        '200':
+          description: Page of ETA items.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaItemListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ETA Items]
+      summary: Create an ETA item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EtaItemWriteRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /companies/{companyId}/eta/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [ETA Items]
+      summary: Read one ETA item
+      responses:
+        '200':
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ETA Items]
+      summary: Update an ETA item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EtaItemWriteRequest' }
+      responses:
+        '200':
+          description: The updated item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [ETA Items]
+      summary: Hard-delete an ETA item (Wave 6 — Q1)
+      responses:
+        '204':
+          description: Deleted.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /companies/{companyId}/zatca/customers:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+    get:
+      tags: [ZATCA Customers]
+      summary: List ZATCA customers
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/IncludeInactiveParam'
+        - $ref: '#/components/parameters/CompanyFilterParam'
+      responses:
+        '200':
+          description: Page of ZATCA customers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaCustomerListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ZATCA Customers]
+      summary: Create a ZATCA customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZatcaCustomerWriteRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaCustomer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /companies/{companyId}/zatca/customers/{customerId}:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+      - name: customerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [ZATCA Customers]
+      summary: Read one ZATCA customer
+      responses:
+        '200':
+          description: The customer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaCustomer' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ZATCA Customers]
+      summary: Update a ZATCA customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZatcaCustomerWriteRequest' }
+      responses:
+        '200':
+          description: The updated customer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaCustomer' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [ZATCA Customers]
+      summary: Hard-delete a ZATCA customer (Wave 6 — Q1)
+      responses:
+        '204':
+          description: Deleted.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /companies/{companyId}/zatca/items:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+    get:
+      tags: [ZATCA Items]
+      summary: List ZATCA items
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/IncludeInactiveParam'
+        - $ref: '#/components/parameters/CompanyFilterParam'
+      responses:
+        '200':
+          description: Page of ZATCA items.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaItemListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ZATCA Items]
+      summary: Create a ZATCA item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZatcaItemWriteRequest' }
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /companies/{companyId}/zatca/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+      - name: itemId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [ZATCA Items]
+      summary: Read one ZATCA item
+      responses:
+        '200':
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaItem' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ZATCA Items]
+      summary: Update a ZATCA item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZatcaItemWriteRequest' }
+      responses:
+        '200':
+          description: The updated item.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaItem' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [ZATCA Items]
+      summary: Hard-delete a ZATCA item (Wave 6 — Q1)
+      responses:
+        '204':
+          description: Deleted.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }

@@ -1,0 +1,141 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>Search</mat-label>
+    <input matInput [(ngModel)]="searchValue" (ngModelChange)="onSearch()" placeholder="Invoice number...">
+    <mat-icon matSuffix>search</mat-icon>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>Customer</mat-label>
+    <input matInput [(ngModel)]="buyerFilter" (ngModelChange)="onBuyerSearch()" placeholder="Buyer name...">
+    <mat-icon matSuffix>person_search</mat-icon>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="filter-select">
+    <mat-label>Status</mat-label>
+    <mat-select [(ngModel)]="statusFilter" (selectionChange)="onFilterChange()">
+      <mat-option value="">All</mat-option>
+      <mat-option value="DRAFT">Draft</mat-option>
+      <mat-option value="VALIDATED">Validated</mat-option>
+      <mat-option value="READY_FOR_SUBMISSION">Ready for Submission</mat-option>
+      <mat-option value="SUBMISSION_IN_PROGRESS">In Progress</mat-option>
+      <mat-option value="CLEARED">Cleared</mat-option>
+      <mat-option value="REPORTED">Reported</mat-option>
+      <mat-option value="ACCEPTED">Accepted</mat-option>
+      <mat-option value="IN_REVIEW">In Review</mat-option>
+      <mat-option value="REJECTED">Rejected</mat-option>
+      <mat-option value="FAILED_RETRYABLE">Failed (Retryable)</mat-option>
+      <mat-option value="FAILED_NON_RETRYABLE">Failed (Non-Retryable)</mat-option>
+      <mat-option value="SUBMISSION_AMBIGUOUS">Ambiguous</mat-option>
+      <mat-option value="CANCELLED">Cancelled</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="filter-select">
+    <mat-label>Type</mat-label>
+    <mat-select [(ngModel)]="typeFilter" (selectionChange)="onFilterChange()">
+      <mat-option value="">All</mat-option>
+      <mat-option value="TAX_INVOICE">Tax Invoice</mat-option>
+      <mat-option value="SIMPLIFIED_TAX_INVOICE">Simplified</mat-option>
+      <mat-option value="CREDIT_NOTE">Credit Note</mat-option>
+      <mat-option value="DEBIT_NOTE">Debit Note</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="filter-select">
+    <mat-label>Authority</mat-label>
+    <mat-select [(ngModel)]="authorityFilter" (selectionChange)="onFilterChange()">
+      <mat-option value="">All</mat-option>
+      <mat-option value="ZATCA">ZATCA</mat-option>
+      <mat-option value="ETA">ETA</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="date-field">
+    <mat-label>From</mat-label>
+    <input matInput [matDatepicker]="fromPicker" [(ngModel)]="dateFrom" (dateChange)="onFilterChange()">
+    <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+    <mat-datepicker #fromPicker></mat-datepicker>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="date-field">
+    <mat-label>To</mat-label>
+    <input matInput [matDatepicker]="toPicker" [(ngModel)]="dateTo" (dateChange)="onFilterChange()">
+    <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+    <mat-datepicker #toPicker></mat-datepicker>
+  </mat-form-field>
+  <span class="spacer"></span>
+  <button mat-raised-button color="primary" (click)="createInvoice.emit()" *appHasPermission="'CREATE_INVOICE'">
+    <mat-icon>add</mat-icon> New Invoice
+  </button>
+</div>
+
+<table mat-table [dataSource]="invoices">
+  <ng-container matColumnDef="invoiceNumber">
+    <th mat-header-cell *matHeaderCellDef>Invoice #</th>
+    <td mat-cell *matCellDef="let inv">{{ inv.invoiceNumber }}</td>
+  </ng-container>
+  <ng-container matColumnDef="type">
+    <th mat-header-cell *matHeaderCellDef>Type</th>
+    <td mat-cell *matCellDef="let inv">{{ inv.type }}</td>
+  </ng-container>
+  <ng-container matColumnDef="status">
+    <th mat-header-cell *matHeaderCellDef>Status</th>
+    <td mat-cell *matCellDef="let inv">
+      <app-status-badge [status]="inv.status"></app-status-badge>
+    </td>
+  </ng-container>
+  <ng-container matColumnDef="issueDate">
+    <th mat-header-cell *matHeaderCellDef>Issue Date</th>
+    <td mat-cell *matCellDef="let inv">{{ inv.issueDate }}</td>
+  </ng-container>
+  <ng-container matColumnDef="buyerName">
+    <th mat-header-cell *matHeaderCellDef>Buyer</th>
+    <td mat-cell *matCellDef="let inv">{{ inv.buyerName || '-' }}</td>
+  </ng-container>
+  <ng-container matColumnDef="totalWithVat">
+    <th mat-header-cell *matHeaderCellDef>Total</th>
+    <td mat-cell *matCellDef="let inv" class="amount">{{ inv.totalWithVat | number:'1.2-2' }}</td>
+  </ng-container>
+  <ng-container matColumnDef="authority">
+    <th mat-header-cell *matHeaderCellDef>Authority</th>
+    <td mat-cell *matCellDef="let inv">{{ inv.authority }}</td>
+  </ng-container>
+  <ng-container matColumnDef="actions">
+    <th mat-header-cell *matHeaderCellDef>Actions</th>
+    <td mat-cell *matCellDef="let inv">
+      <div class="actions">
+        <button mat-icon-button matTooltip="View" (click)="onView(inv)">
+          <mat-icon>visibility</mat-icon>
+        </button>
+        <ng-container *appHasPermission="'EDIT_INVOICE'">
+          @if (canEdit(inv.status)) {
+            <button mat-icon-button matTooltip="Edit" (click)="onEdit(inv)">
+              <mat-icon>edit</mat-icon>
+            </button>
+          }
+        </ng-container>
+        <ng-container *appHasPermission="'TRANSFER_INVOICE'">
+          @if (canSubmit(inv.status)) {
+            <button mat-icon-button color="primary" matTooltip="Submit" (click)="onSubmit(inv)">
+              <mat-icon>send</mat-icon>
+            </button>
+          }
+        </ng-container>
+        <ng-container *appHasPermission="'REFRESH_INVOICE'">
+          @if (canRetry(inv.status)) {
+            <button mat-icon-button color="accent" matTooltip="Retry" (click)="onRetry(inv)">
+              <mat-icon>refresh</mat-icon>
+            </button>
+          }
+        </ng-container>
+        <ng-container *appHasPermission="'DELETE_INVOICE'">
+          @if (canCancel(inv.status)) {
+            <button mat-icon-button color="warn" matTooltip="Cancel" (click)="onCancel(inv)">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          }
+        </ng-container>
+      </div>
+    </td>
+  </ng-container>
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>
+
+<mat-paginator [length]="totalElements" [pageSize]="pageSize" [pageIndex]="pageIndex"
+    (page)="onPageChange($event)"></mat-paginator>

@@ -1,0 +1,57 @@
+Wave 6 Baseline Verification — T001
+Branch: 007-wave6-master-data-configs
+Parent commit: 07d3b7f (feat: complete Wave 5 foundation refactor)
+Date: 2026-05-06
+
+## 1. Git state
+
+Branch: 007-wave6-master-data-configs
+Status: Working tree has uncommitted spec artifacts (expected — Phase 1 in progress).
+
+## 2. Maven build: mvn -q -DskipTests verify
+
+Result: PASS (exit code 0, no output with -q flag — clean build).
+
+All four modules compiled and packaged successfully:
+  - platform-core
+  - platform-security
+  - platform-api
+  - platform-jobs (or other existing modules)
+
+## 3. Frontend build: cd frontend && npm ci && npm run build
+
+Result: FAIL — pre-existing TypeScript errors in invoice-form/ components.
+
+npm ci: 1048 packages installed successfully.
+npm run build: Angular build FAILED with ~50 TS errors.
+
+All errors are in Wave 3/4 invoice-form components:
+  - src/app/invoices/invoice-form/invoice-form.component.ts (TS4111, TS2345)
+  - src/app/invoices/invoice-form/steps/buyer-step.component.ts (TS4111, TS2322)
+  - src/app/invoices/invoice-form/steps/buyer-step.component.html (NG1)
+  - src/app/invoices/invoice-form/steps/lines-step.component.ts (TS4111, TS2345, TS2322)
+  - src/app/invoices/invoice-form/steps/review-step.component.ts (TS4111, TS2345, TS2322)
+  - src/app/invoices/invoice-form/steps/review-step.component.html (NG1, NG9)
+
+Root cause: index-signature access on Record<string, unknown>[] types.
+These are NOT Wave 6 regressions — they exist in the Wave 5 baseline commit 07d3b7f.
+
+## 4. Flyway version collision discovered
+
+V44__bootstrap_super_user.sql (Wave 5) already exists in:
+  platform-core/src/main/resources/db/migration/V44__bootstrap_super_user.sql
+
+Wave 6 plan originally assumed V44/V45/V46 were free — collision detected during
+Phase 1 review. Resolution: renumber Wave 6 migrations to V45/V46/V47.
+
+## Summary
+
+| Check | Result |
+|-------|--------|
+| On correct branch | PASS |
+| Maven build | PASS |
+| Frontend build | FAIL (pre-existing, not Wave 6) |
+| Flyway version space | COLLISION — fixed by renumbering to V45/V46/V47 |
+
+Baseline captured for rollback comparison. Wave 6 code changes have NOT yet landed
+(no Java/TypeScript files created or modified — only documentation updates).
