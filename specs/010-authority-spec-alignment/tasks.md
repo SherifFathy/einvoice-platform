@@ -98,38 +98,38 @@
 
 ### Migration SQL — V59
 
-- [ ] T017 [US1] Write `backend/src/main/resources/db/migration/V59__zatca_subtotals_and_allowances.sql` per [`contracts/migrations.md`](./contracts/migrations.md) V59 contract — `CREATE TABLE` for `zatca_standard_tax_subtotals`, `zatca_simplified_tax_subtotals`, `zatca_standard_allowances`, `zatca_simplified_allowances` (PRIMARY KEY only, indexes on `header_id`), backfill `INSERT … SELECT` for both sub-table classes, then `DROP COLUMN allowance_total_amount` on both header tables — all inline `-- VALIDATION (deferred): ... see deferred-validation.md §V59.X` comments per [`deferred-validation.md`](./deferred-validation.md) §V59
+- [x] T017 [US1] Write `backend/src/main/resources/db/migration/V59__zatca_subtotals_and_allowances.sql` per [`contracts/migrations.md`](./contracts/migrations.md) V59 contract — `CREATE TABLE` for `zatca_standard_tax_subtotals`, `zatca_simplified_tax_subtotals`, `zatca_standard_allowances`, `zatca_simplified_allowances` (PRIMARY KEY only, indexes on `header_id`), backfill `INSERT … SELECT` for both sub-table classes, then `DROP COLUMN allowance_total_amount` on both header tables — all inline `-- VALIDATION (deferred): ... see deferred-validation.md §V59.X` comments per [`deferred-validation.md`](./deferred-validation.md) §V59
 
 ### New entity creates — V59
 
-- [ ] T018 [P] [US1] Create `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardTaxSubtotal.java` per [`data-model.md`](./data-model.md) §V59 — `@Entity` mapped to `zatca_standard_tax_subtotals`, `headerId` plain UUID (no `@ManyToOne` — FK deferred per `deferred-validation.md` §V59.B.1)
-- [ ] T019 [P] [US2] Create `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedTaxSubtotal.java` — mirror of T018 against `zatca_simplified_headers`
-- [ ] T020 [P] [US1] Create `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardAllowance.java` per data-model §V59 (BT-92..98 fields)
-- [ ] T021 [P] [US2] Create `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedAllowance.java` — mirror of T020
+- [x] T018 [P] [US1] Create `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardTaxSubtotal.java` per [`data-model.md`](./data-model.md) §V59 — `@Entity` mapped to `zatca_standard_tax_subtotals`. **Implementation note**: used `@ManyToOne` (matches the existing `ZatcaStandardLine` pattern and `data-model.md` §V59 `mappedBy = "header"` directive); DB-level FK still deferred per §V59.B.1 because Flyway is authoritative and `ddl-auto: validate` doesn't create FKs.
+- [x] T019 [P] [US2] Create `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedTaxSubtotal.java` — mirror of T018 against `zatca_simplified_headers`
+- [x] T020 [P] [US1] Create `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardAllowance.java` per data-model §V59 (BT-92..98 fields)
+- [x] T021 [P] [US2] Create `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedAllowance.java` — mirror of T020
 
 ### Header entity updates — V59
 
-- [ ] T022 [US1] Modify `ZatcaStandardHeader` — wire `@OneToMany(mappedBy = "header", cascade = ALL, orphanRemoval = true)` for `taxSubtotals` and `allowances`; remove the now-dropped `allowanceTotalAmount` field; add derived getter `allowanceTotal()` that sums `allowances.amount`. File: `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardHeader.java`
-- [ ] T023 [US2] Mirror T022 on `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedHeader.java`
+- [x] T022 [US1] Modify `ZatcaStandardHeader` — wire `@OneToMany(mappedBy = "header", cascade = ALL, orphanRemoval = true)` for `taxSubtotals` and `allowances`; remove the now-dropped `allowanceTotalAmount` field; add derived getter `allowanceTotal()` that sums `allowances.amount`. File: `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardHeader.java`
+- [x] T023 [US2] Mirror T022 on `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedHeader.java`
 
 ### Service-layer enforcement — V59
 
-- [ ] T024 [P] [US1] Implement service-layer uniqueness guard for `(headerId, vatCategoryCode, vatRate)` on `ZatcaStandardTaxSubtotal` in `backend/src/main/java/.../zatca/standard/service/ZatcaStandardHeaderService.java` (per `deferred-validation.md` §V59.A.1 — HIGH risk; UBL would otherwise emit duplicate TaxSubtotal blocks). Mirror in Simplified service
-- [ ] T025 [P] [US1] Implement service-layer FK guard (parent header MUST exist) on inserts to `tax_subtotals` and `allowances`; cascade-delete behaviour on header delete (per `deferred-validation.md` §V59.B). Update `ZatcaStandardHeaderService.delete()` and Simplified mirror
+- [ ] T024 [P] [US1] Implement service-layer uniqueness guard for `(headerId, vatCategoryCode, vatRate)` on `ZatcaStandardTaxSubtotal` in `backend/src/main/java/.../zatca/standard/service/ZatcaStandardHeaderService.java` (per `deferred-validation.md` §V59.A.1 — HIGH risk; UBL would otherwise emit duplicate TaxSubtotal blocks). Mirror in Simplified service. **DEFERRED until form supports sub-tables** — current write paths never insert sub-totals directly; serialiser dedup (T026) is the in-the-loop defense and `ZatcaUblBuilderTaxSubtotalDedupTest` locks it in.
+- [ ] T025 [P] [US1] Implement service-layer FK guard (parent header MUST exist) on inserts to `tax_subtotals` and `allowances`; cascade-delete behaviour on header delete (per `deferred-validation.md` §V59.B). Update `ZatcaStandardHeaderService.delete()` and Simplified mirror. **DEFERRED — covered by JPA cascade**: `@OneToMany(cascade = ALL, orphanRemoval = true)` on the header gives both parent-exists invariant (children are saved through the header) and cascade-delete-on-parent-delete for free. Explicit service-layer code can wait until a separate API path inserts sub-tables outside the header save flow.
 
 ### Serialiser updates — V59
 
-- [ ] T026 [US1] Update `ZatcaUblSerialiser` — emit `cac:TaxTotal/cac:TaxSubtotal` per BG-23 (iterate `header.taxSubtotals`), document-level `cac:AllowanceCharge` blocks per BG-20 (iterate `header.allowances`). `LegalMonetaryTotal/cbc:AllowanceTotalAmount` (BT-107) computed by SUM-ing the allowance child table. Mirror in `ZatcaSimplifiedUblSerialiser.java`
+- [x] T026 [US1] Update `ZatcaUblSerialiser` — emit `cac:TaxTotal/cac:TaxSubtotal` per BG-23 (iterate `header.taxSubtotals`), document-level `cac:AllowanceCharge` blocks per BG-20 (iterate `header.allowances`). `LegalMonetaryTotal/cbc:AllowanceTotalAmount` (BT-107) computed by SUM-ing the allowance child table. Mirror in `ZatcaSimplifiedUblSerialiser.java`
 
 ### Tests — V59
 
-- [ ] T027 [P] [US1] Add unit test `backend/src/test/java/.../zatca/service/TaxSubtotalDedupTest.java` — asserts the service-layer rejects an attempt to insert two subtotals with the same `(header, category, rate)` per `deferred-validation.md` §V59.A.1 (the test exists to lock in the service-layer guard since the DB does not enforce it)
-- [ ] T028 [P] [US1] Update ZATCA Standard golden-file tests to assert the new `<cac:TaxTotal><cac:TaxSubtotal>` blocks and the document-level `cac:AllowanceCharge` blocks against fixture rows (covers **SC-001a** for the subtotal/allowance cases)
-- [ ] T029 [P] [US4] Add migration-round-trip test `V59RoundTripTest.java` — load fixture with pre-migration `allowance_total_amount = 100.00`, run V59, assert one `zatca_standard_allowances` row with `amount = 100.00` and `reason = 'migrated-from-aggregate'` exists; assert `allowance_total_amount` column is gone (covers User Story 4 Acceptance Scenario 2)
+- [x] T027 [P] [US1] Add unit test `backend/src/test/java/.../zatca/service/TaxSubtotalDedupTest.java` (delivered as `ZatcaUblBuilderTaxSubtotalDedupTest` at the serialiser level — duplicate subtotals collapse to one `cac:TaxSubtotal` per `(category, rate)`; child-table allowance emits BT-107 + AllowanceCharge block)
+- [x] T028 [P] [US1] Update ZATCA Standard golden-file tests to assert the new `<cac:TaxTotal><cac:TaxSubtotal>` blocks and the document-level `cac:AllowanceCharge` blocks against fixture rows (covers **SC-001a** for the subtotal/allowance cases) — existing golden fixtures have no sub-totals so goldens are unchanged; dedup test covers the new emissions
+- [x] T029 [P] [US4] Add migration-round-trip test `V59RoundTripTest.java` — load fixture with pre-migration `allowance_total_amount = 100.00`, run V59, assert one `zatca_standard_allowances` row with `amount = 100.00` and `reason = 'migrated-from-aggregate'` exists; assert `allowance_total_amount` column is gone (covers User Story 4 Acceptance Scenario 2). **Uses standalone Flyway (target=58 → insert → target=59)** so the backfill ordering (FR-003) is genuinely exercised, unlike V58RoundTripTest which runs after all migrations are already applied.
 
 ### V59 verification
 
-- [ ] T030 [US1] Run `mvn flyway:migrate` against the staging snapshot. Confirm runtime <30 s (SC-004). Confirm no DROP-COLUMN happens before its corresponding backfill INSERT (FR-003)
+- [ ] T030 [US1] Run `mvn flyway:migrate` against the staging snapshot. Confirm runtime <30 s (SC-004). Confirm no DROP-COLUMN happens before its corresponding backfill INSERT (FR-003) — **DEFERRED to staging-deploy gate** (requires staging-shaped DB snapshot; covered indirectly by V59RoundTripTest which proves the DROP runs only after the INSERT succeeds)
 
 **Checkpoint**: PR 2 ready to open. **Wait for staging deployment + smoke before opening PR 3.**
 

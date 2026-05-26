@@ -207,7 +207,7 @@ public class ZatcaStandardFormMapper {
                 header.getBuyerCountryCode(),
                 header.getCurrency(), header.getTaxCurrency(),
                 header.getLineExtensionAmount(),
-                header.getAllowanceTotalAmount(),
+                header.allowanceTotal(),
                 header.getTaxExclusiveAmount(), header.getTaxAmount(),
                 header.getTaxAmountAccountingCurrency(),
                 header.getTaxInclusiveAmount(), header.getPrepaidAmount(),

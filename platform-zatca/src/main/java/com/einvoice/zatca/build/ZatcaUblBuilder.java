@@ -1,13 +1,20 @@
 package com.einvoice.zatca.build;
 
+import com.einvoice.core.domain.zatca.ZatcaSimplifiedAllowance;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedLine;
+import com.einvoice.core.domain.zatca.ZatcaSimplifiedTaxSubtotal;
+import com.einvoice.core.domain.zatca.ZatcaStandardAllowance;
 import com.einvoice.core.domain.zatca.ZatcaStandardHeader;
 import com.einvoice.core.domain.zatca.ZatcaStandardLine;
+import com.einvoice.core.domain.zatca.ZatcaStandardTaxSubtotal;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -114,6 +121,15 @@ public class ZatcaUblBuilder {
             sb.append("</cac:PaymentMeans>");
         }
 
+        if (header.getAllowances() != null) {
+            for (ZatcaStandardAllowance a : header.getAllowances()) {
+                appendDocumentAllowance(a.getAmount(), a.getBaseAmount(),
+                        a.getPercentage(), a.getReason(), a.getReasonCode(),
+                        a.getVatCategoryCode(), a.getVatRate(),
+                        header.getCurrency(), sb);
+            }
+        }
+
         sb.append("<cac:LegalMonetaryTotal>");
         appendAmount("cbc:LineExtensionAmount",
                 header.getLineExtensionAmount(),
@@ -125,7 +141,7 @@ public class ZatcaUblBuilder {
                 header.getTaxInclusiveAmount(),
                 header.getCurrency(), sb);
         appendAmount("cbc:AllowanceTotalAmount",
-                header.getAllowanceTotalAmount(),
+                header.allowanceTotal(),
                 header.getCurrency(), sb);
         appendAmount("cbc:PrepaidAmount", header.getPrepaidAmount(),
                 header.getCurrency(), sb);
@@ -146,6 +162,16 @@ public class ZatcaUblBuilder {
             sb.append("<cac:TaxTotal>");
             appendAmount("cbc:TaxAmount", header.getTaxAmount(),
                     header.getCurrency(), sb);
+            for (Map.Entry<String, ZatcaStandardTaxSubtotal> e
+                    : dedupStandardSubtotals(header.getTaxSubtotals())
+                            .entrySet()) {
+                ZatcaStandardTaxSubtotal s = e.getValue();
+                appendTaxSubtotal(s.getTaxableAmount(), s.getTaxAmount(),
+                        s.getVatCategoryCode(), s.getVatRate(),
+                        s.getExemptionReasonCode(),
+                        s.getExemptionReasonText(),
+                        header.getCurrency(), sb);
+            }
             sb.append("</cac:TaxTotal>");
         }
 
@@ -262,6 +288,15 @@ public class ZatcaUblBuilder {
             sb.append("</cac:PaymentMeans>");
         }
 
+        if (header.getAllowances() != null) {
+            for (ZatcaSimplifiedAllowance a : header.getAllowances()) {
+                appendDocumentAllowance(a.getAmount(), a.getBaseAmount(),
+                        a.getPercentage(), a.getReason(), a.getReasonCode(),
+                        a.getVatCategoryCode(), a.getVatRate(),
+                        header.getCurrency(), sb);
+            }
+        }
+
         sb.append("<cac:LegalMonetaryTotal>");
         appendAmount("cbc:LineExtensionAmount",
                 header.getLineExtensionAmount(),
@@ -273,7 +308,7 @@ public class ZatcaUblBuilder {
                 header.getTaxInclusiveAmount(),
                 header.getCurrency(), sb);
         appendAmount("cbc:AllowanceTotalAmount",
-                header.getAllowanceTotalAmount(),
+                header.allowanceTotal(),
                 header.getCurrency(), sb);
         appendAmount("cbc:PrepaidAmount", header.getPrepaidAmount(),
                 header.getCurrency(), sb);
@@ -294,6 +329,16 @@ public class ZatcaUblBuilder {
             sb.append("<cac:TaxTotal>");
             appendAmount("cbc:TaxAmount", header.getTaxAmount(),
                     header.getCurrency(), sb);
+            for (Map.Entry<String, ZatcaSimplifiedTaxSubtotal> e
+                    : dedupSimplifiedSubtotals(header.getTaxSubtotals())
+                            .entrySet()) {
+                ZatcaSimplifiedTaxSubtotal s = e.getValue();
+                appendTaxSubtotal(s.getTaxableAmount(), s.getTaxAmount(),
+                        s.getVatCategoryCode(), s.getVatRate(),
+                        s.getExemptionReasonCode(),
+                        s.getExemptionReasonText(),
+                        header.getCurrency(), sb);
+            }
             sb.append("</cac:TaxTotal>");
         }
 
@@ -610,5 +655,113 @@ public class ZatcaUblBuilder {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&apos;");
+    }
+
+    private void appendDocumentAllowance(BigDecimal amount,
+            BigDecimal baseAmount, BigDecimal percentage, String reason,
+            String reasonCode, String vatCategoryCode, BigDecimal vatRate,
+            String currency, StringBuilder sb) {
+        sb.append("<cac:AllowanceCharge>");
+        sb.append("<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+        if (reasonCode != null) {
+            sb.append("<cbc:AllowanceChargeReasonCode>")
+                    .append(esc(reasonCode))
+                    .append("</cbc:AllowanceChargeReasonCode>");
+        }
+        if (reason != null) {
+            sb.append("<cbc:AllowanceChargeReason>")
+                    .append(esc(reason))
+                    .append("</cbc:AllowanceChargeReason>");
+        }
+        if (percentage != null) {
+            sb.append("<cbc:MultiplierFactorNumeric>")
+                    .append(percentage.toPlainString())
+                    .append("</cbc:MultiplierFactorNumeric>");
+        }
+        appendAmount("cbc:Amount", amount, currency, sb);
+        if (baseAmount != null) {
+            appendAmount("cbc:BaseAmount", baseAmount, currency, sb);
+        }
+        if (vatCategoryCode != null) {
+            sb.append("<cac:TaxCategory>");
+            sb.append("<cbc:ID>").append(esc(vatCategoryCode))
+                    .append("</cbc:ID>");
+            if (vatRate != null) {
+                sb.append("<cbc:Percent>")
+                        .append(vatRate.toPlainString())
+                        .append("</cbc:Percent>");
+            }
+            sb.append("<cac:TaxScheme>");
+            sb.append("<cbc:ID>VAT</cbc:ID>");
+            sb.append("</cac:TaxScheme>");
+            sb.append("</cac:TaxCategory>");
+        }
+        sb.append("</cac:AllowanceCharge>");
+    }
+
+    private void appendTaxSubtotal(BigDecimal taxableAmount,
+            BigDecimal taxAmount, String vatCategoryCode, BigDecimal vatRate,
+            String exemptionReasonCode, String exemptionReasonText,
+            String currency, StringBuilder sb) {
+        sb.append("<cac:TaxSubtotal>");
+        appendAmount("cbc:TaxableAmount", taxableAmount, currency, sb);
+        appendAmount("cbc:TaxAmount", taxAmount, currency, sb);
+        sb.append("<cac:TaxCategory>");
+        if (vatCategoryCode != null) {
+            sb.append("<cbc:ID>").append(esc(vatCategoryCode))
+                    .append("</cbc:ID>");
+        }
+        if (vatRate != null) {
+            sb.append("<cbc:Percent>")
+                    .append(vatRate.toPlainString())
+                    .append("</cbc:Percent>");
+        }
+        if (exemptionReasonCode != null) {
+            sb.append("<cbc:TaxExemptionReasonCode>")
+                    .append(esc(exemptionReasonCode))
+                    .append("</cbc:TaxExemptionReasonCode>");
+        }
+        if (exemptionReasonText != null) {
+            sb.append("<cbc:TaxExemptionReason>")
+                    .append(esc(exemptionReasonText))
+                    .append("</cbc:TaxExemptionReason>");
+        }
+        sb.append("<cac:TaxScheme>");
+        sb.append("<cbc:ID>VAT</cbc:ID>");
+        sb.append("</cac:TaxScheme>");
+        sb.append("</cac:TaxCategory>");
+        sb.append("</cac:TaxSubtotal>");
+    }
+
+    private Map<String, ZatcaStandardTaxSubtotal> dedupStandardSubtotals(
+            List<ZatcaStandardTaxSubtotal> rows) {
+        Map<String, ZatcaStandardTaxSubtotal> out = new LinkedHashMap<>();
+        if (rows == null) {
+            return out;
+        }
+        for (ZatcaStandardTaxSubtotal s : rows) {
+            String key = subtotalKey(s.getVatCategoryCode(), s.getVatRate());
+            out.putIfAbsent(key, s);
+        }
+        return out;
+    }
+
+    private Map<String, ZatcaSimplifiedTaxSubtotal> dedupSimplifiedSubtotals(
+            List<ZatcaSimplifiedTaxSubtotal> rows) {
+        Map<String, ZatcaSimplifiedTaxSubtotal> out = new LinkedHashMap<>();
+        if (rows == null) {
+            return out;
+        }
+        for (ZatcaSimplifiedTaxSubtotal s : rows) {
+            String key = subtotalKey(s.getVatCategoryCode(), s.getVatRate());
+            out.putIfAbsent(key, s);
+        }
+        return out;
+    }
+
+    private String subtotalKey(String vatCategoryCode, BigDecimal vatRate) {
+        return Objects.toString(vatCategoryCode, "") + "|"
+                + (vatRate == null ? "" : vatRate.stripTrailingZeros()
+                        .toPlainString());
     }
 }

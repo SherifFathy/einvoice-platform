@@ -176,10 +176,6 @@ public class ZatcaSimplifiedHeader {
     @Builder.Default
     private BigDecimal lineExtensionAmount = BigDecimal.ZERO;
 
-    @Column(name = "allowance_total_amount", nullable = false, precision = 18, scale = 2)
-    @Builder.Default
-    private BigDecimal allowanceTotalAmount = BigDecimal.ZERO;
-
     @Column(name = "tax_exclusive_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default
     private BigDecimal taxExclusiveAmount = BigDecimal.ZERO;
@@ -249,4 +245,19 @@ public class ZatcaSimplifiedHeader {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "header")
     @Builder.Default
     private List<ZatcaSimplifiedLine> lines = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "header")
+    @Builder.Default
+    private List<ZatcaSimplifiedTaxSubtotal> taxSubtotals = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "header")
+    @Builder.Default
+    private List<ZatcaSimplifiedAllowance> allowances = new ArrayList<>();
+
+    public BigDecimal allowanceTotal() {
+        return allowances.stream()
+                .map(ZatcaSimplifiedAllowance::getAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

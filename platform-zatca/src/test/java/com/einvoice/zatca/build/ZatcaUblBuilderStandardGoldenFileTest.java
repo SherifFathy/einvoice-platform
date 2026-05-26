@@ -144,7 +144,7 @@ class ZatcaUblBuilderStandardGoldenFileTest {
         header.setTaxInclusiveAmount(new BigDecimal("345.00"));
         header.setPayableAmount(new BigDecimal("345.00"));
         header.setPrepaidAmount(BigDecimal.ZERO);
-        header.setAllowanceTotalAmount(BigDecimal.ZERO);
+        
         header.setStatus(DocumentState.DRAFT);
         header.setLines(new ArrayList<>());
         return header;

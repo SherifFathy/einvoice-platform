@@ -278,8 +278,6 @@ public class ZatcaStandardService {
                         .taxCurrency(source.getTaxCurrency())
                         .lineExtensionAmount(
                                 source.getLineExtensionAmount())
-                        .allowanceTotalAmount(
-                                source.getAllowanceTotalAmount())
                         .taxExclusiveAmount(source.getTaxExclusiveAmount())
                         .taxAmount(source.getTaxAmount())
                         .taxAmountAccountingCurrency(
@@ -365,8 +363,6 @@ public class ZatcaStandardService {
         }
 
         header.setLineExtensionAmount(ZatcaMoneyMath.round2(lineExtSum));
-        header.setAllowanceTotalAmount(
-                ZatcaMoneyMath.round2(allowanceSum));
         header.setTaxExclusiveAmount(ZatcaMoneyMath.round2(
                 lineExtSum.subtract(allowanceSum)));
         header.setTaxAmount(ZatcaMoneyMath.round2(vatSum));
