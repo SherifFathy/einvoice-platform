@@ -108,6 +108,11 @@ public class ZatcaStandardLine {
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
+    /**
+     * Returns the sum of line-level allowance amounts.
+     *
+     * @return the summed amount, or {@link BigDecimal#ZERO} when there are no allowances
+     */
     public BigDecimal allowanceTotal() {
         return allowances.stream()
                 .map(ZatcaStandardLineAllowance::getAmount)

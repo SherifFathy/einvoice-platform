@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
+/** Per-line allowance row tied to a ZATCA Simplified invoice line (BG-27). */
 @Entity
 @Table(name = "zatca_simplified_line_allowances")
 @Getter

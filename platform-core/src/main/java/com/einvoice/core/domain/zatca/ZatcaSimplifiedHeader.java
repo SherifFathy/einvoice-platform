@@ -266,6 +266,11 @@ public class ZatcaSimplifiedHeader {
     @Builder.Default
     private List<ZatcaSimplifiedAllowance> allowances = new ArrayList<>();
 
+    /**
+     * Returns the sum of header-level allowance amounts.
+     *
+     * @return the summed amount, or {@link BigDecimal#ZERO} when there are no allowances
+     */
     public BigDecimal allowanceTotal() {
         return allowances.stream()
                 .map(ZatcaSimplifiedAllowance::getAmount)

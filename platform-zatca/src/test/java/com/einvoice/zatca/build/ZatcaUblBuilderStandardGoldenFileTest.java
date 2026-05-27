@@ -105,7 +105,7 @@ class ZatcaUblBuilderStandardGoldenFileTest {
     @Test
     void standardLine_emitsFullPriceBlock_withBaseQuantity()
             throws IOException {
-        ZatcaStandardHeader header = buildStandardHeader("0100000", "388");
+        final ZatcaStandardHeader header = buildStandardHeader("0100000", "388");
         ZatcaStandardLine line = new ZatcaStandardLine();
         line.setLineNumber(1);
         line.setItemCode("ITEM-001");

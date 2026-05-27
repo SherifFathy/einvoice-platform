@@ -1,5 +1,6 @@
 package com.einvoice.core.domain.eta;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,7 +15,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
