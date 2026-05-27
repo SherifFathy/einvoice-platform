@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedLine;
+import com.einvoice.core.domain.zatca.ZatcaSimplifiedLineAllowance;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -132,6 +133,46 @@ class ZatcaUblBuilderSimplifiedGoldenFileTest {
         assertThat(xml).contains("</cbc:DocumentCurrencyCode>");
         assertThat(xml).contains("<cbc:TaxCurrencyCode>");
         assertThat(xml).contains("</cbc:TaxCurrencyCode>");
+    }
+
+    @Test
+    void simplifiedLine_emitsFullPriceBlock_withBaseQuantity()
+            throws IOException {
+        ZatcaSimplifiedHeader header = buildSimplifiedHeader(
+                "0200000", "388");
+        header.setBuyerData(null);
+        ZatcaSimplifiedLine line = new ZatcaSimplifiedLine();
+        line.setLineNumber(1);
+        line.setItemCode("ITEM-001");
+        line.setDescription("Retail item with allowance");
+        line.setUnitType("PCE");
+        line.setQuantity(new BigDecimal("3.00000"));
+        line.setItemNetPrice(new BigDecimal("50.00000"));
+        line.setItemPriceBaseQuantity(new BigDecimal("1"));
+        line.setLineExtensionAmount(new BigDecimal("130.00"));
+        line.setNetAmount(new BigDecimal("130.00"));
+        line.setVatInclusiveAmount(new BigDecimal("149.50"));
+        line.setVatAmount(new BigDecimal("19.50"));
+        line.setVatCategoryCode("S");
+        line.setVatRate(new BigDecimal("15.00"));
+        ZatcaSimplifiedLineAllowance allowance =
+                ZatcaSimplifiedLineAllowance.builder()
+                        .sequence((short) 1)
+                        .amount(new BigDecimal("20.00"))
+                        .reason("Loyalty discount")
+                        .build();
+        line.setAllowances(List.of(allowance));
+        header.setLines(List.of(line));
+
+        byte[] result = builder.buildSimplifiedUbl(header);
+        String xml = new String(result, StandardCharsets.UTF_8);
+        assertThat(xml).contains(
+                "<cbc:BaseQuantity unitCode=\"PCE\">1</cbc:BaseQuantity>");
+        assertThat(xml).contains(
+                "<cbc:AllowanceChargeReason>Loyalty discount"
+                        + "</cbc:AllowanceChargeReason>");
+        assertThat(xml).contains("<cbc:RoundingAmount>");
+        assertThat(xml).contains("149.50</cbc:RoundingAmount>");
     }
 
     private static final UUID FIXED_SIMPLIFIED_HEADER_ID =

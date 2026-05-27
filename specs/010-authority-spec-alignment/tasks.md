@@ -162,14 +162,14 @@
 
 ### Serialiser updates — V60
 
-- [ ] T038 [US1] Update `ZatcaUblSerialiser.line()` — emit `cac:Price/cbc:PriceAmount` (BT-146 from `itemNetPrice`), `cac:Price/cbc:BaseQuantity` (BT-149), `cac:Price/cac:AllowanceCharge` blocks (BT-147/148), line-level `cac:AllowanceCharge` blocks from `line.allowances`, `cac:TaxTotal/cbc:RoundingAmount` (KSA-12 from `vatInclusiveAmount`). Mirror in `ZatcaSimplifiedUblSerialiser`. File: `backend/src/main/java/.../zatca/standard/service/ZatcaUblSerialiser.java`
-- [ ] T039 [P] [US3] Update `backend/src/main/java/.../eta/receipt/service/EtaReceiptSerialiser.java` `line()` method — emit `unitPrice` scalar, `commercialDiscountData` and `itemDiscountData` arrays per `Docs/eta-receipt-sdk-v1-2-alignment.md` §10 sample (the line-level half of v1.2)
+- [x] T038 [US1] Update `ZatcaUblSerialiser.line()` — emit `cac:Price/cbc:PriceAmount` (BT-146 from `itemNetPrice`), `cac:Price/cbc:BaseQuantity` (BT-149), `cac:Price/cac:AllowanceCharge` blocks (BT-147/148), line-level `cac:AllowanceCharge` blocks from `line.allowances`, `cac:TaxTotal/cbc:RoundingAmount` (KSA-12 from `vatInclusiveAmount`). Mirror in `ZatcaSimplifiedUblSerialiser`. File: `backend/src/main/java/.../zatca/standard/service/ZatcaUblSerialiser.java`
+- [x] T039 [P] [US3] Update `backend/src/main/java/.../eta/receipt/service/EtaReceiptSerialiser.java` `line()` method — emit `unitPrice` scalar, `commercialDiscountData` and `itemDiscountData` arrays per `Docs/eta-receipt-sdk-v1-2-alignment.md` §10 sample (the line-level half of v1.2)
 
 ### Tests — V60
 
-- [ ] T040 [P] [US1] Update ZATCA Standard golden-file tests to assert the new `<cac:Price>` block contents, `<cbc:BaseQuantity>1</cbc:BaseQuantity>` default, and KSA-12 emission (covers **SC-001a** for the line-block case)
-- [ ] T041 [P] [US3] Update ETA Receipt golden-file tests for v1.2 line shape — `itemData[].unitPrice` scalar, `commercialDiscountData` / `itemDiscountData` arrays (completes **SC-003a**)
-- [ ] T042 [P] [US4] Add migration-round-trip test `V60RoundTripTest.java` — pre-migration line with `unit_price = 25.50` ends up as `item_net_price = 25.50` and `item_price_base_quantity = 1` (User Story 4 Acceptance Scenario 3); pre-migration ETA receipt line with `unit_value.amountSold = 50` ends up with `unit_price = 50` for non-EGP currency
+- [x] T040 [P] [US1] Update ZATCA Standard golden-file tests to assert the new `<cac:Price>` block contents, `<cbc:BaseQuantity>1</cbc:BaseQuantity>` default, and KSA-12 emission (covers **SC-001a** for the line-block case)
+- [x] T041 [P] [US3] Update ETA Receipt golden-file tests for v1.2 line shape — `itemData[].unitPrice` scalar, `commercialDiscountData` / `itemDiscountData` arrays (completes **SC-003a**)
+- [x] T042 [P] [US4] Add migration-round-trip test `V60RoundTripTest.java` — pre-migration line with `unit_price = 25.50` ends up as `item_net_price = 25.50` and `item_price_base_quantity = 1` (User Story 4 Acceptance Scenario 3); pre-migration ETA receipt line with `unit_value.amountSold = 50` ends up with `unit_price = 50` for non-EGP currency
 
 ### V60 verification
 

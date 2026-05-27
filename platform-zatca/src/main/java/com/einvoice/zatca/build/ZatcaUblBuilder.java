@@ -581,7 +581,56 @@ public class ZatcaUblBuilder {
         sb.append("<cac:Price>");
         appendAmount("cbc:PriceAmount", line.getItemNetPrice(), currency,
                 sb);
+        sb.append("<cbc:BaseQuantity");
+        if (line.getUnitType() != null && !line.getUnitType().isBlank()) {
+            sb.append(" unitCode=\"").append(esc(line.getUnitType()))
+                    .append("\"");
+        }
+        sb.append(">");
+        sb.append(line.getItemPriceBaseQuantity() != null
+                ? line.getItemPriceBaseQuantity().toPlainString() : "1");
+        sb.append("</cbc:BaseQuantity>");
+        if (line.getItemPriceDiscount() != null
+                && line.getItemPriceDiscount()
+                        .compareTo(BigDecimal.ZERO) > 0) {
+            sb.append("<cac:AllowanceCharge>");
+            sb.append("<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+            appendAmount("cbc:Amount",
+                    line.getItemPriceDiscount(), currency, sb);
+            appendAmount("cbc:BaseAmount",
+                    line.getItemGrossPrice() != null
+                            ? line.getItemGrossPrice()
+                            : line.getItemNetPrice(),
+                    currency, sb);
+            sb.append("</cac:AllowanceCharge>");
+        }
         sb.append("</cac:Price>");
+
+        if (line.getAllowances() != null
+                && !line.getAllowances().isEmpty()) {
+            for (var allowance : line.getAllowances()) {
+                sb.append("<cac:AllowanceCharge>");
+                sb.append(
+                        "<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+                if (allowance.getReason() != null) {
+                    sb.append("<cbc:AllowanceChargeReason>")
+                            .append(esc(allowance.getReason()))
+                            .append("</cbc:AllowanceChargeReason>");
+                }
+                if (allowance.getPercentage() != null) {
+                    sb.append("<cbc:MultiplierFactorNumeric>")
+                            .append(allowance.getPercentage().toPlainString())
+                            .append("</cbc:MultiplierFactorNumeric>");
+                }
+                appendAmount("cbc:Amount", allowance.getAmount(), currency,
+                        sb);
+                if (allowance.getBaseAmount() != null) {
+                    appendAmount("cbc:BaseAmount",
+                            allowance.getBaseAmount(), currency, sb);
+                }
+                sb.append("</cac:AllowanceCharge>");
+            }
+        }
 
         if (line.getVatAmount() != null
                 && line.getVatAmount()
@@ -589,6 +638,10 @@ public class ZatcaUblBuilder {
             sb.append("<cac:TaxTotal>");
             appendAmount("cbc:TaxAmount", line.getVatAmount(), currency,
                     sb);
+            if (line.getVatInclusiveAmount() != null) {
+                appendAmount("cbc:RoundingAmount",
+                        line.getVatInclusiveAmount(), currency, sb);
+            }
             sb.append("</cac:TaxTotal>");
         }
 
@@ -620,7 +673,56 @@ public class ZatcaUblBuilder {
         sb.append("<cac:Price>");
         appendAmount("cbc:PriceAmount", line.getItemNetPrice(), currency,
                 sb);
+        sb.append("<cbc:BaseQuantity");
+        if (line.getUnitType() != null && !line.getUnitType().isBlank()) {
+            sb.append(" unitCode=\"").append(esc(line.getUnitType()))
+                    .append("\"");
+        }
+        sb.append(">");
+        sb.append(line.getItemPriceBaseQuantity() != null
+                ? line.getItemPriceBaseQuantity().toPlainString() : "1");
+        sb.append("</cbc:BaseQuantity>");
+        if (line.getItemPriceDiscount() != null
+                && line.getItemPriceDiscount()
+                        .compareTo(BigDecimal.ZERO) > 0) {
+            sb.append("<cac:AllowanceCharge>");
+            sb.append("<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+            appendAmount("cbc:Amount",
+                    line.getItemPriceDiscount(), currency, sb);
+            appendAmount("cbc:BaseAmount",
+                    line.getItemGrossPrice() != null
+                            ? line.getItemGrossPrice()
+                            : line.getItemNetPrice(),
+                    currency, sb);
+            sb.append("</cac:AllowanceCharge>");
+        }
         sb.append("</cac:Price>");
+
+        if (line.getAllowances() != null
+                && !line.getAllowances().isEmpty()) {
+            for (var allowance : line.getAllowances()) {
+                sb.append("<cac:AllowanceCharge>");
+                sb.append(
+                        "<cbc:ChargeIndicator>false</cbc:ChargeIndicator>");
+                if (allowance.getReason() != null) {
+                    sb.append("<cbc:AllowanceChargeReason>")
+                            .append(esc(allowance.getReason()))
+                            .append("</cbc:AllowanceChargeReason>");
+                }
+                if (allowance.getPercentage() != null) {
+                    sb.append("<cbc:MultiplierFactorNumeric>")
+                            .append(allowance.getPercentage().toPlainString())
+                            .append("</cbc:MultiplierFactorNumeric>");
+                }
+                appendAmount("cbc:Amount", allowance.getAmount(), currency,
+                        sb);
+                if (allowance.getBaseAmount() != null) {
+                    appendAmount("cbc:BaseAmount",
+                            allowance.getBaseAmount(), currency, sb);
+                }
+                sb.append("</cac:AllowanceCharge>");
+            }
+        }
 
         if (line.getVatAmount() != null
                 && line.getVatAmount()
@@ -628,6 +730,10 @@ public class ZatcaUblBuilder {
             sb.append("<cac:TaxTotal>");
             appendAmount("cbc:TaxAmount", line.getVatAmount(), currency,
                     sb);
+            if (line.getVatInclusiveAmount() != null) {
+                appendAmount("cbc:RoundingAmount",
+                        line.getVatInclusiveAmount(), currency, sb);
+            }
             sb.append("</cac:TaxTotal>");
         }
 

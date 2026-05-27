@@ -9,6 +9,8 @@ import com.einvoice.core.domain.eta.EtaReceiptLine;
 import com.einvoice.core.domain.eta.EtaReceiptLineTax;
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
 import com.einvoice.core.domain.shared.DocumentState;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -39,7 +41,9 @@ class EtaReceiptSerializerGoldenTest {
         return Stream.of(
                 Arguments.of("r", EtaReceiptDocumentType.r, false),
                 Arguments.of("cr", EtaReceiptDocumentType.cr, true),
-                Arguments.of("rr", EtaReceiptDocumentType.rr, true));
+                Arguments.of("rr", EtaReceiptDocumentType.rr, true),
+                Arguments.of("r-with-discounts", EtaReceiptDocumentType.r,
+                        false));
     }
 
     @ParameterizedTest(name = "receipt type {0}")
@@ -57,6 +61,28 @@ class EtaReceiptSerializerGoldenTest {
         }
         EtaReceiptLine line = buildTestLine(docType == EtaReceiptDocumentType.rr
                 ? "Test Receipt Item Return" : "Test Receipt Item");
+        if ("r-with-discounts".equals(suffix)) {
+            ArrayNode commercialDiscounts = JsonNodeFactory.instance
+                    .arrayNode();
+            commercialDiscounts.add(JsonNodeFactory.instance.objectNode()
+                    .put("discountRate", new BigDecimal("10.00"))
+                    .put("discountAmount", new BigDecimal("5.00")));
+            line.setCommercialDiscountData(commercialDiscounts);
+            ArrayNode itemDiscounts = JsonNodeFactory.instance.arrayNode();
+            itemDiscounts.add(JsonNodeFactory.instance.objectNode()
+                    .put("itemsDiscount", new BigDecimal("3.00")));
+            line.setItemDiscountData(itemDiscounts);
+            header.setId(UUID.fromString(
+                    "00000000-0000-0000-0000-000000000005"));
+            header.setIssueDatetime(OffsetDateTime.parse(
+                    "2026-05-13T17:00:00+02:00"));
+            header.setTotalCommercialDiscount(
+                    new BigDecimal("5.00000"));
+            header.setTotalItemsDiscountAmount(
+                    new BigDecimal("3.00000"));
+            header.setNetAmount(new BigDecimal("42.00000"));
+            header.setTotalAmount(new BigDecimal("49.00000"));
+        }
         header.setLines(List.of(line));
 
         SerializedPayload result = serializer.serialize(header);

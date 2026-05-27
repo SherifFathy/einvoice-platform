@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedLine;
+import com.einvoice.core.domain.zatca.ZatcaSimplifiedLineAllowance;
 import com.einvoice.core.domain.zatca.ZatcaStandardHeader;
 import com.einvoice.core.domain.zatca.ZatcaStandardLine;
+import com.einvoice.core.domain.zatca.ZatcaStandardLineAllowance;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -389,5 +391,129 @@ class ZatcaUblBuilderGoldenTest {
         assert taxTotalCount == 1
                 : "Expected exactly 1 TaxTotal for non-SAR with BT-111=0, got "
                         + taxTotalCount;
+    }
+
+    @Test
+    void standardLine_emitsFullPriceBlock_withBaseQuantity() {
+        ZatcaStandardHeader header = ZatcaStandardHeader.builder()
+                .id(UUID.randomUUID())
+                .companyId(UUID.randomUUID())
+                .authorityEnvironmentId((short) 1)
+                .invoiceNumber("STD-LINEBLOCK-001")
+                .invoiceTypeCode("388")
+                .transactionTypeCode("0100000")
+                .issueDate(LocalDate.of(2026, 5, 19))
+                .issueTime(LocalTime.of(14, 30, 0))
+                .sellerData(sellerMap())
+                .sellerVatNumber("300000000000003")
+                .sellerCountryCode("SA")
+                .buyerData(buyerBasicMap())
+                .buyerCountryCode("SA")
+                .currency("SAR")
+                .taxCurrency("SAR")
+                .lineExtensionAmount(new BigDecimal("280.00"))
+                .taxExclusiveAmount(new BigDecimal("280.00"))
+                .taxInclusiveAmount(new BigDecimal("322.00"))
+                .prepaidAmount(BigDecimal.ZERO)
+                .payableAmount(new BigDecimal("322.00"))
+                .taxAmount(new BigDecimal("42.00"))
+                .build();
+        ZatcaStandardLine line = ZatcaStandardLine.builder()
+                .lineNumber(1)
+                .itemCode("ITEM-001")
+                .description("Item with line allowance")
+                .unitType("PCE")
+                .quantity(new BigDecimal("2.00000"))
+                .itemNetPrice(new BigDecimal("150.00000"))
+                .itemPriceBaseQuantity(new BigDecimal("1"))
+                .lineExtensionAmount(new BigDecimal("280.00"))
+                .netAmount(new BigDecimal("280.00"))
+                .vatInclusiveAmount(new BigDecimal("322.00"))
+                .vatAmount(new BigDecimal("42.00"))
+                .vatCategoryCode("S")
+                .vatRate(new BigDecimal("15.00"))
+                .build();
+        ZatcaStandardLineAllowance allowance =
+                ZatcaStandardLineAllowance.builder()
+                        .sequence((short) 1)
+                        .amount(new BigDecimal("20.00"))
+                        .reason("Volume discount")
+                        .build();
+        line.setAllowances(List.of(allowance));
+        header.setLines(List.of(line));
+
+        byte[] result = builder.buildStandardUbl(header);
+        String xml = new String(result, StandardCharsets.UTF_8);
+        assertNotNull(result);
+        assert xml.contains(
+                "<cbc:BaseQuantity unitCode=\"PCE\">1</cbc:BaseQuantity>")
+                : "Expected BaseQuantity inside Price block";
+        assert xml.contains(
+                "<cbc:AllowanceChargeReason>Volume discount"
+                        + "</cbc:AllowanceChargeReason>")
+                : "Expected line-level AllowanceCharge with reason";
+        assert xml.contains("<cbc:RoundingAmount>")
+                : "Expected KSA-12 RoundingAmount in line TaxTotal";
+    }
+
+    @Test
+    void simplifiedLine_emitsFullPriceBlock_withBaseQuantity() {
+        ZatcaSimplifiedHeader header = ZatcaSimplifiedHeader.builder()
+                .id(UUID.randomUUID())
+                .companyId(UUID.randomUUID())
+                .authorityEnvironmentId((short) 1)
+                .invoiceNumber("SIMP-LINEBLOCK-001")
+                .invoiceTypeCode("388")
+                .transactionTypeCode("0200000")
+                .issueDate(LocalDate.of(2026, 5, 19))
+                .issueTime(LocalTime.of(14, 30, 0))
+                .sellerData(sellerMap())
+                .sellerVatNumber("300000000000003")
+                .sellerCountryCode("SA")
+                .currency("SAR")
+                .taxCurrency("SAR")
+                .lineExtensionAmount(new BigDecimal("130.00"))
+                .taxExclusiveAmount(new BigDecimal("130.00"))
+                .taxInclusiveAmount(new BigDecimal("149.50"))
+                .prepaidAmount(BigDecimal.ZERO)
+                .payableAmount(new BigDecimal("149.50"))
+                .taxAmount(new BigDecimal("19.50"))
+                .build();
+        ZatcaSimplifiedLine line = ZatcaSimplifiedLine.builder()
+                .lineNumber(1)
+                .itemCode("ITEM-001")
+                .description("Retail item with allowance")
+                .unitType("PCE")
+                .quantity(new BigDecimal("3.00000"))
+                .itemNetPrice(new BigDecimal("50.00000"))
+                .itemPriceBaseQuantity(new BigDecimal("1"))
+                .lineExtensionAmount(new BigDecimal("130.00"))
+                .netAmount(new BigDecimal("130.00"))
+                .vatInclusiveAmount(new BigDecimal("149.50"))
+                .vatAmount(new BigDecimal("19.50"))
+                .vatCategoryCode("S")
+                .vatRate(new BigDecimal("15.00"))
+                .build();
+        ZatcaSimplifiedLineAllowance allowance =
+                ZatcaSimplifiedLineAllowance.builder()
+                        .sequence((short) 1)
+                        .amount(new BigDecimal("20.00"))
+                        .reason("Loyalty discount")
+                        .build();
+        line.setAllowances(List.of(allowance));
+        header.setLines(List.of(line));
+
+        byte[] result = builder.buildSimplifiedUbl(header);
+        String xml = new String(result, StandardCharsets.UTF_8);
+        assertNotNull(result);
+        assert xml.contains(
+                "<cbc:BaseQuantity unitCode=\"PCE\">1</cbc:BaseQuantity>")
+                : "Expected BaseQuantity inside Price block";
+        assert xml.contains(
+                "<cbc:AllowanceChargeReason>Loyalty discount"
+                        + "</cbc:AllowanceChargeReason>")
+                : "Expected line-level AllowanceCharge with reason";
+        assert xml.contains("<cbc:RoundingAmount>")
+                : "Expected KSA-12 RoundingAmount in line TaxTotal";
     }
 }
