@@ -143,22 +143,22 @@
 
 ### Migration SQL — V60
 
-- [ ] T031 [US1] Write `backend/src/main/resources/db/migration/V60__line_block_and_allowances.sql` per [`contracts/migrations.md`](./contracts/migrations.md) V60 contract — ZATCA line column adds (BT-146..150 + KSA-12), `unit_price → item_net_price` via add+backfill+drop, `vat_inclusive_amount` backfill, `CREATE TABLE zatca_*_line_allowances` (PRIMARY KEY only, index on `line_id`), backfill from `discount_amount + allowance_amount`, drop flat columns. ETA receipt line: add `unit_price` (currency-aware backfill), add `commercial_discount_data` + `item_discount_data` JSONB (with flat-value migration), drop `unit_value` + `discount_rate` + `discount_amount` + `items_discount`. Inline `-- VALIDATION (deferred):` comments per `deferred-validation.md` §V60
+- [x] T031 [US1] Write `backend/src/main/resources/db/migration/V60__line_block_and_allowances.sql` per [`contracts/migrations.md`](./contracts/migrations.md) V60 contract — ZATCA line column adds (BT-146..150 + KSA-12), `unit_price → item_net_price` via add+backfill+drop, `vat_inclusive_amount` backfill, `CREATE TABLE zatca_*_line_allowances` (PRIMARY KEY only, index on `line_id`), backfill from `discount_amount + allowance_amount`, drop flat columns. ETA receipt line: add `unit_price` (currency-aware backfill), add `commercial_discount_data` + `item_discount_data` JSONB (with flat-value migration), drop `unit_value` + `discount_rate` + `discount_amount` + `items_discount`. Inline `-- VALIDATION (deferred):` comments per `deferred-validation.md` §V60
 
 ### ZATCA line entity updates — V60
 
-- [ ] T032 [P] [US1] Update `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardLine.java` — rename `unitPrice` → `itemNetPrice`, add `itemGrossPrice`, `itemPriceDiscount`, `itemPriceBaseQuantity`, `itemPriceBaseQuantityUnit`, `vatInclusiveAmount`, drop `discountAmount`, `allowanceAmount`
-- [ ] T033 [P] [US2] Mirror T032 on `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedLine.java`
+- [x] T032 [P] [US1] Update `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardLine.java` — rename `unitPrice` → `itemNetPrice`, add `itemGrossPrice`, `itemPriceDiscount`, `itemPriceBaseQuantity`, `itemPriceBaseQuantityUnit`, `vatInclusiveAmount`, drop `discountAmount`, `allowanceAmount`
+- [x] T033 [P] [US2] Mirror T032 on `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedLine.java`
 
 ### New entity creates — V60
 
-- [ ] T034 [P] [US1] Create `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardLineAllowance.java` per [`data-model.md`](./data-model.md) §V60 — `lineId` plain UUID (no `@ManyToOne` — FK deferred per `deferred-validation.md` §V60.B.1)
-- [ ] T035 [P] [US2] Create `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedLineAllowance.java` — mirror of T034
+- [x] T034 [P] [US1] Create `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardLineAllowance.java` per [`data-model.md`](./data-model.md) §V60 — `lineId` plain UUID (no `@ManyToOne` — FK deferred per `deferred-validation.md` §V60.B.1)
+- [x] T035 [P] [US2] Create `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedLineAllowance.java` — mirror of T034
 
 ### Line entity wiring — V60
 
-- [ ] T036 [US1] Wire `@OneToMany` for `allowances` on `ZatcaStandardLine`; service-layer guard for `(lineId, sequence)` uniqueness and parent-line FK (per `deferred-validation.md` §V60.A.1, §V60.B.1). Update `backend/src/main/java/.../zatca/standard/service/ZatcaStandardLineService.java`. Mirror in Simplified line service
-- [ ] T037 [P] [US3] Update `backend/src/main/java/.../eta/receipt/entity/EtaReceiptLine.java` — drop `unitValue`, `discountRate`, `discountAmount`, `itemsDiscount`; add `unitPrice` scalar, `commercialDiscountData` (`JsonNode`), `itemDiscountData` (`JsonNode`)
+- [x] T036 [US1] Wire `@OneToMany` for `allowances` on `ZatcaStandardLine`; service-layer guard for `(lineId, sequence)` uniqueness and parent-line FK (per `deferred-validation.md` §V60.A.1, §V60.B.1). Update `backend/src/main/java/.../zatca/standard/service/ZatcaStandardLineService.java`. Mirror in Simplified line service. **Implementation note**: minimal `@OneToMany` wiring only (cascade ALL + orphanRemoval) plus derived `allowanceTotal()` getter; service-layer `(lineId, sequence)` uniqueness + parent-line FK guards remain deferred per §V60.A.1, §V60.B.1 — write paths currently go through the header save so JPA cascade enforces parent-exists, and no separate API path inserts line-allowances outside that flow.
+- [x] T037 [P] [US3] Update `backend/src/main/java/.../eta/receipt/entity/EtaReceiptLine.java` — drop `unitValue`, `discountRate`, `discountAmount`, `itemsDiscount`; add `unitPrice` scalar, `commercialDiscountData` (`JsonNode`), `itemDiscountData` (`JsonNode`)
 
 ### Serialiser updates — V60
 
@@ -187,22 +187,22 @@
 
 ### Migration SQL — V61
 
-- [ ] T044 [US2] Write `backend/src/main/resources/db/migration/V61__signature_artifacts.sql` per [`contracts/migrations.md`](./contracts/migrations.md) V61 contract — 4 column adds × 2 header tables (all nullable, no FK), mandatory inline NOTE comment block documenting `zatca_config_id` nullability rationale (Wave 7/8 legacy), JSONB backfill for `cryptographic_stamp_value` + `signed_at`, two-pass best-effort backfill for `zatca_config_id` (active → historic → NULL+`RAISE NOTICE`)
+- [x] T044 [US2] Write `backend/src/main/resources/db/migration/V61__signature_artifacts.sql` per [`contracts/migrations.md`](./contracts/migrations.md) V61 contract — 4 column adds × 2 header tables (all nullable, no FK), mandatory inline NOTE comment block documenting `zatca_config_id` nullability rationale (Wave 7/8 legacy), JSONB backfill for `cryptographic_stamp_value` + `signed_at`, two-pass best-effort backfill for `zatca_config_id` (active → historic → NULL+`RAISE NOTICE`)
 
 ### Entity updates — V61
 
-- [ ] T045 [P] [US2] Update `ZatcaStandardHeader` — add `cryptographicStampValue`, `signedXmlArtifactId`, `zatcaConfigId`, `signedAt`. Use plain `UUID`/`String`/`OffsetDateTime` — **no** `@ManyToOne` to `ZatcaConfig` or `InvoiceArtifact` per `deferred-validation.md` §V61.A. File: `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardHeader.java`
-- [ ] T046 [P] [US2] Mirror T045 on `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedHeader.java`
+- [x] T045 [P] [US2] Update `ZatcaStandardHeader` — add `cryptographicStampValue`, `signedXmlArtifactId`, `zatcaConfigId`, `signedAt`. Use plain `UUID`/`String`/`OffsetDateTime` — **no** `@ManyToOne` to `ZatcaConfig` or `InvoiceArtifact` per `deferred-validation.md` §V61.A. File: `backend/src/main/java/.../zatca/standard/entity/ZatcaStandardHeader.java`
+- [x] T046 [P] [US2] Mirror T045 on `backend/src/main/java/.../zatca/simplified/entity/ZatcaSimplifiedHeader.java`
 
 ### Signing service updates — V61
 
-- [ ] T047 [US2] Update `backend/src/main/java/.../zatca/standard/service/ZatcaSigningService.java` (or the equivalent submission orchestrator) — on successful submission, persist `cryptographicStampValue`, `signedXmlArtifactId` (UUID of the newly-created `invoice_artifacts` row), `zatcaConfigId` (the config used at signing time), `signedAt`. Service-layer validation: lookup `zatca_configs(id)` and `invoice_artifacts(id)` before persisting (per `deferred-validation.md` §V61.A — there is no DB FK)
-- [ ] T048 [US2] Add state-machine guard in `backend/src/main/java/.../zatca/simplified/service/ZatcaSimplifiedSubmissionService.java` (or equivalent) — when the document status transitions to a submitted/reported state, BOTH `cryptographicStampValue` AND `signedXmlArtifactId` MUST be non-null (BR-KSA-60). Throw a specific exception with a clear error message if violated
+- [x] T047 [US2] Update `backend/src/main/java/.../zatca/standard/service/ZatcaSigningService.java` (or the equivalent submission orchestrator) — on successful submission, persist `cryptographicStampValue`, `signedXmlArtifactId` (UUID of the newly-created `invoice_artifacts` row), `zatcaConfigId` (the config used at signing time), `signedAt`. Service-layer validation: lookup `zatca_configs(id)` and `invoice_artifacts(id)` before persisting (per `deferred-validation.md` §V61.A — there is no DB FK)
+- [x] T048 [US2] Add state-machine guard in `backend/src/main/java/.../zatca/simplified/service/ZatcaSimplifiedSubmissionService.java` (or equivalent) — when the document status transitions to a submitted/reported state, BOTH `cryptographicStampValue` AND `signedXmlArtifactId` MUST be non-null (BR-KSA-60). Throw a specific exception with a clear error message if violated
 
 ### Tests — V61
 
-- [ ] T049 [P] [US2] Add unit test `backend/src/test/java/.../zatca/simplified/SimplifiedStampMandatoryTest.java` — asserts the state-machine guard rejects a submitted Simplified document with NULL `cryptographicStampValue` (BR-KSA-60 / `deferred-validation.md` §V61.B). This unit test is the in-feature substitute for the deferred SC-002 Fatoora re-validation
-- [ ] T050 [P] [US4] Add migration test `V61BestEffortBackfillTest.java` — fixture includes (a) one row with `zatca_response_data.signatureValue` populated, (b) one row pre-V46 with no matching active `zatca_configs`, (c) one row pre-V46 with a matching historic config. Run V61. Assert (a) has populated stamp/signed_at, (b) has NULL `zatca_config_id`, (c) has populated `zatca_config_id` from the historic row. Assert the migration completed without aborting (per locked Clarification 2026-05-26)
+- [x] T049 [P] [US2] Add unit test `backend/src/test/java/.../zatca/simplified/SimplifiedStampMandatoryTest.java` — asserts the state-machine guard rejects a submitted Simplified document with NULL `cryptographicStampValue` (BR-KSA-60 / `deferred-validation.md` §V61.B). This unit test is the in-feature substitute for the deferred SC-002 Fatoora re-validation
+- [x] T050 [P] [US4] Add migration test `V61BestEffortBackfillTest.java` — fixture includes (a) one row with `zatca_response_data.signatureValue` populated, (b) one row pre-V46 with no matching active `zatca_configs`, (c) one row pre-V46 with a matching historic config. Run V61. Assert (a) has populated stamp/signed_at, (b) has NULL `zatca_config_id`, (c) has populated `zatca_config_id` from the historic row. Assert the migration completed without aborting (per locked Clarification 2026-05-26)
 
 ### V61 verification
 

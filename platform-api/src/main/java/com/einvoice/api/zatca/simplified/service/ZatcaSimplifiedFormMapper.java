@@ -3,6 +3,7 @@ package com.einvoice.api.zatca.simplified.service;
 import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedLine;
+import com.einvoice.core.domain.zatca.ZatcaSimplifiedLineAllowance;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -74,15 +75,11 @@ public class ZatcaSimplifiedFormMapper {
                         .description(lf.description())
                         .unitType(lf.unitType())
                         .quantity(lf.quantity())
-                        .unitPrice(lf.unitPrice())
+                        .itemNetPrice(lf.unitPrice())
                         .lineExtensionAmount(
                                 lf.lineExtensionAmount() != null
                                         ? lf.lineExtensionAmount()
                                         : BigDecimal.ZERO)
-                        .discountAmount(lf.discountAmount() != null
-                                ? lf.discountAmount() : BigDecimal.ZERO)
-                        .allowanceAmount(lf.allowanceAmount() != null
-                                ? lf.allowanceAmount() : BigDecimal.ZERO)
                         .netAmount(lf.netAmount() != null
                                 ? lf.netAmount() : BigDecimal.ZERO)
                         .vatCategoryCode(lf.vatCategoryCode())
@@ -92,6 +89,26 @@ public class ZatcaSimplifiedFormMapper {
                         .exemptionReasonCode(lf.exemptionReasonCode())
                         .exemptionReasonText(lf.exemptionReasonText())
                         .build();
+                if (lf.discountAmount() != null
+                        && lf.discountAmount().signum() > 0) {
+                    line.getAllowances().add(
+                            ZatcaSimplifiedLineAllowance.builder()
+                                    .line(line)
+                                    .sequence((short) 1)
+                                    .amount(lf.discountAmount())
+                                    .reason("commercial-discount")
+                                    .build());
+                }
+                if (lf.allowanceAmount() != null
+                        && lf.allowanceAmount().signum() > 0) {
+                    line.getAllowances().add(
+                            ZatcaSimplifiedLineAllowance.builder()
+                                    .line(line)
+                                    .sequence((short) 2)
+                                    .amount(lf.allowanceAmount())
+                                    .reason("allowance")
+                                    .build());
+                }
                 lines.add(line);
             }
         }
@@ -183,10 +200,23 @@ public class ZatcaSimplifiedFormMapper {
                                 l.getId(), l.getItemId(),
                                 l.getItemCode(), l.getDescription(),
                                 l.getUnitType(), l.getQuantity(),
-                                l.getUnitPrice(),
+                                l.getItemNetPrice(),
                                 l.getLineExtensionAmount(),
-                                l.getDiscountAmount(),
-                                l.getAllowanceAmount(), l.getNetAmount(),
+                                l.getAllowances().stream()
+                                        .filter(a -> "commercial-discount"
+                                                .equals(a.getReason()))
+                                        .findFirst()
+                                        .map(ZatcaSimplifiedLineAllowance
+                                                ::getAmount)
+                                        .orElse(BigDecimal.ZERO),
+                                l.getAllowances().stream()
+                                        .filter(a -> "allowance"
+                                                .equals(a.getReason()))
+                                        .findFirst()
+                                        .map(ZatcaSimplifiedLineAllowance
+                                                ::getAmount)
+                                        .orElse(BigDecimal.ZERO),
+                                l.getNetAmount(),
                                 l.getVatCategoryCode(), l.getVatRate(),
                                 l.getVatAmount(),
                                 l.getExemptionReasonCode(),

@@ -5,6 +5,7 @@ import com.einvoice.core.domain.eta.EtaReceiptLine;
 import com.einvoice.core.domain.eta.EtaReceiptLineTax;
 import com.einvoice.core.domain.eta.document.EtaReceiptDocumentType;
 import com.einvoice.core.domain.shared.DocumentState;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -90,14 +91,21 @@ public class EtaReceiptFormMapper {
                         .description(lf.description())
                         .unitType(lf.unitType())
                         .quantity(lf.quantity())
-                        .unitValue(lf.unitValue())
+                        .unitPrice(lf.unitPrice())
+                        .commercialDiscountData(
+                                lf.commercialDiscountData() != null
+                                        ? lf.commercialDiscountData()
+                                        : com.fasterxml.jackson.databind.node
+                                                .JsonNodeFactory.instance
+                                                .arrayNode())
+                        .itemDiscountData(
+                                lf.itemDiscountData() != null
+                                        ? lf.itemDiscountData()
+                                        : com.fasterxml.jackson.databind.node
+                                                .JsonNodeFactory.instance
+                                                .arrayNode())
                         .salesTotal(lf.salesTotal() != null
                                 ? lf.salesTotal() : BigDecimal.ZERO)
-                        .discountRate(lf.discountRate())
-                        .discountAmount(lf.discountAmount() != null
-                                ? lf.discountAmount() : BigDecimal.ZERO)
-                        .itemsDiscount(lf.itemsDiscount() != null
-                                ? lf.itemsDiscount() : BigDecimal.ZERO)
                         .valueDifference(lf.valueDifference() != null
                                 ? lf.valueDifference() : BigDecimal.ZERO)
                         .totalTaxableFees(lf.totalTaxableFees() != null
@@ -141,10 +149,10 @@ public class EtaReceiptFormMapper {
                 .map(l -> new EtaReceiptLineResponse(
                         l.getId(), l.getItemId(), l.getInternalCode(),
                         l.getItemType(), l.getItemCode(), l.getDescription(),
-                        l.getUnitType(), l.getQuantity(), l.getUnitValue(),
-                        l.getSalesTotal(), l.getDiscountRate(),
-                        l.getDiscountAmount(),
-                        l.getItemsDiscount(), l.getValueDifference(),
+                        l.getUnitType(), l.getQuantity(), l.getUnitPrice(),
+                        l.getCommercialDiscountData(),
+                        l.getItemDiscountData(),
+                        l.getSalesTotal(), l.getValueDifference(),
                         l.getTotalTaxableFees(), l.getNetTotal(),
                         l.getTaxAmount(), l.getTotal(),
                         l.getTaxes().stream()
@@ -231,11 +239,10 @@ public class EtaReceiptFormMapper {
             String description,
             String unitType,
             BigDecimal quantity,
-            Map<String, Object> unitValue,
+            BigDecimal unitPrice,
+            JsonNode commercialDiscountData,
+            JsonNode itemDiscountData,
             BigDecimal salesTotal,
-            BigDecimal discountRate,
-            BigDecimal discountAmount,
-            BigDecimal itemsDiscount,
             BigDecimal valueDifference,
             BigDecimal totalTaxableFees,
             BigDecimal netTotal,
@@ -286,10 +293,10 @@ public class EtaReceiptFormMapper {
             UUID id, UUID itemId, String internalCode,
             String itemType, String itemCode, String description,
             String unitType, BigDecimal quantity,
-            Map<String, Object> unitValue,
-            BigDecimal salesTotal, BigDecimal discountRate,
-            BigDecimal discountAmount,
-            BigDecimal itemsDiscount, BigDecimal valueDifference,
+            BigDecimal unitPrice,
+            JsonNode commercialDiscountData,
+            JsonNode itemDiscountData,
+            BigDecimal salesTotal, BigDecimal valueDifference,
             BigDecimal totalTaxableFees, BigDecimal netTotal,
             BigDecimal taxAmount, BigDecimal total,
             List<EtaLineTaxResponse> taxes) {}

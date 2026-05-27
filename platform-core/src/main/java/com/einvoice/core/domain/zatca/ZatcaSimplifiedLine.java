@@ -1,14 +1,18 @@
 package com.einvoice.core.domain.zatca;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -53,20 +57,28 @@ public class ZatcaSimplifiedLine {
     @Column(name = "quantity", nullable = false, precision = 18, scale = 5)
     private BigDecimal quantity;
 
-    @Column(name = "unit_price", nullable = false, precision = 18, scale = 5)
-    private BigDecimal unitPrice;
+    @Column(name = "item_net_price", precision = 18, scale = 5)
+    private BigDecimal itemNetPrice;
+
+    @Column(name = "item_gross_price", precision = 18, scale = 5)
+    private BigDecimal itemGrossPrice;
+
+    @Column(name = "item_price_discount", precision = 18, scale = 5)
+    private BigDecimal itemPriceDiscount;
+
+    @Column(name = "item_price_base_quantity", precision = 18, scale = 5)
+    @Builder.Default
+    private BigDecimal itemPriceBaseQuantity = BigDecimal.ONE;
+
+    @Column(name = "item_price_base_quantity_unit", length = 127)
+    private String itemPriceBaseQuantityUnit;
+
+    @Column(name = "vat_inclusive_amount", precision = 18, scale = 2)
+    private BigDecimal vatInclusiveAmount;
 
     @Column(name = "line_extension_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default
     private BigDecimal lineExtensionAmount = BigDecimal.ZERO;
-
-    @Column(name = "discount_amount", nullable = false, precision = 18, scale = 2)
-    @Builder.Default
-    private BigDecimal discountAmount = BigDecimal.ZERO;
-
-    @Column(name = "allowance_amount", nullable = false, precision = 18, scale = 2)
-    @Builder.Default
-    private BigDecimal allowanceAmount = BigDecimal.ZERO;
 
     @Column(name = "net_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default
@@ -88,7 +100,18 @@ public class ZatcaSimplifiedLine {
     @Column(name = "exemption_reason_text", columnDefinition = "TEXT")
     private String exemptionReasonText;
 
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "line")
+    @Builder.Default
+    private List<ZatcaSimplifiedLineAllowance> allowances = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
+
+    public BigDecimal allowanceTotal() {
+        return allowances.stream()
+                .map(ZatcaSimplifiedLineAllowance::getAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

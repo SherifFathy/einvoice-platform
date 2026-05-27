@@ -215,6 +215,18 @@ public class ZatcaSimplifiedHeader {
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> zatcaResponseData;
 
+    @Column(name = "cryptographic_stamp_value", columnDefinition = "TEXT")
+    private String cryptographicStampValue;
+
+    @Column(name = "signed_xml_artifact_id")
+    private UUID signedXmlArtifactId;
+
+    @Column(name = "zatca_config_id")
+    private UUID zatcaConfigId;
+
+    @Column(name = "signed_at")
+    private OffsetDateTime signedAt;
+
     @Column(name = "original_invoice_id")
     private UUID originalInvoiceId;
 
