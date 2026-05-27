@@ -159,11 +159,9 @@ class ZatcaUblBuilderStandardGoldenFileTest {
         line.setItemCode(itemCode);
         line.setDescription(description);
         line.setQuantity(quantity);
-        line.setUnitPrice(unitPrice);
+        line.setItemNetPrice(unitPrice);
         line.setLineExtensionAmount(quantity.multiply(unitPrice)
                 .setScale(2, java.math.RoundingMode.HALF_EVEN));
-        line.setDiscountAmount(BigDecimal.ZERO);
-        line.setAllowanceAmount(BigDecimal.ZERO);
         line.setNetAmount(quantity.multiply(unitPrice)
                 .setScale(2, java.math.RoundingMode.HALF_EVEN));
         line.setVatCategoryCode(vatCategory);

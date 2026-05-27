@@ -108,22 +108,22 @@ public class EtaReceiptSerializer {
             lineNode.put("description", line.getDescription());
             lineNode.put("unitType", line.getUnitType());
             lineNode.put("quantity", formatMoney(line.getQuantity()));
+            lineNode.put("unitPrice", formatMoney(line.getUnitPrice()));
 
-            if (line.getUnitValue() != null) {
-                lineNode.set("unitValue",
-                        etaObjectMapper.valueToTree(line.getUnitValue()));
+            if (line.getCommercialDiscountData() != null
+                    && !line.getCommercialDiscountData().isEmpty()) {
+                lineNode.set("commercialDiscountData",
+                        line.getCommercialDiscountData());
+            }
+
+            if (line.getItemDiscountData() != null
+                    && !line.getItemDiscountData().isEmpty()) {
+                lineNode.set("itemDiscountData",
+                        line.getItemDiscountData());
             }
 
             lineNode.put("salesTotal",
                     formatMoney(line.getSalesTotal()));
-            lineNode.put("discount",
-                    formatMoney(line.getDiscountAmount()));
-            if (line.getDiscountRate() != null) {
-                lineNode.put("discountRate",
-                        formatMoney(line.getDiscountRate()));
-            }
-            lineNode.put("itemsDiscount",
-                    formatMoney(line.getItemsDiscount()));
             lineNode.put("valueDifference",
                     formatMoney(line.getValueDifference()));
             lineNode.put("totalTaxableFees",

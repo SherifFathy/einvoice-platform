@@ -579,7 +579,7 @@ public class ZatcaUblBuilder {
         }
         sb.append("</cac:Item>");
         sb.append("<cac:Price>");
-        appendAmount("cbc:PriceAmount", line.getUnitPrice(), currency,
+        appendAmount("cbc:PriceAmount", line.getItemNetPrice(), currency,
                 sb);
         sb.append("</cac:Price>");
 
@@ -618,7 +618,7 @@ public class ZatcaUblBuilder {
         }
         sb.append("</cac:Item>");
         sb.append("<cac:Price>");
-        appendAmount("cbc:PriceAmount", line.getUnitPrice(), currency,
+        appendAmount("cbc:PriceAmount", line.getItemNetPrice(), currency,
                 sb);
         sb.append("</cac:Price>");
 

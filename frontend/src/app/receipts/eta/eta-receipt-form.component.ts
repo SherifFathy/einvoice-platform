@@ -139,8 +139,8 @@ function parseJsonField(v: unknown): Record<string, unknown> | null {
                 <input matInput formControlName="totalSalesAmount" type="number" required>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Total Discount Amount</mat-label>
-                <input matInput formControlName="totalDiscountAmount" type="number">
+                <mat-label>Total Commercial Discount</mat-label>
+                 <input matInput formControlName="totalCommercialDiscount" type="number">
               </mat-form-field>
               <mat-form-field>
                 <mat-label>Extra Discount Amount</mat-label>
@@ -205,7 +205,7 @@ export class EtaReceiptFormComponent {
     sellerData: [{ value: {}, disabled: false }, jsonOrNullValidator],
     buyerData: [null, jsonOrNullValidator],
     totalSalesAmount: [0, Validators.required],
-    totalDiscountAmount: [0],
+    totalCommercialDiscount: [0],
     extraDiscountAmount: [0],
     totalItemsDiscountAmount: [0],
     netAmount: [0, Validators.required],
@@ -253,7 +253,7 @@ export class EtaReceiptFormComponent {
         sellerData: rec.sellerData,
         buyerData: rec.buyerData,
         totalSalesAmount: rec.totalSalesAmount,
-        totalDiscountAmount: rec.totalDiscountAmount,
+        totalCommercialDiscount: rec.totalCommercialDiscount,
         extraDiscountAmount: rec.extraDiscountAmount,
         totalItemsDiscountAmount: rec.totalItemsDiscountAmount,
         netAmount: rec.netAmount,

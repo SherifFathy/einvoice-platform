@@ -32,15 +32,8 @@
     "description" : "Test Receipt Item Return",
     "unitType" : "EA",
     "quantity" : "2.00000",
-    "unitValue" : {
-      "amountEGP" : "25.00000",
-      "amountSold" : "25.00000",
-      "currencyExchangeRate" : "1.00000",
-      "currencySold" : "EGP"
-    },
+    "unitPrice" : "25.00000",
     "salesTotal" : "50.00000",
-    "discount" : "0.00000",
-    "itemsDiscount" : "0.00000",
     "valueDifference" : "0.00000",
     "totalTaxableFees" : "0.00000",
     "netTotal" : "50.00000",

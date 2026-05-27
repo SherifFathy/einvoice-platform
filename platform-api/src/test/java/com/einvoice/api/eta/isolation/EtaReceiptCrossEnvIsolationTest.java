@@ -88,8 +88,8 @@ class EtaReceiptCrossEnvIsolationTest {
              "lines":[{
                "lineNumber":1,"itemType":"EGS","itemCode":"EGS-1",
                "description":"Isolation Test Item","unitType":"EA","quantity":2,
-               "unitValue":{"currencySold":"EGP","amountEGP":25,"amountSold":25,"currencyExchangeRate":1},
-               "salesTotal":50,"discountAmount":0,"itemsDiscount":0,
+               "unitPrice":25,
+               "salesTotal":50,
                "valueDifference":0,"totalTaxableFees":0,"netTotal":50,
                "taxAmount":7,"total":57,
                "taxes":[{"taxType":"T1","taxRate":14,"taxAmount":7}]
@@ -303,8 +303,8 @@ class EtaReceiptCrossEnvIsolationTest {
                  "lines":[{
                    "lineNumber":1,"itemType":"EGS","itemCode":"EGS-P",
                    "description":"Prod Item","unitType":"EA","quantity":2,
-                   "unitValue":{"currencySold":"EGP","amountEGP":50,"amountSold":50,"currencyExchangeRate":1},
-                   "salesTotal":100,"discountAmount":0,"itemsDiscount":0,
+                   "unitPrice":50,
+                   "salesTotal":100,
                    "valueDifference":0,"totalTaxableFees":0,"netTotal":100,
                    "taxAmount":14,"total":114,
                    "taxes":[{"taxType":"T1","taxRate":14,"taxAmount":14}]

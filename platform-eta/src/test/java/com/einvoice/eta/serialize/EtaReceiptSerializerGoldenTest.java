@@ -170,14 +170,8 @@ class EtaReceiptSerializerGoldenTest {
                 .description(description)
                 .unitType("EA")
                 .quantity(new BigDecimal("2.00000"))
-                .unitValue(Map.of(
-                        "currencySold", "EGP",
-                        "amountEGP", "25.00000",
-                        "amountSold", "25.00000",
-                        "currencyExchangeRate", "1.00000"))
+                .unitPrice(new BigDecimal("25.00000"))
                 .salesTotal(new BigDecimal("50.00000"))
-                .discountAmount(BigDecimal.ZERO)
-                .itemsDiscount(BigDecimal.ZERO)
                 .valueDifference(BigDecimal.ZERO)
                 .totalTaxableFees(BigDecimal.ZERO)
                 .netTotal(new BigDecimal("50.00000"))

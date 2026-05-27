@@ -4,11 +4,11 @@ import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
 import com.einvoice.core.error.MissingCryptographicStampException;
 
-final class SimplifiedStampGuard {
+public final class SimplifiedStampGuard {
 
     private SimplifiedStampGuard() {}
 
-    static void assertPresent(ZatcaSimplifiedHeader h) {
+    public static void assertPresent(ZatcaSimplifiedHeader h) {
         DocumentState s = h.getStatus();
         if (s == DocumentState.SUBMITTED
                 || s == DocumentState.ACCEPTED

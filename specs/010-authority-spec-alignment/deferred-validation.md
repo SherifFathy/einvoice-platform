@@ -200,4 +200,47 @@ ALTER TABLE zatca_standard_headers
 
 ---
 
+## T058 audit (Phase 7) — cross-reference vs. V58–V61 SQL inline comments
+
+**Date:** 2026-05-27
+**Method:** mechanical grep of every `§VXX.X` identifier in this file against `-- VALIDATION (deferred): … see deferred-validation.md §<id>` comments in `platform-core/src/main/resources/db/migration/V58__*.sql`, `V59__*.sql`, `V60__*.sql`, `V61__*.sql`.
+
+### Result
+
+| Section block | Rows defined | Rows referenced in SQL | Notes |
+|---|---|---|---|
+| §V58.A (promoted party shape) | 12 | 12 | full match |
+| §V58.B (document-type enums) | 4 | 1 (B.3) | B.1 / B.2 / B.4 columns pre-date V58 and are not re-altered — see "Pre-existing columns" below |
+| §V58.C (cross-column rules) | 3 | 1 (C.2) | C.1 / C.3 reference columns that pre-date V58 |
+| §V58.D (NOT NULL with DEFAULT) | 8 | 8 | full match after T058 fix-up (D.4 inline comment added on `seller_country_code` 2026-05-27) |
+| §V58.E (zatca_uuid type change abandoned) | 1 | 0 | E.1 column pre-dates V58; type change explicitly NOT made — see "Pre-existing columns" |
+| §V59.A | 2 | 2 | full match |
+| §V59.B | 4 | 4 | full match |
+| §V59.C | 4 | 4 | full match |
+| §V59.D | 6 | 6 | full match |
+| §V60.A | 1 | 1 | full match |
+| §V60.B | 2 | 2 | full match |
+| §V60.C | 5 | 5 | full match |
+| §V61.A | 2 | 2 | full match |
+| §V61.B | 2 | 2 | full match |
+
+### Pre-existing columns (legitimate non-inline orphans)
+
+The migration-script convention in §1 above states each V58–V61 SQL file MUST carry an inline comment beside every **affected column**. The following identifiers reference columns that are NOT altered by any V58–V61 migration (they pre-date V58 and continue to live in earlier-migration DDL), so there is no `ADD COLUMN` / `ALTER COLUMN` line on which to attach an inline comment in V58–V61:
+
+- **§V58.B.1** `invoice_type_code` — column declared pre-V58
+- **§V58.B.2** `transaction_type_code` — column declared pre-V58
+- **§V58.B.4** `tax_currency` — column declared pre-V58
+- **§V58.C.1** `supply_end_date` / `supply_date` — both columns declared pre-V58
+- **§V58.C.3** `supply_date` / `invoice_type_code` / `transaction_type_code` — all columns declared pre-V58
+- **§V58.E.1** `zatca_uuid` — column declared pre-V58; the V58 type-change-to-UUID was explicitly abandoned, so there is no V58 ALTER on the column
+
+These rows remain in this catalogue as the authoritative reference for the downstream "Constraint Layer" spec to pick up. The lack of an inline comment in V58–V61 is **not** drift — it reflects the convention's scope ("affected column").
+
+### Sign-off
+
+T058 audit complete — zero drift between this catalogue and V58–V61 SQL inline comments, accounting for the pre-existing-column exception above. One inline comment was added (§V58.D.4 on `seller_country_code`) to bring V58 SQL into full alignment.
+
+---
+
 *End of deferred-validation.md — Feature 010 Authority Spec Alignment.*
