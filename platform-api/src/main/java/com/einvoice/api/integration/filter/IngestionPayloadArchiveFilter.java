@@ -87,12 +87,14 @@ public class IngestionPayloadArchiveFilter extends OncePerRequestFilter {
             MDC.put("outcome", String.valueOf(response.getStatus()));
             MDC.put("latencyMs", String.valueOf(latencyMs));
 
-            UUID companyId = null;
-            Short authorityEnvId = null;
-            TenantContext.Holder ctx = TenantContext.current();
-            if (ctx != null) {
-                companyId = ctx.companyId();
-                authorityEnvId = ctx.authorityEnvironmentId();
+            UUID companyId = IngestionRequestAttributes.readCompanyId(request);
+            Short authorityEnvId = IngestionRequestAttributes.readAuthorityEnvironmentId(request);
+            if (companyId == null) {
+                TenantContext.Holder ctx = TenantContext.current();
+                if (ctx != null) {
+                    companyId = ctx.companyId();
+                    authorityEnvId = ctx.authorityEnvironmentId();
+                }
             }
             archiveService.patchOutcome(payloadArchiveId, response.getStatus(), companyId, authorityEnvId);
 

@@ -1,0 +1,51 @@
+package com.einvoice.api.integration.filter;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.UUID;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+/**
+ * Carries the resolved (companyId, authorityEnvironmentId) from the ingestion
+ * service back up to {@link IngestionPayloadArchiveFilter} via request-scoped
+ * attributes. Needed because Spring Security's JwtAuthenticationFilter clears
+ * TenantContext in its own {@code finally} block, which runs before the outer
+ * archive filter's {@code finally} reads it.
+ */
+public final class IngestionRequestAttributes {
+
+    static final String COMPANY_ID = "einvoice.gateway.companyId";
+    static final String AUTHORITY_ENV_ID = "einvoice.gateway.authorityEnvironmentId";
+
+    private IngestionRequestAttributes() {
+    }
+
+    /** Called by ingestion services after CompanyResolutionService.resolve() succeeds. */
+    public static void stash(UUID companyId, Short authorityEnvironmentId) {
+        RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return;
+        }
+        attrs.setAttribute(COMPANY_ID, companyId, RequestAttributes.SCOPE_REQUEST);
+        attrs.setAttribute(AUTHORITY_ENV_ID, authorityEnvironmentId, RequestAttributes.SCOPE_REQUEST);
+    }
+
+    /** Called by {@link IngestionPayloadArchiveFilter} in its finally block. */
+    static UUID readCompanyId(HttpServletRequest request) {
+        Object v = request.getAttribute(COMPANY_ID);
+        return v instanceof UUID uuid ? uuid : null;
+    }
+
+    static Short readAuthorityEnvironmentId(HttpServletRequest request) {
+        Object v = request.getAttribute(AUTHORITY_ENV_ID);
+        return v instanceof Short s ? s : null;
+    }
+
+    /** Test-only convenience. */
+    public static UUID readCompanyIdFromCurrentRequest() {
+        ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return attrs == null ? null : readCompanyId(attrs.getRequest());
+    }
+}

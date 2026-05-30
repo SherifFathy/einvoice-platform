@@ -194,6 +194,34 @@ class ObservabilityIT {
                 Integer.class);
         assertThat(happyCount).isEqualTo(4);
 
+        // Regression for the JwtAuthenticationFilter / TenantContext.clear() race:
+        // on success the archive row MUST carry the resolved tenancy tuple, otherwise
+        // forensic queries can't link the raw payload back to a company.
+        Integer happyMissingTenancy = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE outcome = 201 "
+                        + "AND (company_id IS NULL OR authority_environment_id IS NULL)",
+                Integer.class);
+        assertThat(happyMissingTenancy)
+                .as("archive row on success path must carry company_id + authority_environment_id")
+                .isEqualTo(0);
+
+        Integer etaWithCorrectEnv = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE outcome = 201 AND endpoint LIKE '/api/integration/v1/eta/%' "
+                        + "AND company_id = ? AND authority_environment_id = 2",
+                Integer.class, companyId);
+        assertThat(etaWithCorrectEnv).as("ETA happy paths tagged with companyId + env=2")
+                .isEqualTo(2);
+
+        Integer zatcaWithCorrectEnv = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE outcome = 201 AND endpoint LIKE '/api/integration/v1/zatca/%' "
+                        + "AND company_id = ? AND authority_environment_id = ?",
+                Integer.class, companyId, zatcaEnvId);
+        assertThat(zatcaWithCorrectEnv).as("ZATCA happy paths tagged with companyId + ZATCA SANDBOX env")
+                .isEqualTo(2);
+
         Integer ingestedAuditCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM audit_logs WHERE company_id = ? AND action = 'INGESTED'",
                 Integer.class, companyId);

@@ -3,6 +3,7 @@ package com.einvoice.api.integration.service;
 import com.einvoice.api.audit.service.AuditService;
 import com.einvoice.api.integration.dto.shared.DocumentIngestionResponse;
 import com.einvoice.api.integration.dto.shared.IntegrationDocumentStatus;
+import com.einvoice.api.integration.filter.IngestionRequestAttributes;
 import com.einvoice.api.integration.dto.zatca.ZatcaSimplifiedInvoiceIngestionRequest;
 import com.einvoice.api.integration.dto.zatca.ZatcaStandardInvoiceIngestionRequest;
 import com.einvoice.api.integration.dto.zatca.ZatcaStandardInvoiceIngestionRequest.HeaderAllowance;
@@ -643,6 +644,7 @@ public class ZatcaIngestionService {
                 false,
                 System.currentTimeMillis(),
                 null));
+        IngestionRequestAttributes.stash(ctx.companyId(), ctx.authorityEnvironmentId());
     }
 
     private static DocumentState toDocumentState(IntegrationDocumentStatus status) {

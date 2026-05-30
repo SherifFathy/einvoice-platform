@@ -1,6 +1,7 @@
 package com.einvoice.api.integration.service;
 
 import com.einvoice.api.audit.service.AuditService;
+import com.einvoice.api.integration.filter.IngestionRequestAttributes;
 import com.einvoice.api.integration.dto.eta.EtaInvoiceIngestionRequest;
 import com.einvoice.api.integration.dto.eta.EtaReceiptIngestionRequest;
 import com.einvoice.api.integration.dto.shared.DocumentIngestionResponse;
@@ -355,6 +356,7 @@ public class EtaIngestionService {
                 false,
                 System.currentTimeMillis(),
                 null));
+        IngestionRequestAttributes.stash(ctx.companyId(), ctx.authorityEnvironmentId());
     }
 
     private static DocumentState toDocumentState(IntegrationDocumentStatus status) {
