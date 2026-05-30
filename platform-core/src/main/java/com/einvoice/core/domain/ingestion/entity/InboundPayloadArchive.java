@@ -50,6 +50,12 @@ public class InboundPayloadArchive {
     @Column(name = "outcome")
     private Short outcome;
 
+    @Column(name = "document_id")
+    private UUID documentId;
+
+    @Column(name = "document_type", length = 20)
+    private String documentType;
+
     @PrePersist
     protected void onCreate() {
         if (id == null) {

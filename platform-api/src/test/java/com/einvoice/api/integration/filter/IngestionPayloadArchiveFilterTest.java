@@ -52,7 +52,7 @@ class IngestionPayloadArchiveFilterTest {
         filter.doFilterInternal(request, response, filterChain);
 
         verify(archiveService).archive(eq("/api/integration/v1/eta/receipts"), any(byte[].class));
-        verify(archiveService).patchOutcome(eq(archiveId), eq(200), isNull(), isNull());
+        verify(archiveService).patchOutcome(eq(archiveId), eq(200), isNull(), isNull(), isNull(), isNull());
         verify(filterChain).doFilter(any(), any());
     }
 

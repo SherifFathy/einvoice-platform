@@ -62,17 +62,22 @@ public class InboundPayloadArchiveService {
     }
 
     /**
-     * Patches the outcome (and optionally company/env) on the archive row.
-     * Uses a @Modifying JPQL query to keep the entity immutable beyond outcome.
+     * Patches the outcome, tenancy tuple, and (on success) the document pointer
+     * on the archive row. Uses a @Modifying JPQL query so the entity stays
+     * immutable beyond these post-hoc patches.
      *
      * @param id the archive row UUID
      * @param httpStatus the HTTP status code
      * @param companyId the resolved company ID (may be null)
      * @param authorityEnvironmentId the resolved authority environment ID (may be null)
+     * @param documentId the persisted document UUID (null when the request was rejected)
+     * @param documentType ETA_INVOICE / ETA_RECEIPT / ZATCA_STANDARD / ZATCA_SIMPLIFIED (null when rejected)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void patchOutcome(UUID id, int httpStatus, UUID companyId, Short authorityEnvironmentId) {
-        repository.patchOutcome(id, (short) httpStatus, companyId, authorityEnvironmentId);
+    public void patchOutcome(UUID id, int httpStatus, UUID companyId, Short authorityEnvironmentId,
+            UUID documentId, String documentType) {
+        repository.patchOutcome(id, (short) httpStatus, companyId, authorityEnvironmentId,
+                documentId, documentType);
     }
 
     private String sanitiseBody(byte[] body) {

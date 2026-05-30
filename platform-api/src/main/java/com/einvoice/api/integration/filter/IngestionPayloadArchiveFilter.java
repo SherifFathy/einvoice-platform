@@ -96,7 +96,10 @@ public class IngestionPayloadArchiveFilter extends OncePerRequestFilter {
                     authorityEnvId = ctx.authorityEnvironmentId();
                 }
             }
-            archiveService.patchOutcome(payloadArchiveId, response.getStatus(), companyId, authorityEnvId);
+            UUID documentId = IngestionRequestAttributes.readDocumentId(request);
+            String documentType = IngestionRequestAttributes.readDocumentType(request);
+            archiveService.patchOutcome(payloadArchiveId, response.getStatus(), companyId, authorityEnvId,
+                    documentId, documentType);
 
             log.info("Ingestion request completed");
             TenantContext.clear();

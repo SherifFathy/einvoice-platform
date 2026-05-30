@@ -227,6 +227,64 @@ class ObservabilityIT {
                 Integer.class, companyId);
         assertThat(ingestedAuditCount).as("SC-010: one INGESTED audit per happy path").isEqualTo(4);
 
+        // V63 — every successful request must carry the polymorphic pointer to the
+        // persisted document; rejected requests must not (no document was saved).
+        Integer happyMissingPointer = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE outcome = 201 "
+                        + "AND (document_id IS NULL OR document_type IS NULL)",
+                Integer.class);
+        assertThat(happyMissingPointer)
+                .as("V63: every 201 archive row must carry document_id + document_type")
+                .isEqualTo(0);
+
+        Integer rejectedWithPointer = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE outcome >= 400 "
+                        + "AND (document_id IS NOT NULL OR document_type IS NOT NULL)",
+                Integer.class);
+        assertThat(rejectedWithPointer)
+                .as("V63: rejected requests never created a document, so the pointer stays NULL")
+                .isEqualTo(0);
+
+        Integer pointersResolveToAuditedDocs = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive ipa "
+                        + "JOIN audit_logs al ON al.entity_id = ipa.document_id::text "
+                        + "                  AND al.entity_type = ipa.document_type "
+                        + "WHERE ipa.outcome = 201 AND al.action = 'INGESTED'",
+                Integer.class);
+        assertThat(pointersResolveToAuditedDocs)
+                .as("V63: archive.document_id + document_type pair joins 1-to-1 with the INGESTED audit row")
+                .isEqualTo(4);
+
+        Integer etaInvoiceTypeOnInvoiceEndpoint = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE endpoint = '/api/integration/v1/eta/invoices' "
+                        + "AND outcome = 201 AND document_type = 'ETA_INVOICE'",
+                Integer.class);
+        assertThat(etaInvoiceTypeOnInvoiceEndpoint).isEqualTo(1);
+
+        Integer etaReceiptTypeOnReceiptEndpoint = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE endpoint = '/api/integration/v1/eta/receipts' "
+                        + "AND outcome = 201 AND document_type = 'ETA_RECEIPT'",
+                Integer.class);
+        assertThat(etaReceiptTypeOnReceiptEndpoint).isEqualTo(1);
+
+        Integer zatcaStandardTypeOnStandardEndpoint = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE endpoint = '/api/integration/v1/zatca/standard' "
+                        + "AND outcome = 201 AND document_type = 'ZATCA_STANDARD'",
+                Integer.class);
+        assertThat(zatcaStandardTypeOnStandardEndpoint).isEqualTo(1);
+
+        Integer zatcaSimplifiedTypeOnSimplifiedEndpoint = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM inbound_payload_archive "
+                        + "WHERE endpoint = '/api/integration/v1/zatca/simplified' "
+                        + "AND outcome = 201 AND document_type = 'ZATCA_SIMPLIFIED'",
+                Integer.class);
+        assertThat(zatcaSimplifiedTypeOnSimplifiedEndpoint).isEqualTo(1);
+
         List<Map<String, Object>> archiveRows = jdbcTemplate.queryForList(
                 "SELECT id FROM inbound_payload_archive");
         for (Map<String, Object> row : archiveRows) {

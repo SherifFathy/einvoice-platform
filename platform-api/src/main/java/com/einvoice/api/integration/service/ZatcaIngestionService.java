@@ -212,6 +212,8 @@ public class ZatcaIngestionService {
         header.setAllowances(buildHeaderAllowances(req, header));
 
         ZatcaStandardHeader saved = zatcaStandardHeaderRepository.save(header);
+        IngestionRequestAttributes.stashDocument(saved.getId(),
+                IngestionRequestAttributes.DOC_TYPE_ZATCA_STANDARD);
 
         Map<String, Object> auditPayload = new HashMap<>();
         auditPayload.put("invoiceNumber", req.invoiceNumber());
@@ -345,6 +347,8 @@ public class ZatcaIngestionService {
         header.setAllowances(buildSimplifiedHeaderAllowances(req, header));
 
         ZatcaSimplifiedHeader saved = zatcaSimplifiedHeaderRepository.save(header);
+        IngestionRequestAttributes.stashDocument(saved.getId(),
+                IngestionRequestAttributes.DOC_TYPE_ZATCA_SIMPLIFIED);
 
         Map<String, Object> auditPayload = new HashMap<>();
         auditPayload.put("invoiceNumber", req.invoiceNumber());

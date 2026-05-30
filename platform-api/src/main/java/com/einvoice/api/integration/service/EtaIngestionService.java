@@ -139,6 +139,8 @@ public class EtaIngestionService {
         header.setLines(lines);
 
         EtaInvoiceHeader saved = etaInvoiceHeaderRepository.save(header);
+        IngestionRequestAttributes.stashDocument(saved.getId(),
+                IngestionRequestAttributes.DOC_TYPE_ETA_INVOICE);
 
         auditService.record("INGESTED", "ETA_INVOICE", saved.getId().toString(),
                 null, Map.of("invoiceNumber", req.invoiceNumber(),
@@ -216,6 +218,8 @@ public class EtaIngestionService {
         header.setLines(lines);
 
         EtaReceiptHeader saved = etaReceiptHeaderRepository.save(header);
+        IngestionRequestAttributes.stashDocument(saved.getId(),
+                IngestionRequestAttributes.DOC_TYPE_ETA_RECEIPT);
 
         auditService.record("INGESTED", "ETA_RECEIPT", saved.getId().toString(),
                 null, Map.of("receiptNumber", req.header().receiptNumber(),

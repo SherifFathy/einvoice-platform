@@ -95,7 +95,7 @@ class V62ArchiveRoundTripTest {
         UUID companyId = UUID.randomUUID();
         Short authEnvId = 2;
 
-        repository.patchOutcome(entity.getId(), (short) 201, companyId, authEnvId);
+        repository.patchOutcome(entity.getId(), (short) 201, companyId, authEnvId, null, null);
 
         InboundPayloadArchive patched = repository.findById(entity.getId()).orElseThrow();
         assertThat(patched.getOutcome()).isEqualTo((short) 201);
@@ -113,7 +113,7 @@ class V62ArchiveRoundTripTest {
                 .build();
         repository.save(entity);
 
-        repository.patchOutcome(entity.getId(), (short) 200, UUID.randomUUID(), (short) 5);
+        repository.patchOutcome(entity.getId(), (short) 200, UUID.randomUUID(), (short) 5, null, null);
 
         InboundPayloadArchive patched = repository.findById(entity.getId()).orElseThrow();
         assertThat(patched.getCompanyId()).isEqualTo(originalCompanyId);
