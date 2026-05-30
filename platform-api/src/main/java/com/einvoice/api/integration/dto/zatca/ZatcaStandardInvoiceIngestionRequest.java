@@ -123,7 +123,7 @@ public record ZatcaStandardInvoiceIngestionRequest(
             @NotBlank @Pattern(regexp = "S|Z|E|O") String vatCategoryCode,
             @NotNull @DecimalMin("0") BigDecimal vatRate,
             @NotNull @DecimalMin("0") BigDecimal vatAmount,
-            @Size(max = 10) String exemptionReasonCode,
+            @Size(max = 50) String exemptionReasonCode,
             String exemptionReasonText,
             @Valid List<@Valid LineAllowance> allowances) {}
 
