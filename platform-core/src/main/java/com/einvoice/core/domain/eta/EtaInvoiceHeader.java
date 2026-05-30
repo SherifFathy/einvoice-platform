@@ -140,8 +140,14 @@ public class EtaInvoiceHeader {
     @Column(name = "eta_submission_id", length = 255)
     private String etaSubmissionId;
 
+    @Column(name = "original_invoice_number", length = 100)
+    private String originalInvoiceNumber;
+
     @Column(name = "original_document_id")
     private UUID originalDocumentId;
+
+    @Column(name = "erp_reference_id", length = 100)
+    private String erpReferenceId;
 
     @Column(name = "state", nullable = false, length = 40)
     @Enumerated(EnumType.STRING)

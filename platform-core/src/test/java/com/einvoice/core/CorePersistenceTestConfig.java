@@ -12,6 +12,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootConfiguration
 @EnableAutoConfiguration
 @EntityScan("com.einvoice.core.domain")
-@EnableJpaRepositories("com.einvoice.core.repository")
+@EnableJpaRepositories({"com.einvoice.core.repository", "com.einvoice.core.domain.ingestion.repository"})
 public class CorePersistenceTestConfig {
 }
