@@ -1,0 +1,73 @@
+{
+  "companyRegistrationNumber": "100200300",
+  "environment": "PREPROD",
+  "status": "VALID",
+  "erpReferenceId": "ERP-INV-001",
+  "invoiceNumber": "INV-2026-001",
+  "documentType": "I",
+  "documentTypeVersion": "1.0",
+  "dateTimeIssued": "2026-05-27T14:30:00+02:00",
+  "seller": {
+    "type": "B",
+    "id": "100200300",
+    "name": "Test Seller Corp",
+    "address": {
+      "country": "EG",
+      "governate": "Cairo",
+      "regionCity": "Nasr City",
+      "street": "Abbas El-Akkad",
+      "buildingNumber": "12"
+    }
+  },
+  "buyer": {
+    "type": "B",
+    "id": "300200100",
+    "name": "Test Buyer Corp",
+    "address": {
+      "country": "EG",
+      "governate": "Giza",
+      "regionCity": "Dokki",
+      "street": "Tahrir St",
+      "buildingNumber": "45"
+    }
+  },
+  "currency": "EGP",
+  "totalSalesAmount": 1000.00,
+  "totalDiscountAmount": 0,
+  "extraDiscountAmount": 0,
+  "totalItemsDiscountAmount": 0,
+  "netAmount": 1000.00,
+  "totalAmount": 1140.00,
+  "etaUuid": "ETA-UUID-001",
+  "etaLongId": "ETA-LONG-ID-001",
+  "etaSubmissionId": "ETA-SUB-ID-001",
+  "lines": [
+    {
+      "lineNumber": 1,
+      "internalCode": "IC-001",
+      "itemType": "EGS",
+      "itemCode": "EGS-ITEM-001",
+      "description": "Test Service",
+      "unitType": "EA",
+      "quantity": 10.0,
+      "unitValue": {
+        "currencySold": "EGP",
+        "amountEGP": 100.00,
+        "amountSold": 100.00,
+        "currencyExchangeRate": 1.0
+      },
+      "salesTotal": 1000.00,
+      "discountRate": 0,
+      "discountAmount": 0,
+      "itemsDiscount": 0,
+      "valueDifference": 0,
+      "totalTaxableFees": 0,
+      "netTotal": 1000.00,
+      "taxAmount": 140.00,
+      "total": 1140.00,
+      "taxableItems": [
+        {"taxType": "T1", "subType": "V009", "rate": 14.0, "amount": 140.00}
+      ]
+    }
+  ]
+}

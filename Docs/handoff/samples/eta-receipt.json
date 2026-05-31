@@ -1,0 +1,70 @@
+{
+  "companyRegistrationNumber": "100200300",
+  "environment": "PREPROD",
+  "status": "VALID",
+  "erpReferenceId": "ERP-REF-001",
+  "header": {
+    "dateTimeIssued": "2026-05-27T14:30:00Z",
+    "receiptNumber": "R-2026-001",
+    "uuid": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    "previousUUID": null,
+    "currency": "EGP",
+    "exchangeRate": null
+  },
+  "documentType": {
+    "receiptType": "r",
+    "typeVersion": "1.2"
+  },
+  "seller": {
+    "rin": "100200300",
+    "tradeName": "Test Merchant",
+    "branchCode": "BR-001",
+    "deviceSerialNumber": "POS-001",
+    "activityCode": "4610",
+    "branchAddress": {
+      "country": "EG",
+      "governate": "Cairo",
+      "regionCity": "Nasr City",
+      "street": "Abbas El-Akkad",
+      "building": "12",
+      "postalCode": "12345"
+    }
+  },
+  "buyer": {
+    "type": "P",
+    "id": null,
+    "name": null
+  },
+  "paymentMethod": "C",
+  "totalSales": 100.00,
+  "totalCommercialDiscount": 0,
+  "extraReceiptDiscountData": [],
+  "totalItemsDiscount": 0,
+  "netAmount": 100.00,
+  "totalAmount": 114.00,
+  "taxTotals": [
+    { "taxType": "T1", "amount": 14.00 }
+  ],
+  "itemData": [
+    {
+      "internalCode": "IC-001",
+      "itemCode": "EGS-ITEM-001",
+      "itemType": "EGS",
+      "description": "Test Product",
+      "unitType": "EA",
+      "quantity": 2.0,
+      "unitPrice": 50.00,
+      "salesTotal": 100.00,
+      "commercialDiscountData": [],
+      "itemDiscountData": [],
+      "valueDifference": 0,
+      "totalTaxableFees": 0,
+      "netTotal": 100.00,
+      "taxAmount": 14.00,
+      "total": 114.00,
+      "taxableItems": [
+        { "taxType": "T1", "amount": 14.00, "subType": "V009", "rate": 14.0 }
+      ]
+    }
+  ]
+}
