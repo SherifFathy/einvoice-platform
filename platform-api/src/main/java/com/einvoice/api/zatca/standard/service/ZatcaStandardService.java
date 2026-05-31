@@ -278,8 +278,6 @@ public class ZatcaStandardService {
                         .taxCurrency(source.getTaxCurrency())
                         .lineExtensionAmount(
                                 source.getLineExtensionAmount())
-                        .allowanceTotalAmount(
-                                source.getAllowanceTotalAmount())
                         .taxExclusiveAmount(source.getTaxExclusiveAmount())
                         .taxAmount(source.getTaxAmount())
                         .taxAmountAccountingCurrency(
@@ -336,37 +334,25 @@ public class ZatcaStandardService {
             com.einvoice.core.domain.zatca.ZatcaStandardHeader header) {
         BigDecimal lineExtSum = BigDecimal.ZERO;
         BigDecimal vatSum = BigDecimal.ZERO;
-        BigDecimal discountSum = BigDecimal.ZERO;
         BigDecimal allowanceSum = BigDecimal.ZERO;
 
         for (var line : header.getLines()) {
             BigDecimal lineExt = ZatcaMoneyMath.round2(
-                    line.getQuantity().multiply(line.getUnitPrice(),
+                    line.getQuantity().multiply(line.getItemNetPrice(),
                             ZatcaMoneyMath.MC));
             line.setLineExtensionAmount(lineExt);
 
-            BigDecimal net = lineExt
-                    .subtract(line.getDiscountAmount() != null
-                            ? line.getDiscountAmount() : BigDecimal.ZERO)
-                    .subtract(line.getAllowanceAmount() != null
-                            ? line.getAllowanceAmount() : BigDecimal.ZERO);
-            line.setNetAmount(ZatcaMoneyMath.round2(net));
+            BigDecimal lineAllowances = line.allowanceTotal();
+            line.setNetAmount(ZatcaMoneyMath.round2(
+                    lineExt.subtract(lineAllowances)));
 
             lineExtSum = lineExtSum.add(lineExt);
             vatSum = vatSum.add(line.getVatAmount() != null
                     ? line.getVatAmount() : BigDecimal.ZERO);
-            discountSum = discountSum.add(
-                    line.getDiscountAmount() != null
-                            ? line.getDiscountAmount() : BigDecimal.ZERO);
-            allowanceSum = allowanceSum.add(
-                    line.getAllowanceAmount() != null
-                            ? line.getAllowanceAmount()
-                            : BigDecimal.ZERO);
+            allowanceSum = allowanceSum.add(lineAllowances);
         }
 
         header.setLineExtensionAmount(ZatcaMoneyMath.round2(lineExtSum));
-        header.setAllowanceTotalAmount(
-                ZatcaMoneyMath.round2(allowanceSum));
         header.setTaxExclusiveAmount(ZatcaMoneyMath.round2(
                 lineExtSum.subtract(allowanceSum)));
         header.setTaxAmount(ZatcaMoneyMath.round2(vatSum));

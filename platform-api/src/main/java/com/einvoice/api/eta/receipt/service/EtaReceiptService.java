@@ -42,9 +42,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class EtaReceiptService {
 
     private static final String UQ_ETA_RECEIPT_NUMBER = "uq_eta_receipt_number";
-    private static final List<String> REQUIRED_UNIT_VALUE_KEYS =
-            List.of("currencySold", "amountEGP", "amountSold",
-                    "currencyExchangeRate");
 
     private final EtaReceiptHeaderRepository repository;
     private final UserCompanyTransactionRoleRepository uctrRepository;
@@ -356,9 +353,13 @@ public class EtaReceiptService {
     private void reconcileTotals(EtaReceiptHeader header) {
         BigDecimal linesTotalSum = BigDecimal.ZERO;
         for (var line : header.getLines()) {
+            BigDecimal lineDiscount = sumAmount(
+                    line.getCommercialDiscountData());
+            BigDecimal itemsDiscount = sumAmount(
+                    line.getItemDiscountData());
             EtaMoneyMath.reconcileLineTotal(
-                    line.getSalesTotal(), line.getDiscountAmount(),
-                    line.getItemsDiscount(), line.getValueDifference(),
+                    line.getSalesTotal(), lineDiscount, itemsDiscount,
+                    line.getValueDifference(),
                     line.getTotalTaxableFees(), line.getTaxAmount(),
                     line.getTotal());
             linesTotalSum = linesTotalSum.add(
@@ -372,6 +373,21 @@ public class EtaReceiptService {
                 header.getTotalItemsDiscountAmount(),
                 header.getNetAmount(), header.getTotalAmount(),
                 linesTotalSum);
+    }
+
+    private static BigDecimal sumAmount(
+            com.fasterxml.jackson.databind.JsonNode arrayNode) {
+        if (arrayNode == null || !arrayNode.isArray()) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (com.fasterxml.jackson.databind.JsonNode n : arrayNode) {
+            com.fasterxml.jackson.databind.JsonNode amt = n.path("amount");
+            if (amt.isNumber()) {
+                sum = sum.add(amt.decimalValue());
+            }
+        }
+        return sum;
     }
 
     /**
@@ -470,18 +486,10 @@ public class EtaReceiptService {
             return;
         }
         for (var line : form.lines()) {
-            if (line.unitValue() == null) {
+            if (line.unitPrice() == null) {
                 throw new InvalidUnitValueException(
-                        "Line unitValue is required",
-                        "unitValue", List.of());
-            }
-            List<String> missing = REQUIRED_UNIT_VALUE_KEYS.stream()
-                    .filter(key -> !line.unitValue().containsKey(key))
-                    .toList();
-            if (!missing.isEmpty()) {
-                throw new InvalidUnitValueException(
-                        "Line unitValue missing required keys: " + missing,
-                        "unitValue", missing);
+                        "Line unitPrice is required",
+                        "unitPrice", List.of());
             }
         }
     }

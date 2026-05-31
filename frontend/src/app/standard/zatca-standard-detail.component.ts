@@ -124,8 +124,14 @@ export class StandardCancelReasonDialogComponent {
           </p>
           <p><strong>Type:</strong> {{ doc.invoiceTypeCode }}</p>
           <p><strong>Transaction Type:</strong> {{ doc.transactionTypeCode }}</p>
+          <p *ngIf="doc.businessProcessCode"><strong>Business Process:</strong> {{ doc.businessProcessCode }}</p>
+          <p *ngIf="doc.issuanceReason"><strong>Issuance Reason:</strong> {{ doc.issuanceReason }}</p>
           <p><strong>Issue Date:</strong> {{ doc.issueDate }} {{ doc.issueTime }}</p>
           <p><strong>Currency:</strong> {{ doc.currency }}</p>
+          <p *ngIf="doc.sellerVatNumber"><strong>Seller VAT Number:</strong> {{ doc.sellerVatNumber }}</p>
+          <p *ngIf="doc.buyerVatNumber"><strong>Buyer VAT Number:</strong> {{ doc.buyerVatNumber }}</p>
+          <p *ngIf="doc.billingReferenceId"><strong>Billing Reference:</strong> {{ doc.billingReferenceId }}</p>
+          <p *ngIf="doc.paymentMeansCode"><strong>Payment Means:</strong> {{ doc.paymentMeansCode }}<span *ngIf="doc.paymentMeansText"> — {{ doc.paymentMeansText }}</span></p>
           <p><strong>Tax Exclusive:</strong> {{ doc.taxExclusiveAmount }}</p>
           <p><strong>VAT:</strong> {{ doc.taxAmount }}</p>
           <p><strong>Tax Inclusive:</strong> {{ doc.taxInclusiveAmount }}</p>

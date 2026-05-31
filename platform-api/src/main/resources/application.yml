@@ -26,3 +26,7 @@ jwt:
 
 encryption:
   master-key: ${ENCRYPTION_MASTER_KEY}
+
+einvoice:
+  integration:
+    gateway-principal-id: ${GATEWAY_PRINCIPAL_ID:00000000-0000-0000-0000-000000000011}

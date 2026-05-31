@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.zatca.ZatcaStandardHeader;
 import com.einvoice.core.domain.zatca.ZatcaStandardLine;
+import com.einvoice.core.domain.zatca.ZatcaStandardLineAllowance;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -101,6 +102,44 @@ class ZatcaUblBuilderStandardGoldenFileTest {
         assertThat(xml).contains("<cac:BillingReference>");
     }
 
+    @Test
+    void standardLine_emitsFullPriceBlock_withBaseQuantity()
+            throws IOException {
+        final ZatcaStandardHeader header = buildStandardHeader("0100000", "388");
+        ZatcaStandardLine line = new ZatcaStandardLine();
+        line.setLineNumber(1);
+        line.setItemCode("ITEM-001");
+        line.setDescription("Item with line allowance");
+        line.setUnitType("PCE");
+        line.setQuantity(new BigDecimal("2.00000"));
+        line.setItemNetPrice(new BigDecimal("150.00000"));
+        line.setItemPriceBaseQuantity(new BigDecimal("1"));
+        line.setLineExtensionAmount(new BigDecimal("280.00"));
+        line.setNetAmount(new BigDecimal("280.00"));
+        line.setVatInclusiveAmount(new BigDecimal("322.00"));
+        line.setVatAmount(new BigDecimal("42.00"));
+        line.setVatCategoryCode("S");
+        line.setVatRate(new BigDecimal("15.00"));
+        ZatcaStandardLineAllowance allowance =
+                ZatcaStandardLineAllowance.builder()
+                        .sequence((short) 1)
+                        .amount(new BigDecimal("20.00"))
+                        .reason("Volume discount")
+                        .build();
+        line.setAllowances(List.of(allowance));
+        header.setLines(List.of(line));
+
+        byte[] result = builder.buildStandardUbl(header);
+        String xml = new String(result, StandardCharsets.UTF_8);
+        assertThat(xml).contains(
+                "<cbc:BaseQuantity unitCode=\"PCE\">1</cbc:BaseQuantity>");
+        assertThat(xml).contains(
+                "<cbc:AllowanceChargeReason>Volume discount"
+                        + "</cbc:AllowanceChargeReason>");
+        assertThat(xml).contains("<cbc:RoundingAmount>");
+        assertThat(xml).contains("322.00</cbc:RoundingAmount>");
+    }
+
     private static final UUID FIXED_HEADER_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID FIXED_COMPANY_ID =
@@ -144,7 +183,7 @@ class ZatcaUblBuilderStandardGoldenFileTest {
         header.setTaxInclusiveAmount(new BigDecimal("345.00"));
         header.setPayableAmount(new BigDecimal("345.00"));
         header.setPrepaidAmount(BigDecimal.ZERO);
-        header.setAllowanceTotalAmount(BigDecimal.ZERO);
+        
         header.setStatus(DocumentState.DRAFT);
         header.setLines(new ArrayList<>());
         return header;
@@ -159,11 +198,9 @@ class ZatcaUblBuilderStandardGoldenFileTest {
         line.setItemCode(itemCode);
         line.setDescription(description);
         line.setQuantity(quantity);
-        line.setUnitPrice(unitPrice);
+        line.setItemNetPrice(unitPrice);
         line.setLineExtensionAmount(quantity.multiply(unitPrice)
                 .setScale(2, java.math.RoundingMode.HALF_EVEN));
-        line.setDiscountAmount(BigDecimal.ZERO);
-        line.setAllowanceAmount(BigDecimal.ZERO);
         line.setNetAmount(quantity.multiply(unitPrice)
                 .setScale(2, java.math.RoundingMode.HALF_EVEN));
         line.setVatCategoryCode(vatCategory);

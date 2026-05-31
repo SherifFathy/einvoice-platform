@@ -2,11 +2,14 @@ package com.einvoice.api.error;
 
 import com.einvoice.core.error.AppendOnlyViolationException;
 import com.einvoice.core.error.AssignmentExistsException;
+import com.einvoice.core.error.AuthorityEnvironmentNotFoundException;
 import com.einvoice.core.error.BranchCodeDuplicateException;
 import com.einvoice.core.error.BranchIdNotAllowedException;
 import com.einvoice.core.error.BulkBatchLimitExceededException;
+import com.einvoice.core.error.BuyerIdentityRequiredException;
 import com.einvoice.core.error.ChainBusyException;
 import com.einvoice.core.error.CompanyContextRequiredException;
+import com.einvoice.core.error.CompanyNotFoundException;
 import com.einvoice.core.error.ConfigNotFoundException;
 import com.einvoice.core.error.CustomerNotFoundException;
 import com.einvoice.core.error.DocumentNotDraftException;
@@ -19,6 +22,7 @@ import com.einvoice.core.error.DuplicateTaxNumberException;
 import com.einvoice.core.error.DuplicateVatNumberException;
 import com.einvoice.core.error.EmailAlreadyExistsException;
 import com.einvoice.core.error.InactiveCompanyException;
+import com.einvoice.core.error.InboundPayloadArchiveException;
 import com.einvoice.core.error.IncompatibleOriginalDocumentException;
 import com.einvoice.core.error.InvalidAddressDataException;
 import com.einvoice.core.error.InvalidAuthorityEnvironmentException;
@@ -55,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -588,6 +593,58 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
                 ex.getCode(), ex.getMessage(),
                 Map.of("transactionTypeCode", ex.getTransactionTypeCode())));
+    }
+
+    /** Handle company not found (404).
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(CompanyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCompanyNotFound(CompanyNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("registrationNumber", ex.getRegistrationNumber())));
+    }
+
+    /** Handle authority-environment not found (404).
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(AuthorityEnvironmentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAuthorityEnvironmentNotFound(AuthorityEnvironmentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("authority", ex.getAuthority(), "environment", ex.getEnvironment())));
+    }
+
+    /** Handle archive write failure (503).
+     * @param ex the exception
+     * @return the error response
+     */
+    @ExceptionHandler(InboundPayloadArchiveException.class)
+    public ResponseEntity<ErrorResponse> handleInboundPayloadArchiveFailure(InboundPayloadArchiveException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("cause", ex.getCause() != null
+                        ? ex.getCause().getClass().getSimpleName() : "unknown")));
+    }
+
+    @ExceptionHandler(BuyerIdentityRequiredException.class)
+    public ResponseEntity<ErrorResponse> handleBuyerIdentityRequired(BuyerIdentityRequiredException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                ex.getCode(), ex.getMessage(),
+                Map.of("buyerType", ex.getBuyerType(), "reason", ex.getReason())));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        String cause = ex.getMostSpecificCause().getMessage();
+        if (cause != null && cause.length() > 200) {
+            cause = cause.substring(0, 200);
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
+                "VALIDATION_ERROR", "Request body could not be parsed",
+                Map.of("cause", cause != null ? cause : "unparseable body")));
     }
 
     /**

@@ -176,10 +176,6 @@ public class ZatcaStandardHeader {
     @Builder.Default
     private BigDecimal lineExtensionAmount = BigDecimal.ZERO;
 
-    @Column(name = "allowance_total_amount", nullable = false, precision = 18, scale = 2)
-    @Builder.Default
-    private BigDecimal allowanceTotalAmount = BigDecimal.ZERO;
-
     @Column(name = "tax_exclusive_amount", nullable = false, precision = 18, scale = 2)
     @Builder.Default
     private BigDecimal taxExclusiveAmount = BigDecimal.ZERO;
@@ -219,6 +215,18 @@ public class ZatcaStandardHeader {
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> zatcaResponseData;
 
+    @Column(name = "cryptographic_stamp_value", columnDefinition = "TEXT")
+    private String cryptographicStampValue;
+
+    @Column(name = "signed_xml_artifact_id")
+    private UUID signedXmlArtifactId;
+
+    @Column(name = "zatca_config_id")
+    private UUID zatcaConfigId;
+
+    @Column(name = "signed_at")
+    private OffsetDateTime signedAt;
+
     @Column(name = "original_invoice_id")
     private UUID originalInvoiceId;
 
@@ -249,4 +257,24 @@ public class ZatcaStandardHeader {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "header")
     @Builder.Default
     private List<ZatcaStandardLine> lines = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "header")
+    @Builder.Default
+    private List<ZatcaStandardTaxSubtotal> taxSubtotals = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "header")
+    @Builder.Default
+    private List<ZatcaStandardAllowance> allowances = new ArrayList<>();
+
+    /**
+     * Returns the sum of header-level allowance amounts.
+     *
+     * @return the summed amount, or {@link BigDecimal#ZERO} when there are no allowances
+     */
+    public BigDecimal allowanceTotal() {
+        return allowances.stream()
+                .map(ZatcaStandardAllowance::getAmount)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

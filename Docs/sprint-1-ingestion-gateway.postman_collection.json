@@ -1,0 +1,194 @@
+{
+  "info": {
+    "name": "Sprint 1 — Ingestion Gateway (einvoice-platform)",
+    "description": "ERP-facing ingestion endpoints for ETA Receipts/Invoices and ZATCA Standard/Simplified invoices.\n\n**Base URL variable:** `{{baseUrl}}` (default `http://localhost:8080`).\n\nAll requests are unauthenticated in Sprint 1 (`permitAll()` on `/api/integration/v1/**`). API-key auth lands in Sprint 2.\n\nEach folder contains a happy-path example plus relevant conditional variants (credit notes, anonymous buyer, etc.). Request descriptions document which fields are optional vs. conditionally required.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "f1e2d3c4-b5a6-4789-90ab-cdef01234567"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "etaCompanyTaxNumber",
+      "value": "100000000000003",
+      "type": "string",
+      "description": "ETA-registered company tax number (companies.tax_number)"
+    },
+    {
+      "key": "zatcaCompanyTaxNumber",
+      "value": "300000000000003",
+      "type": "string",
+      "description": "ZATCA-registered company VAT number (15 digits, starts with 3)"
+    },
+    {
+      "key": "environment",
+      "value": "PREPROD",
+      "type": "string",
+      "description": "SANDBOX or PREPROD. PRODUCTION is intentionally rejected."
+    }
+  ],
+  "item": [
+    {
+      "name": "ETA",
+      "description": "Egyptian Tax Authority ingestion endpoints.",
+      "item": [
+        {
+          "name": "POST ETA Receipt — happy path (B2C, walk-in customer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/eta/receipts",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "eta", "receipts" ]
+            },
+            "description": "Creates an ETA Receipt. Aligned to ETA Receipt SDK v1.2.\n\n**Required gateway routing fields:** `companyRegistrationNumber`, `environment`, `status`. `erpReferenceId` is optional.\n\n**Conditional fields (not in this example):**\n- `header.exchangeRate` — required when `currency != EGP`\n- `header.referenceOldUUID` — set when referencing a previous receipt\n- `buyer.id` + `buyer.name` — required when `buyer.type = B`, or when `buyer.type = P` and `totalAmount >= 150000 EGP`\n- `extraReceiptDiscountData[]` — optional list of header-level discounts\n- `contractor`, `beneficiary` — optional\n- Item-level: `commercialDiscountData[]`, `itemDiscountData[]`, `additionalCommercialDiscount`, `additionalItemDiscount`, `valueDifference`\n\n**SDK-reserved fields:** `feesAmount`, `adjustment` must be `0`.\n\n**Status values:** DRAFT | VALID | INVALID | CLEARED | REPORTED | REJECTED | FAILED | CANCELLED",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{etaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"VALID\",\n  \"erpReferenceId\": \"ERP-RCPT-2026-00042\",\n\n  \"header\": {\n    \"dateTimeIssued\": \"2026-05-27T10:15:30Z\",\n    \"receiptNumber\": \"RCPT-000123\",\n    \"uuid\": \"a3f1b2c4d5e6f7081928374655667788aabbccddeeff00112233445566778899\",\n    \"previousUUID\": \"\",\n    \"currency\": \"EGP\"\n  },\n  \"documentType\": {\n    \"receiptType\": \"s\",\n    \"typeVersion\": \"1.2\"\n  },\n  \"seller\": {\n    \"rin\": \"{{etaCompanyTaxNumber}}\",\n    \"companyTradeName\": \"ACME Egypt LLC\",\n    \"branchCode\": \"BR-001\",\n    \"deviceSerialNumber\": \"POS-SN-9988\",\n    \"activityCode\": \"4711\",\n    \"branchAddress\": {\n      \"country\": \"EG\",\n      \"governate\": \"Cairo\",\n      \"regionCity\": \"Nasr City\",\n      \"street\": \"Mostafa El Nahas\",\n      \"buildingNumber\": \"12\"\n    }\n  },\n  \"buyer\": {\n    \"type\": \"P\",\n    \"name\": \"Walk-in Customer\"\n  },\n  \"itemData\": [\n    {\n      \"internalCode\": \"SKU-001\",\n      \"description\": \"Widget A\",\n      \"itemType\": \"EGS\",\n      \"itemCode\": \"EG-12345678\",\n      \"unitType\": \"EA\",\n      \"quantity\": 2,\n      \"unitPrice\": 50.00,\n      \"totalSale\": 100.00,\n      \"netSale\": 100.00,\n      \"total\": 114.00,\n      \"taxableItems\": [\n        { \"taxType\": \"T1\", \"amount\": 14.00, \"subType\": \"V009\", \"rate\": 14 }\n      ]\n    }\n  ],\n\n  \"totalSales\": 100.00,\n  \"totalCommercialDiscount\": 0,\n  \"totalItemsDiscount\": 0,\n  \"netAmount\": 100.00,\n  \"feesAmount\": 0,\n  \"totalAmount\": 114.00,\n  \"taxTotals\": [\n    { \"taxType\": \"T1\", \"amount\": 14.00 }\n  ],\n  \"paymentMethod\": \"Cash\",\n  \"adjustment\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST ETA Invoice — happy path (B2B)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/eta/invoices",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "eta", "invoices" ]
+            },
+            "description": "Creates an ETA Invoice. Based on ETA Invoice SDK v1.0.\n\n**Optional fields not shown:** `serviceDeliveryDate`, `taxpayerActivityCode`, `purchaseOrderReference`, `salesOrderReference`, `proformaInvoiceNumber`, `etaUuid`, `etaLongId`, `etaSubmissionId`, address optional sub-fields (`postalCode`, `floor`, `room`, `landmark`, `additionalInformation`).\n\n**Conditional fields:**\n- `originalInvoiceNumber` — required when `documentType` is `C` (credit) or `D` (debit). See the next request for an example.\n- `lines[].unitValue.currencyExchangeRate` — required when `currencySold != EGP`.\n\n**Document types:** I (Invoice) | C (Credit note) | D (Debit note).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{etaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"VALID\",\n  \"erpReferenceId\": \"ERP-INV-2026-00777\",\n\n  \"invoiceNumber\": \"INV-2026-00777\",\n  \"documentType\": \"I\",\n  \"documentTypeVersion\": \"1.0\",\n  \"dateTimeIssued\": \"2026-05-27T10:15:30Z\",\n\n  \"seller\": {\n    \"type\": \"B\",\n    \"id\": \"{{etaCompanyTaxNumber}}\",\n    \"name\": \"ACME Egypt LLC\",\n    \"address\": {\n      \"country\": \"EG\",\n      \"governate\": \"Cairo\",\n      \"regionCity\": \"Nasr City\",\n      \"street\": \"Mostafa El Nahas\",\n      \"buildingNumber\": \"12\"\n    }\n  },\n  \"buyer\": {\n    \"type\": \"B\",\n    \"id\": \"200000000000004\",\n    \"name\": \"Beta Trading Co.\",\n    \"address\": {\n      \"country\": \"EG\",\n      \"governate\": \"Giza\",\n      \"regionCity\": \"Dokki\",\n      \"street\": \"Tahrir\",\n      \"buildingNumber\": \"9\"\n    }\n  },\n\n  \"currency\": \"EGP\",\n\n  \"totalSalesAmount\": 1000.00,\n  \"totalDiscountAmount\": 0,\n  \"extraDiscountAmount\": 0,\n  \"totalItemsDiscountAmount\": 0,\n  \"netAmount\": 1000.00,\n  \"totalAmount\": 1140.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"internalCode\": \"SKU-001\",\n      \"itemType\": \"EGS\",\n      \"itemCode\": \"EG-12345678\",\n      \"description\": \"Widget A\",\n      \"unitType\": \"EA\",\n      \"quantity\": 10,\n      \"unitValue\": {\n        \"currencySold\": \"EGP\",\n        \"amountEGP\": 100.00,\n        \"amountSold\": 100.00\n      },\n      \"salesTotal\": 1000.00,\n      \"discountAmount\": 0,\n      \"itemsDiscount\": 0,\n      \"valueDifference\": 0,\n      \"totalTaxableFees\": 0,\n      \"netTotal\": 1000.00,\n      \"taxAmount\": 140.00,\n      \"total\": 1140.00,\n      \"taxableItems\": [\n        { \"taxType\": \"T1\", \"subType\": \"V009\", \"rate\": 14, \"amount\": 140.00 }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST ETA Invoice — credit note (documentType=C)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/eta/invoices",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "eta", "invoices" ]
+            },
+            "description": "Credit-note variant. `documentType = C` triggers the service-layer rule that `originalInvoiceNumber` must be present, otherwise `MissingOriginalDocumentException` → HTTP 400 `MISSING_ORIGINAL_DOCUMENT`.\n\nThe service resolves `originalInvoiceNumber` to a UUID (`originalDocumentId` FK) when a matching invoice exists in the same `(company, environment)`; otherwise the raw string is stored only in the `originalInvoiceNumber` column (hybrid resolution per resolved decision Q5).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{etaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"VALID\",\n  \"erpReferenceId\": \"ERP-CN-2026-00010\",\n\n  \"invoiceNumber\": \"CN-2026-00010\",\n  \"documentType\": \"C\",\n  \"documentTypeVersion\": \"1.0\",\n  \"dateTimeIssued\": \"2026-05-27T11:00:00Z\",\n  \"originalInvoiceNumber\": \"INV-2026-00777\",\n\n  \"seller\": {\n    \"type\": \"B\",\n    \"id\": \"{{etaCompanyTaxNumber}}\",\n    \"name\": \"ACME Egypt LLC\",\n    \"address\": {\n      \"country\": \"EG\", \"governate\": \"Cairo\", \"regionCity\": \"Nasr City\",\n      \"street\": \"Mostafa El Nahas\", \"buildingNumber\": \"12\"\n    }\n  },\n  \"buyer\": {\n    \"type\": \"B\",\n    \"id\": \"200000000000004\",\n    \"name\": \"Beta Trading Co.\",\n    \"address\": {\n      \"country\": \"EG\", \"governate\": \"Giza\", \"regionCity\": \"Dokki\",\n      \"street\": \"Tahrir\", \"buildingNumber\": \"9\"\n    }\n  },\n\n  \"currency\": \"EGP\",\n\n  \"totalSalesAmount\": 100.00,\n  \"totalDiscountAmount\": 0,\n  \"extraDiscountAmount\": 0,\n  \"totalItemsDiscountAmount\": 0,\n  \"netAmount\": 100.00,\n  \"totalAmount\": 114.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"internalCode\": \"SKU-001\",\n      \"itemType\": \"EGS\",\n      \"itemCode\": \"EG-12345678\",\n      \"description\": \"Returned: Widget A\",\n      \"unitType\": \"EA\",\n      \"quantity\": 1,\n      \"unitValue\": {\n        \"currencySold\": \"EGP\",\n        \"amountEGP\": 100.00,\n        \"amountSold\": 100.00\n      },\n      \"salesTotal\": 100.00,\n      \"discountAmount\": 0,\n      \"itemsDiscount\": 0,\n      \"valueDifference\": 0,\n      \"totalTaxableFees\": 0,\n      \"netTotal\": 100.00,\n      \"taxAmount\": 14.00,\n      \"total\": 114.00,\n      \"taxableItems\": [\n        { \"taxType\": \"T1\", \"subType\": \"V009\", \"rate\": 14, \"amount\": 14.00 }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ZATCA",
+      "description": "Saudi ZATCA FATOORA ingestion endpoints.",
+      "item": [
+        {
+          "name": "POST ZATCA Standard — happy path (B2B clearance)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/zatca/standard",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "zatca", "standard" ]
+            },
+            "description": "Creates a ZATCA Standard (B2B) invoice. `buyer` is **required** for Standard.\n\n**`transactionTypeCode` regex:** `1[01]{5}0000` (bit 1 = 1 → Standard).\n\n**Optional fields not shown:** `supplyDate`, `supplyEndDate`, `taxCurrency`, `prepaidAmount`, address sub-fields (`citySubdivisionName`, `postalZone`, `additionalStreetName`, `plotIdentification`).\n\n**Populated only after clearance (echo-back scenarios):** `invoiceCounterValue`, `previousInvoiceHash`, `invoiceHash`, `qrCodeBase64`, `clearanceStatus`.\n\n**Conditional:**\n- `originalInvoiceNumber` — required when `invoiceTypeCode` is `381` (credit) or `383` (debit). See next request.\n- `lines[].exemptionReasonCode` + `exemptionReasonText` — required when `vatCategoryCode` is `E` or `O`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{zatcaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"CLEARED\",\n  \"erpReferenceId\": \"ERP-ZSTD-2026-00091\",\n\n  \"invoiceNumber\": \"ZSTD-2026-00091\",\n  \"zatcaUuid\": \"0f9a3b2c-4d5e-4a6f-8b91-1c2d3e4f5a6b\",\n  \"invoiceTypeCode\": \"388\",\n  \"transactionTypeCode\": \"1100000\",\n\n  \"issueDate\": \"2026-05-27\",\n  \"issueTime\": \"10:15:30\",\n\n  \"seller\": {\n    \"registrationName\": \"ACME Saudi Co.\",\n    \"vatNumber\": \"{{zatcaCompanyTaxNumber}}\",\n    \"streetName\": \"King Fahd Rd\",\n    \"buildingNumber\": \"1234\",\n    \"cityName\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n  \"buyer\": {\n    \"registrationName\": \"Beta Saudi Co.\",\n    \"vatNumber\": \"310000000000003\",\n    \"streetName\": \"Olaya St\",\n    \"buildingNumber\": \"5678\",\n    \"cityName\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n\n  \"currency\": \"SAR\",\n\n  \"lineExtensionAmount\": 1000.00,\n  \"allowanceTotalAmount\": 0,\n  \"taxExclusiveAmount\": 1000.00,\n  \"taxAmount\": 150.00,\n  \"taxInclusiveAmount\": 1150.00,\n  \"payableAmount\": 1150.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"itemCode\": \"SKU-001\",\n      \"description\": \"Widget A\",\n      \"unitType\": \"PCE\",\n      \"quantity\": 10,\n      \"unitPrice\": 100.00,\n      \"lineExtensionAmount\": 1000.00,\n      \"discountAmount\": 0,\n      \"allowanceAmount\": 0,\n      \"netAmount\": 1000.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15,\n      \"vatAmount\": 150.00\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST ZATCA Standard — credit note (invoiceTypeCode=381)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/zatca/standard",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "zatca", "standard" ]
+            },
+            "description": "Credit-note variant. `invoiceTypeCode = 381` triggers service-layer requirement for `originalInvoiceNumber`. Same hybrid resolution as ETA (UUID FK if found locally, otherwise stored as string).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{zatcaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"CLEARED\",\n  \"erpReferenceId\": \"ERP-ZSTD-CN-2026-00012\",\n\n  \"invoiceNumber\": \"ZSTD-CN-2026-00012\",\n  \"zatcaUuid\": \"1b9a4c3d-5e6f-4a7b-8c9d-2d3e4f5a6b7c\",\n  \"invoiceTypeCode\": \"381\",\n  \"transactionTypeCode\": \"1100000\",\n  \"originalInvoiceNumber\": \"ZSTD-2026-00091\",\n\n  \"issueDate\": \"2026-05-27\",\n  \"issueTime\": \"14:00:00\",\n\n  \"seller\": {\n    \"registrationName\": \"ACME Saudi Co.\",\n    \"vatNumber\": \"{{zatcaCompanyTaxNumber}}\",\n    \"streetName\": \"King Fahd Rd\",\n    \"buildingNumber\": \"1234\",\n    \"cityName\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n  \"buyer\": {\n    \"registrationName\": \"Beta Saudi Co.\",\n    \"vatNumber\": \"310000000000003\",\n    \"streetName\": \"Olaya St\",\n    \"buildingNumber\": \"5678\",\n    \"cityName\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n\n  \"currency\": \"SAR\",\n\n  \"lineExtensionAmount\": 100.00,\n  \"allowanceTotalAmount\": 0,\n  \"taxExclusiveAmount\": 100.00,\n  \"taxAmount\": 15.00,\n  \"taxInclusiveAmount\": 115.00,\n  \"payableAmount\": 115.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"itemCode\": \"SKU-001\",\n      \"description\": \"Returned: Widget A\",\n      \"unitType\": \"PCE\",\n      \"quantity\": 1,\n      \"unitPrice\": 100.00,\n      \"lineExtensionAmount\": 100.00,\n      \"discountAmount\": 0,\n      \"allowanceAmount\": 0,\n      \"netAmount\": 100.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15,\n      \"vatAmount\": 15.00\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST ZATCA Simplified — anonymous B2C (no buyer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/zatca/simplified",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "zatca", "simplified" ]
+            },
+            "description": "Creates a ZATCA Simplified (B2C) invoice for an anonymous walk-in customer (no `buyer` object).\n\n**Differences vs. Standard:**\n- `transactionTypeCode` regex: `0[01]{5}0000` (bit 1 = 0 → Simplified)\n- `buyer` is **optional** — can be omitted, sent as `null`, or sent as a partial object\n- Status field after submission is `reportingStatus` (not `clearanceStatus`)\n\n**Conditional:** same as Standard — `originalInvoiceNumber` required for `invoiceTypeCode` 381/383; exemption reasons required for `vatCategoryCode` E/O.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{zatcaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"REPORTED\",\n  \"erpReferenceId\": \"ERP-ZSIM-2026-00554\",\n\n  \"invoiceNumber\": \"ZSIM-2026-00554\",\n  \"zatcaUuid\": \"1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d\",\n  \"invoiceTypeCode\": \"388\",\n  \"transactionTypeCode\": \"0200000\",\n\n  \"issueDate\": \"2026-05-27\",\n  \"issueTime\": \"12:00:00\",\n\n  \"seller\": {\n    \"registrationName\": \"ACME Saudi Co.\",\n    \"vatNumber\": \"{{zatcaCompanyTaxNumber}}\",\n    \"streetName\": \"King Fahd Rd\",\n    \"buildingNumber\": \"1234\",\n    \"cityName\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n\n  \"currency\": \"SAR\",\n\n  \"lineExtensionAmount\": 200.00,\n  \"allowanceTotalAmount\": 0,\n  \"taxExclusiveAmount\": 200.00,\n  \"taxAmount\": 30.00,\n  \"taxInclusiveAmount\": 230.00,\n  \"payableAmount\": 230.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"itemCode\": \"SKU-002\",\n      \"description\": \"Widget B\",\n      \"unitType\": \"PCE\",\n      \"quantity\": 2,\n      \"unitPrice\": 100.00,\n      \"lineExtensionAmount\": 200.00,\n      \"discountAmount\": 0,\n      \"allowanceAmount\": 0,\n      \"netAmount\": 200.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15,\n      \"vatAmount\": 30.00\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST ZATCA Simplified — with named buyer + exempt line",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/integration/v1/zatca/simplified",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "api", "integration", "v1", "zatca", "simplified" ]
+            },
+            "description": "Simplified invoice that exercises two optional shapes at once:\n1. A partial `buyer` object (allowed because Simplified buyer is optional).\n2. An exempt VAT line — `vatCategoryCode = E` requires both `exemptionReasonCode` and `exemptionReasonText`; missing either triggers `VAT_EXEMPTION_REASON_REQUIRED` (HTTP 400).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"{{zatcaCompanyTaxNumber}}\",\n  \"environment\": \"{{environment}}\",\n  \"status\": \"REPORTED\",\n  \"erpReferenceId\": \"ERP-ZSIM-2026-00555\",\n\n  \"invoiceNumber\": \"ZSIM-2026-00555\",\n  \"zatcaUuid\": \"2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e\",\n  \"invoiceTypeCode\": \"388\",\n  \"transactionTypeCode\": \"0200000\",\n\n  \"issueDate\": \"2026-05-27\",\n  \"issueTime\": \"13:30:00\",\n\n  \"seller\": {\n    \"registrationName\": \"ACME Saudi Co.\",\n    \"vatNumber\": \"{{zatcaCompanyTaxNumber}}\",\n    \"streetName\": \"King Fahd Rd\",\n    \"buildingNumber\": \"1234\",\n    \"cityName\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n  \"buyer\": {\n    \"registrationName\": \"Loyalty Customer #4421\"\n  },\n\n  \"currency\": \"SAR\",\n\n  \"lineExtensionAmount\": 300.00,\n  \"allowanceTotalAmount\": 0,\n  \"taxExclusiveAmount\": 300.00,\n  \"taxAmount\": 15.00,\n  \"taxInclusiveAmount\": 315.00,\n  \"payableAmount\": 315.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"itemCode\": \"SKU-002\",\n      \"description\": \"Widget B\",\n      \"unitType\": \"PCE\",\n      \"quantity\": 1,\n      \"unitPrice\": 100.00,\n      \"lineExtensionAmount\": 100.00,\n      \"discountAmount\": 0,\n      \"allowanceAmount\": 0,\n      \"netAmount\": 100.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15,\n      \"vatAmount\": 15.00\n    },\n    {\n      \"lineNumber\": 2,\n      \"itemCode\": \"EXEMPT-SVC\",\n      \"description\": \"Exempt financial service fee\",\n      \"unitType\": \"PCE\",\n      \"quantity\": 1,\n      \"unitPrice\": 200.00,\n      \"lineExtensionAmount\": 200.00,\n      \"discountAmount\": 0,\n      \"allowanceAmount\": 0,\n      \"netAmount\": 200.00,\n      \"vatCategoryCode\": \"E\",\n      \"vatRate\": 0,\n      \"vatAmount\": 0,\n      \"exemptionReasonCode\": \"VATEX-SA-29\",\n      \"exemptionReasonText\": \"Financial services mentioned in Article 29 of the VAT Regulations\"\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

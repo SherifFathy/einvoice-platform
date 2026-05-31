@@ -80,8 +80,9 @@ class ZatcaSimplifiedControllerContractTest {
                 null, null,
                 Map.of("partyName", "Seller"), null,
                 null, "SA",
+                null, null,
                 "SAR", "SAR",
-                new BigDecimal("150.00"), BigDecimal.ZERO,
+                new BigDecimal("150.00"),
                 new BigDecimal("150.00"), new BigDecimal("22.50"),
                 BigDecimal.ZERO,
                 new BigDecimal("172.50"), BigDecimal.ZERO,
@@ -91,7 +92,8 @@ class ZatcaSimplifiedControllerContractTest {
                 null, null, null, null,
                 null, null, null,
                 DocumentState.DRAFT, 0L,
-                null, null, OffsetDateTime.now(), OffsetDateTime.now(),
+                null, null, null, null, null,
+                null, OffsetDateTime.now(), OffsetDateTime.now(),
                 Collections.emptyList());
     }
 
@@ -190,8 +192,9 @@ class ZatcaSimplifiedControllerContractTest {
                         null, null,
                         Map.of(), null,
                         null, "SA",
+                        null, null,
                         "SAR", "SAR",
-                        BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO,
                         BigDecimal.ZERO, BigDecimal.ZERO,
                         BigDecimal.ZERO,
                         BigDecimal.ZERO, BigDecimal.ZERO,
@@ -201,7 +204,8 @@ class ZatcaSimplifiedControllerContractTest {
                         null, null, null, null,
                         null, null, null,
                         DocumentState.DRAFT, 1L,
-                        null, null, OffsetDateTime.now(),
+                        null, null, null, null, null,
+                        null, OffsetDateTime.now(),
                         OffsetDateTime.now(),
                         Collections.emptyList());
         when(service.update(eq(docId), any(), eq(0L)))

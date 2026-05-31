@@ -14,6 +14,7 @@ import com.einvoice.core.domain.shared.TransactionType;
 import com.einvoice.core.domain.zatca.ZatcaChainState;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
 import com.einvoice.core.domain.zatca.ZatcaStandardHeader;
+import com.einvoice.core.repository.config.ZatcaConfigRepository;
 import com.einvoice.core.repository.shared.InvoiceArtifactRepository;
 import com.einvoice.core.repository.shared.SubmissionAttemptRepository;
 import com.einvoice.core.repository.zatca.ZatcaSimplifiedHeaderRepository;
@@ -51,6 +52,7 @@ public class ZatcaSubmissionOrchestrator {
     private final AuditService auditService;
     private final ZatcaStandardHeaderRepository standardHeaderRepository;
     private final ZatcaSimplifiedHeaderRepository simplifiedHeaderRepository;
+    private final ZatcaConfigRepository configRepository;
     private final TransactionTemplate txTemplate;
     private final ObjectMapper objectMapper;
 
@@ -62,6 +64,7 @@ public class ZatcaSubmissionOrchestrator {
             AuditService auditService,
             ZatcaStandardHeaderRepository standardHeaderRepository,
             ZatcaSimplifiedHeaderRepository simplifiedHeaderRepository,
+            ZatcaConfigRepository configRepository,
             TransactionTemplate txTemplate,
             ObjectMapper objectMapper) {
         this.engine = engine;
@@ -72,6 +75,7 @@ public class ZatcaSubmissionOrchestrator {
         this.auditService = auditService;
         this.standardHeaderRepository = standardHeaderRepository;
         this.simplifiedHeaderRepository = simplifiedHeaderRepository;
+        this.configRepository = configRepository;
         this.txTemplate = txTemplate;
         this.objectMapper = objectMapper;
     }
@@ -658,11 +662,22 @@ public class ZatcaSubmissionOrchestrator {
                 h.setQrCodeBase64(result.qrBase64());
 
                 if (result.signedUblXml() != null) {
-                    recordArtifact(h, ArtifactType.SIGNED_UBL_XML,
+                    UUID signedXmlArtifactId = recordArtifact(h,
+                            ArtifactType.SIGNED_UBL_XML,
                             java.util.Base64.getEncoder()
                                     .encodeToString(
                                             result.signedUblXml()),
                             attemptNumber, TransactionType.STANDARD);
+                    if (success) {
+                        h.setCryptographicStampValue(
+                                extractSignatureValue(
+                                        result.signedUblXml()));
+                        h.setSignedXmlArtifactId(signedXmlArtifactId);
+                        h.setZatcaConfigId(resolveConfigId(
+                                h.getCompanyId(),
+                                h.getAuthorityEnvironmentId()));
+                        h.setSignedAt(OffsetDateTime.now());
+                    }
                 }
                 if (result.qrPng() != null
                         && result.qrPng().length > 0) {
@@ -805,12 +820,23 @@ public class ZatcaSubmissionOrchestrator {
                 h.setQrCodeBase64(result.qrBase64());
 
                 if (result.signedUblXml() != null) {
-                    recordArtifact(h, ArtifactType.SIGNED_UBL_XML,
+                    UUID signedXmlArtifactId = recordArtifact(h,
+                            ArtifactType.SIGNED_UBL_XML,
                             java.util.Base64.getEncoder()
                                     .encodeToString(
                                             result.signedUblXml()),
                             attemptNumber,
                             TransactionType.SIMPLIFIED);
+                    if (success) {
+                        h.setCryptographicStampValue(
+                                extractSignatureValue(
+                                        result.signedUblXml()));
+                        h.setSignedXmlArtifactId(signedXmlArtifactId);
+                        h.setZatcaConfigId(resolveConfigId(
+                                h.getCompanyId(),
+                                h.getAuthorityEnvironmentId()));
+                        h.setSignedAt(OffsetDateTime.now());
+                    }
                 }
                 if (result.qrPng() != null
                         && result.qrPng().length > 0) {
@@ -849,6 +875,7 @@ public class ZatcaSubmissionOrchestrator {
                     outcomeState, TransactionType.SIMPLIFIED);
             h.setStatus(outcomeState);
 
+            SimplifiedStampGuard.assertPresent(h);
             simplifiedHeaderRepository.saveAndFlush(h);
             auditService.record("SUBMIT_SIMPLIFIED",
                     "ZATCA_SIMPLIFIED", headerId.toString(), null,
@@ -1000,6 +1027,16 @@ public class ZatcaSubmissionOrchestrator {
                     outcomeState, TransactionType.STANDARD);
             h.setStatus(outcomeState);
 
+            if (result != null && result.signedUblXml() != null
+                    && success) {
+                h.setCryptographicStampValue(
+                        extractSignatureValue(result.signedUblXml()));
+                h.setZatcaConfigId(resolveConfigId(
+                        h.getCompanyId(),
+                        h.getAuthorityEnvironmentId()));
+                h.setSignedAt(OffsetDateTime.now());
+            }
+
             if (response != null) {
                 recordArtifact(h, ArtifactType.ZATCA_RESPONSE,
                         rawResponse, attemptNumber,
@@ -1088,6 +1125,16 @@ public class ZatcaSubmissionOrchestrator {
                     outcomeState, TransactionType.SIMPLIFIED);
             h.setStatus(outcomeState);
 
+            if (result != null && result.signedUblXml() != null
+                    && success) {
+                h.setCryptographicStampValue(
+                        extractSignatureValue(result.signedUblXml()));
+                h.setZatcaConfigId(resolveConfigId(
+                        h.getCompanyId(),
+                        h.getAuthorityEnvironmentId()));
+                h.setSignedAt(OffsetDateTime.now());
+            }
+
             if (response != null) {
                 recordArtifact(h, ArtifactType.ZATCA_RESPONSE,
                         rawResponse, attemptNumber,
@@ -1097,6 +1144,7 @@ public class ZatcaSubmissionOrchestrator {
                 }
             }
 
+            SimplifiedStampGuard.assertPresent(h);
             simplifiedHeaderRepository.saveAndFlush(h);
             auditService.record("RETRY_SIMPLIFIED",
                     "ZATCA_SIMPLIFIED", headerId.toString(), null,
@@ -1158,7 +1206,7 @@ public class ZatcaSubmissionOrchestrator {
                 .orElse(1);
     }
 
-    private void recordArtifact(Object header, ArtifactType type,
+    private UUID recordArtifact(Object header, ArtifactType type,
             String content, int attemptNumber,
             TransactionType txType) {
         String hash = sha256Hex(content);
@@ -1186,7 +1234,39 @@ public class ZatcaSubmissionOrchestrator {
                 .content(content)
                 .contentHash(hash)
                 .build();
-        artifactRepository.save(artifact);
+        return artifactRepository.save(artifact).getId();
+    }
+
+    private String extractSignatureValue(byte[] signedXml) {
+        if (signedXml == null || signedXml.length == 0) {
+            return null;
+        }
+        try {
+            var factory = javax.xml.parsers.DocumentBuilderFactory
+                    .newInstance();
+            factory.setNamespaceAware(true);
+            var builder = factory.newDocumentBuilder();
+            var doc = builder.parse(
+                    new java.io.ByteArrayInputStream(signedXml));
+            var nodes = doc.getElementsByTagNameNS(
+                    "http://www.w3.org/2000/09/xmldsig#",
+                    "SignatureValue");
+            if (nodes.getLength() == 0) {
+                return null;
+            }
+            return nodes.item(0).getTextContent().replaceAll("\\s+", "");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private UUID resolveConfigId(UUID companyId, Short authEnvId) {
+        return configRepository
+                .findByCompanyAndAuthorityEnvironment(companyId, authEnvId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No ZATCA config at submission time for company "
+                                + companyId))
+                .getId();
     }
 
     private String sha256Hex(String content) {

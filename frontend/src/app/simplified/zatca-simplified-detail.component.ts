@@ -124,8 +124,14 @@ export class SimplifiedCancelReasonDialogComponent {
           </p>
           <p><strong>Type:</strong> {{ doc.invoiceTypeCode }}</p>
           <p><strong>Transaction Type:</strong> {{ doc.transactionTypeCode }}</p>
+          <p *ngIf="doc.businessProcessCode"><strong>Business Process:</strong> {{ doc.businessProcessCode }}</p>
+          <p *ngIf="doc.issuanceReason"><strong>Issuance Reason:</strong> {{ doc.issuanceReason }}</p>
           <p><strong>Issue Date:</strong> {{ doc.issueDate }} {{ doc.issueTime }}</p>
           <p><strong>Currency:</strong> {{ doc.currency }}</p>
+          <p *ngIf="doc.sellerVatNumber"><strong>Seller VAT Number:</strong> {{ doc.sellerVatNumber }}</p>
+          <p *ngIf="doc.buyerVatNumber"><strong>Buyer VAT Number:</strong> {{ doc.buyerVatNumber }}</p>
+          <p *ngIf="doc.billingReferenceId"><strong>Billing Reference:</strong> {{ doc.billingReferenceId }}</p>
+          <p *ngIf="doc.paymentMeansCode"><strong>Payment Means:</strong> {{ doc.paymentMeansCode }}<span *ngIf="doc.paymentMeansText"> — {{ doc.paymentMeansText }}</span></p>
           <p><strong>Tax Exclusive:</strong> {{ doc.taxExclusiveAmount }}</p>
           <p><strong>VAT:</strong> {{ doc.taxAmount }}</p>
           <p><strong>Tax Inclusive:</strong> {{ doc.taxInclusiveAmount }}</p>
@@ -180,6 +186,23 @@ export class SimplifiedCancelReasonDialogComponent {
         </mat-card-content>
       </mat-card>
 
+      <mat-card *ngIf="doc.cryptographicStampValue || doc.signedXmlArtifactId" class="stamp-card">
+        <mat-card-header><mat-card-title>Cryptographic Stamp (BR-KSA-60)</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <div *ngIf="doc.cryptographicStampValue">
+            <label>Stamp Value (ECDSA SignatureValue)</label>
+            <textarea readonly class="stamp-value">{{ doc.cryptographicStampValue }}</textarea>
+          </div>
+          <div *ngIf="doc.signedXmlArtifactId" style="margin-top:8px">
+            <label>Signed XML artifact available — use SIGNED_UBL_XML download below.</label>
+          </div>
+          <div *ngIf="doc.signedAt">
+            <label>Signed at</label>
+            <span>{{ doc.signedAt | date:'medium' }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <app-submission-history [attempts]="submissions()"></app-submission-history>
 
       <app-artifact-download
@@ -194,6 +217,8 @@ export class SimplifiedCancelReasonDialogComponent {
     .detail-container { padding: 16px; }
     .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .lines-card { margin-top: 16px; }
+    .stamp-card { margin-top: 16px; }
+    .stamp-value { width: 100%; min-height: 60px; font-family: monospace; font-size: 11px; resize: none; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; padding: 8px; }
     .chain-snapshot { margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px; }
     .chain-snapshot code { font-size: 11px; word-break: break-all; }
     .qr-preview { margin-top: 16px; }

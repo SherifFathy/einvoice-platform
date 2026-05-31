@@ -1,5 +1,6 @@
 package com.einvoice.core.domain.eta;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,7 +15,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -67,24 +67,22 @@ public class EtaReceiptLine {
     @Column(name = "quantity", nullable = false, precision = 18, scale = 5)
     private BigDecimal quantity;
 
+    @Column(name = "unit_price", precision = 18, scale = 5)
+    private BigDecimal unitPrice;
+
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "unit_value", nullable = false, columnDefinition = "jsonb")
-    private Map<String, Object> unitValue;
+    @Column(name = "commercial_discount_data", columnDefinition = "jsonb")
+    @Builder.Default
+    private JsonNode commercialDiscountData = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.arrayNode();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "item_discount_data", columnDefinition = "jsonb")
+    @Builder.Default
+    private JsonNode itemDiscountData = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.arrayNode();
 
     @Column(name = "sales_total", nullable = false, precision = 18, scale = 5)
     @Builder.Default
     private BigDecimal salesTotal = BigDecimal.ZERO;
-
-    @Column(name = "discount_rate", precision = 8, scale = 5)
-    private BigDecimal discountRate;
-
-    @Column(name = "discount_amount", nullable = false, precision = 18, scale = 5)
-    @Builder.Default
-    private BigDecimal discountAmount = BigDecimal.ZERO;
-
-    @Column(name = "items_discount", nullable = false, precision = 18, scale = 5)
-    @Builder.Default
-    private BigDecimal itemsDiscount = BigDecimal.ZERO;
 
     @Column(name = "value_difference", nullable = false, precision = 18, scale = 5)
     @Builder.Default

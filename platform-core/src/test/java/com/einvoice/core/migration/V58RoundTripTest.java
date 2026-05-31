@@ -101,7 +101,7 @@ class V58RoundTripTest {
                         + "seller_data, buyer_data, currency, tax_currency, "
                         + "line_extension_amount, tax_exclusive_amount, "
                         + "tax_inclusive_amount, tax_amount, "
-                        + "allowance_total_amount, prepaid_amount, "
+                        + "prepaid_amount, "
                         + "payable_amount, status, version, "
                         + "seller_vat_number, seller_postal_code, "
                         + "seller_country_code, "
@@ -116,7 +116,7 @@ class V58RoundTripTest {
                         + "VALUES (CAST(? AS uuid), CAST(? AS uuid), "
                         + "?, ?, ?, ?, ?, ?, "
                         + "CAST(? AS jsonb), CAST(? AS jsonb), "
-                        + "?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                        + "?, ?, ?, ?, ?, ?, ?, ?, "
                         + "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
                         + "?, ?, ?, ?, ?, ?, ?)",
                 id.toString(), companyId.toString(),
@@ -129,7 +129,7 @@ class V58RoundTripTest {
                 new BigDecimal("100.00"),
                 new BigDecimal("115.00"),
                 new BigDecimal("15.00"),
-                BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 new BigDecimal("115.00"),
                 "DRAFT", 0L,
                 "300000000000003", "11111", "SA",

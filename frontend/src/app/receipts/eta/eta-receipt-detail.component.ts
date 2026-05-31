@@ -99,11 +99,43 @@ export class ReceiptNumberDialogComponent {
           <p><strong>POS Serial:</strong> {{ rec.posSerial }}</p>
           <p><strong>Payment Method:</strong> {{ rec.paymentMethod }}</p>
           <p><strong>Total Sales:</strong> {{ rec.totalSalesAmount }}</p>
+          <p><strong>Total Commercial Discount:</strong> {{ rec.totalCommercialDiscount }}</p>
           <p><strong>Net Amount:</strong> {{ rec.netAmount }}</p>
           <p><strong>Total:</strong> {{ rec.totalAmount }}</p>
           <p *ngIf="rec.originalReceiptId"><strong>Original Receipt:</strong> {{ rec.originalReceiptId }}</p>
           <p *ngIf="rec.etaReceiptUuid"><strong>ETA UUID:</strong> {{ rec.etaReceiptUuid }}</p>
           <p *ngIf="rec.etaSubmissionId"><strong>Submission ID:</strong> {{ rec.etaSubmissionId }}</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card *ngIf="rec.exchangeRate || rec.previousUuid || rec.sOrderNameCode || rec.grossWeight || rec.erpReferenceId" class="v12-card">
+        <mat-card-header><mat-card-title>v1.2 Metadata</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <p *ngIf="rec.exchangeRate"><strong>Exchange Rate:</strong> {{ rec.exchangeRate }}</p>
+          <p *ngIf="rec.previousUuid"><strong>Previous UUID:</strong> {{ rec.previousUuid }}</p>
+          <p *ngIf="rec.referenceOldUuid"><strong>Reference Old UUID:</strong> {{ rec.referenceOldUuid }}</p>
+          <p *ngIf="rec.sOrderNameCode"><strong>Order Name Code:</strong> {{ rec.sOrderNameCode }}</p>
+          <p *ngIf="rec.orderDeliveryMode"><strong>Delivery Mode:</strong> {{ rec.orderDeliveryMode }}</p>
+          <p *ngIf="rec.erpReferenceId"><strong>ERP Reference:</strong> {{ rec.erpReferenceId }}</p>
+          <p *ngIf="rec.originalInvoiceNumber"><strong>Original Invoice Number:</strong> {{ rec.originalInvoiceNumber }}</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card *ngIf="rec.grossWeight || rec.netWeight" class="logistics-card">
+        <mat-card-header><mat-card-title>Logistics</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <p *ngIf="rec.grossWeight"><strong>Gross Weight:</strong> {{ rec.grossWeight }}</p>
+          <p *ngIf="rec.netWeight"><strong>Net Weight:</strong> {{ rec.netWeight }}</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card *ngIf="rec.taxTotals || rec.extraReceiptDiscountData || rec.contractorData || rec.beneficiaryData" class="jsonb-card">
+        <mat-card-header><mat-card-title>Structured Data</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <div *ngIf="rec.taxTotals"><strong>Tax Totals:</strong><pre>{{ rec.taxTotals | json }}</pre></div>
+          <div *ngIf="rec.extraReceiptDiscountData"><strong>Extra Receipt Discount:</strong><pre>{{ rec.extraReceiptDiscountData | json }}</pre></div>
+          <div *ngIf="rec.contractorData"><strong>Contractor:</strong><pre>{{ rec.contractorData | json }}</pre></div>
+          <div *ngIf="rec.beneficiaryData"><strong>Beneficiary:</strong><pre>{{ rec.beneficiaryData | json }}</pre></div>
         </mat-card-content>
       </mat-card>
 
@@ -122,6 +154,14 @@ export class ReceiptNumberDialogComponent {
             <ng-container matColumnDef="qty">
               <th mat-header-cell *matHeaderCellDef>Qty</th>
               <td mat-cell *matCellDef="let l">{{ l.quantity }}</td>
+            </ng-container>
+            <ng-container matColumnDef="price">
+              <th mat-header-cell *matHeaderCellDef>Unit Price</th>
+              <td mat-cell *matCellDef="let l">{{ l.unitPrice }}</td>
+            </ng-container>
+            <ng-container matColumnDef="discount">
+              <th mat-header-cell *matHeaderCellDef>Discount</th>
+              <td mat-cell *matCellDef="let l">{{ sumAmount(l.commercialDiscountData) }}</td>
             </ng-container>
             <ng-container matColumnDef="total">
               <th mat-header-cell *matHeaderCellDef>Total</th>
@@ -155,6 +195,10 @@ export class ReceiptNumberDialogComponent {
     .detail-container { padding: 16px; }
     .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .lines-card { margin-top: 16px; }
+    .v12-card { margin-top: 16px; }
+    .logistics-card { margin-top: 16px; }
+    .jsonb-card { margin-top: 16px; }
+    .jsonb-card pre { font-size: 11px; background: #f5f5f5; padding: 8px; border-radius: 4px; overflow-x: auto; }
   `]
 })
 export class EtaReceiptDetailComponent {
@@ -166,7 +210,7 @@ export class EtaReceiptDetailComponent {
   private toast = inject(ToastNotificationService);
   context = toSignal(this.sessionCtx.context$, { initialValue: null });
 
-  lineColumns = ['code', 'desc', 'qty', 'total', 'taxes'];
+  lineColumns = ['code', 'desc', 'qty', 'price', 'discount', 'total', 'taxes'];
   artifactTypes = ['SIGNED_JSON', 'ETA_RESPONSE'];
   private refresh$ = new BehaviorSubject<void>(undefined);
 
@@ -190,6 +234,11 @@ export class EtaReceiptDetailComponent {
 
   isActionAllowed(state: string, action: string): boolean {
     return isAllowed(state, action, receiptTransitions);
+  }
+
+  sumAmount(arr: any[]): string {
+    if (!arr?.length) return '0';
+    return arr.reduce((sum, x) => sum + Number(x?.amount ?? 0), 0).toFixed(2);
   }
 
   getArtifactUrlFn(): (type: string) => string {

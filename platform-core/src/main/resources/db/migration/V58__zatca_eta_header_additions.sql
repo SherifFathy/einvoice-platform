@@ -46,6 +46,7 @@ ALTER TABLE zatca_standard_headers
         -- VALIDATION (deferred): ~ '^[0-9]{5}$' — see deferred-validation.md §V58.A.5 (BR-KSA-66)
     ADD COLUMN seller_country_code VARCHAR(2) DEFAULT 'SA';
         -- VALIDATION (deferred): = 'SA' (Standard) — see deferred-validation.md §V58.A.6 (BR-KSA-38)
+        -- VALIDATION (deferred): NOT NULL (DEFAULT 'SA' retained) — see deferred-validation.md §V58.D.4
 
 -- ============================================================================
 -- 3. ZATCA Standard Headers — promoted buyer party columns (FR-006)

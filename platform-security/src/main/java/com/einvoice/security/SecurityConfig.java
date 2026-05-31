@@ -58,6 +58,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**")
                             .hasAuthority("SUPER_USER")
                         .requestMatchers("/api/health/**").permitAll()
+                        // Sprint 1: integration gateway permitAll — replace with API-key auth in Sprint 2 (FR-021)
+                        .requestMatchers("/api/integration/v1/**").permitAll()
+                        // Sprint 1: integration discoverability per FR-022 / SC-008
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
