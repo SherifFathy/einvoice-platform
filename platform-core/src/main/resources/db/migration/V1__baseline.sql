@@ -1,0 +1,3 @@
+-- Flyway baseline migration
+-- Establishes the migration version tracking table
+-- No tables created in this wave; all business entities deferred to Wave 1

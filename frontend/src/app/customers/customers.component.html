@@ -1,0 +1,17 @@
+@if (view === 'list') {
+  <app-customer-list
+    (editCustomer)="showForm($event)"
+    (importCustomers)="showImport()">
+  </app-customer-list>
+} @else if (view === 'form') {
+  <app-customer-form
+    [customer]="editCustomer"
+    (saved)="showList()"
+    (cancelled)="showList()">
+  </app-customer-form>
+} @else if (view === 'import') {
+  <app-customer-import
+    (importComplete)="showList()"
+    (cancelled)="showList()">
+  </app-customer-import>
+}

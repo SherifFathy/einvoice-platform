@@ -1,0 +1,83 @@
+<div [formGroup]="form">
+  <div class="form-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Authority *</mat-label>
+      <mat-select formControlName="authority" (selectionChange)="onAuthorityChange($event.value)">
+        <mat-option value="ZATCA">ZATCA</mat-option>
+        <mat-option value="ETA">ETA</mat-option>
+      </mat-select>
+      <mat-error>{{ getFieldError('authority') }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Invoice Type *</mat-label>
+      <mat-select formControlName="type">
+        @for (t of invoiceTypes; track t.value) {
+          <mat-option [value]="t.value">{{ t.label }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>{{ getFieldError('type') }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Branch *</mat-label>
+      <mat-select formControlName="branchId">
+        @for (branch of branches; track branch.id) {
+          <mat-option [value]="branch.id">{{ branch.nameEn }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>{{ getFieldError('branchId') }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Issue Date *</mat-label>
+      <input matInput type="date" formControlName="issueDate">
+      <mat-error>{{ getFieldError('issueDate') }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Supply Date</mat-label>
+      <input matInput type="date" formControlName="supplyDate">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Supply End Date</mat-label>
+      <input matInput type="date" formControlName="supplyEndDate">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Currency</mat-label>
+      <input matInput formControlName="currency">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Payment Means</mat-label>
+      <input matInput formControlName="paymentMeansCode" placeholder="10">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Payment Terms</mat-label>
+      <input matInput formControlName="paymentTerms" placeholder="Net 30">
+    </mat-form-field>
+  </div>
+
+  @if (isZatca) {
+    <div class="full-width" style="margin-top: 16px;">
+      <h4>Subtype Flags</h4>
+      <div class="subtype-flags" formGroupName="subtypeFlags">
+        @for (flag of subtypeFlagsList; track flag.control) {
+          <mat-checkbox [formControlName]="flag.control">{{ flag.label }}</mat-checkbox>
+        }
+      </div>
+    </div>
+  }
+
+  @if (isCreditOrDebitNote) {
+    <div class="form-grid" style="margin-top: 16px;">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Reason for Credit/Debit Note</mat-label>
+        <textarea matInput formControlName="notes" rows="2" placeholder="Enter reason..."></textarea>
+      </mat-form-field>
+    </div>
+  }
+</div>

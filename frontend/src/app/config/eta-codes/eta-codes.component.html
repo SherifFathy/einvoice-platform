@@ -1,0 +1,197 @@
+<mat-card class="codes-container">
+  <mat-card-header>
+    <mat-card-title>ETA Item Code Management</mat-card-title>
+    <mat-card-subtitle>Register, manage, and search ETA item codes</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <mat-tab-group>
+
+      <mat-tab label="My Codes">
+        <div class="register-form" [formGroup]="registerForm">
+          <mat-form-field appearance="outline">
+            <mat-label>Item Code</mat-label>
+            <input matInput formControlName="itemCode" placeholder="e.g. EG-001-LAPTOP" />
+            @if (registerForm.get('itemCode')?.hasError('required') && registerForm.get('itemCode')?.touched) {
+              <mat-error>Item code is required</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Code Type</mat-label>
+            <input matInput formControlName="codeType" placeholder="e.g. GS1" />
+            @if (registerForm.get('codeType')?.hasError('required') && registerForm.get('codeType')?.touched) {
+              <mat-error>Code type is required</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description</mat-label>
+            <input matInput formControlName="description" placeholder="e.g. Laptop computer" />
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="registerCode()"
+                  [disabled]="registerForm.invalid">
+            <mat-icon>add</mat-icon> Register
+          </button>
+        </div>
+
+        <div class="filter-row">
+          <mat-form-field appearance="outline" style="width: 150px;">
+            <mat-label>Status</mat-label>
+            <mat-select [formControl]="statusFilter">
+              <mat-option value="">All</mat-option>
+              <mat-option value="PENDING">Pending</mat-option>
+              <mat-option value="APPROVED">Approved</mat-option>
+              <mat-option value="REJECTED">Rejected</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>Search</mat-label>
+            <input matInput [formControl]="searchFilter" placeholder="Search by item code or description" />
+          </mat-form-field>
+          <button mat-button (click)="applyFilter()">
+            <mat-icon>search</mat-icon> Filter
+          </button>
+        </div>
+
+        @if (loading) {
+          <div style="text-align: center; padding: 32px;">
+            <mat-spinner diameter="40"></mat-spinner>
+          </div>
+        }
+
+        @if (!loading) {
+          @if (editing) {
+            <mat-card style="margin-bottom: 16px;">
+              <mat-card-content>
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;" [formGroup]="editForm">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Item Code</mat-label>
+                    <input matInput formControlName="itemCode" />
+                    @if (editForm.get('itemCode')?.hasError('required') && editForm.get('itemCode')?.touched) {
+                      <mat-error>Item code is required</mat-error>
+                    }
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Code Type</mat-label>
+                    <input matInput formControlName="codeType" />
+                    @if (editForm.get('codeType')?.hasError('required') && editForm.get('codeType')?.touched) {
+                      <mat-error>Code type is required</mat-error>
+                    }
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" style="flex: 1; min-width: 200px;">
+                    <mat-label>Description</mat-label>
+                    <input matInput formControlName="description" />
+                  </mat-form-field>
+                  <button mat-raised-button color="primary" (click)="saveEdit()" [disabled]="editForm.invalid">
+                    Save
+                  </button>
+                  <button mat-button (click)="cancelEdit()">Cancel</button>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          }
+
+          <table mat-table [dataSource]="codes">
+            <ng-container matColumnDef="itemCode">
+              <th mat-header-cell *matHeaderCellDef>Item Code</th>
+              <td mat-cell *matCellDef="let code">{{ code.itemCode }}</td>
+            </ng-container>
+            <ng-container matColumnDef="codeType">
+              <th mat-header-cell *matHeaderCellDef>Type</th>
+              <td mat-cell *matCellDef="let code">{{ code.codeType }}</td>
+            </ng-container>
+            <ng-container matColumnDef="description">
+              <th mat-header-cell *matHeaderCellDef>Description</th>
+              <td mat-cell *matCellDef="let code">{{ code.description || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let code">
+                <span class="status-badge" [class]="getStatusClass(code.status)">
+                  {{ code.status }}
+                </span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="etaCodeId">
+              <th mat-header-cell *matHeaderCellDef>ETA Code ID</th>
+              <td mat-cell *matCellDef="let code">{{ code.etaCodeId || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="createdAt">
+              <th mat-header-cell *matHeaderCellDef>Registered</th>
+              <td mat-cell *matCellDef="let code">{{ code.createdAt | date:'shortDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let code" class="actions-cell">
+                <button mat-icon-button (click)="startEdit(code)" [disabled]="editing">
+                  <mat-icon>edit</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+
+          @if (codes.length === 0) {
+            <p style="text-align: center; padding: 24px; color: #666;">
+              No item codes registered yet. Use the form above to register one.
+            </p>
+          }
+        }
+      </mat-tab>
+
+      <mat-tab label="Search Published Codes">
+        <div class="filter-row" style="margin-top: 16px;">
+          <mat-form-field appearance="outline" style="flex: 1;">
+            <mat-label>Search</mat-label>
+            <input matInput [formControl]="publishedSearch" placeholder="Search ETA published codes" />
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="searchPublished()">
+            <mat-icon>search</mat-icon> Search
+          </button>
+        </div>
+
+        @if (loadingPublished) {
+          <div style="text-align: center; padding: 32px;">
+            <mat-spinner diameter="40"></mat-spinner>
+          </div>
+        }
+
+        @if (searchError) {
+          <p style="text-align: center; padding: 24px; color: #d32f2f;">
+            {{ searchError }}
+          </p>
+        }
+
+        @if (!loadingPublished && !searchError) {
+          <table mat-table [dataSource]="publishedCodes">
+            <ng-container matColumnDef="itemCode">
+              <th mat-header-cell *matHeaderCellDef>Item Code</th>
+              <td mat-cell *matCellDef="let code">{{ code.itemCode }}</td>
+            </ng-container>
+            <ng-container matColumnDef="codeType">
+              <th mat-header-cell *matHeaderCellDef>Type</th>
+              <td mat-cell *matCellDef="let code">{{ code.codeType }}</td>
+            </ng-container>
+            <ng-container matColumnDef="description">
+              <th mat-header-cell *matHeaderCellDef>Description</th>
+              <td mat-cell *matCellDef="let code">{{ code.description }}</td>
+            </ng-container>
+            <ng-container matColumnDef="publishedBy">
+              <th mat-header-cell *matHeaderCellDef>Source</th>
+              <td mat-cell *matCellDef="let code">{{ code.publishedBy }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="publishedDisplayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: publishedDisplayedColumns;"></tr>
+          </table>
+
+          @if (publishedCodes.length === 0 && publishedSearch.value) {
+            <p style="text-align: center; padding: 24px; color: #666;">
+              No published codes found. Try a different search term.
+            </p>
+          }
+        }
+      </mat-tab>
+
+    </mat-tab-group>
+  </mat-card-content>
+</mat-card>

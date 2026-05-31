@@ -1,0 +1,116 @@
+<h2>Manage Branches</h2>
+
+<div class="branch-grid">
+  <mat-card>
+    <h3>{{ editingBranchId ? 'Edit Branch' : 'Add Branch' }}</h3>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <mat-form-field>
+        <mat-label>Name (Arabic)</mat-label>
+        <input matInput formControlName="nameAr" required />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Name (English)</mat-label>
+        <input matInput formControlName="nameEn" required />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Branch Code</mat-label>
+        <input matInput formControlName="branchCode" required />
+      </mat-form-field>
+
+      <div class="address-section">
+        <h4>Address</h4>
+        <mat-form-field>
+          <mat-label>Street</mat-label>
+          <input matInput formControlName="street" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Building Number</mat-label>
+          <input matInput formControlName="buildingNumber" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Additional Number</mat-label>
+          <input matInput formControlName="additionalNumber" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>City</mat-label>
+          <input matInput formControlName="city" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>District</mat-label>
+          <input matInput formControlName="district" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Postal Code</mat-label>
+          <input matInput formControlName="postalCode" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Country Code</mat-label>
+          <input matInput formControlName="countryCode" />
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Additional Street</mat-label>
+          <input matInput formControlName="additionalStreet" />
+        </mat-form-field>
+      </div>
+
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+          @if (submitting) { Saving... } @else if (editingBranchId) { Update Branch } @else { Add Branch }
+        </button>
+        @if (editingBranchId) {
+          <button mat-button type="button" (click)="cancelEdit()">Cancel</button>
+        }
+      </div>
+    </form>
+  </mat-card>
+
+  <mat-card>
+    <h3>Existing Branches</h3>
+    @if (loading) {
+      <p>Loading...</p>
+    } @else if (branches.length === 0) {
+      <p>No branches yet. Add your first branch.</p>
+    } @else {
+      <table mat-table [dataSource]="branches">
+        <ng-container matColumnDef="nameEn">
+          <th mat-header-cell *matHeaderCellDef>Name</th>
+          <td mat-cell *matCellDef="let branch">{{ branch.nameEn }}</td>
+        </ng-container>
+        <ng-container matColumnDef="branchCode">
+          <th mat-header-cell *matHeaderCellDef>Code</th>
+          <td mat-cell *matCellDef="let branch">{{ branch.branchCode }}</td>
+        </ng-container>
+        <ng-container matColumnDef="city">
+          <th mat-header-cell *matHeaderCellDef>City</th>
+          <td mat-cell *matCellDef="let branch">{{ branch.city || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="isActive">
+          <th mat-header-cell *matHeaderCellDef>Active</th>
+          <td mat-cell *matCellDef="let branch">{{ branch.isActive ? 'Yes' : 'No' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <td mat-cell *matCellDef="let branch">
+            <button mat-icon-button color="primary" (click)="startEdit(branch)" title="Edit">
+              <mat-icon>edit</mat-icon>
+            </button>
+            @if (branch.isActive) {
+              <button mat-icon-button color="warn" (click)="deleteBranch(branch)" title="Deactivate">
+                <mat-icon>block</mat-icon>
+              </button>
+            }
+            <button mat-button color="primary" (click)="goToAuthorityConfig(branch.id)">
+              Authority Config
+            </button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    }
+  </mat-card>
+</div>
+
+<div class="nav-actions">
+  <button mat-button (click)="goBack()">Back</button>
+</div>

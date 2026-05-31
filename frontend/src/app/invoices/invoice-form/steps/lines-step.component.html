@@ -1,0 +1,121 @@
+<div [formGroup]="form">
+  <div class="item-search-row">
+    <mat-form-field appearance="outline">
+      <mat-label>Search Items</mat-label>
+      <input matInput [(ngModel)]="itemSearchTerm" (keyup.enter)="searchItems()" placeholder="Name or code..." [ngModelOptions]="{standalone: true}">
+    </mat-form-field>
+    <button mat-stroked-button type="button" (click)="searchItems()">
+      <mat-icon>search</mat-icon>
+    </button>
+    <button mat-raised-button color="primary" type="button" (click)="addLine()">
+      <mat-icon>add</mat-icon> Add Line
+    </button>
+  </div>
+
+  @if (searchedItems.length > 0) {
+    <div style="margin-bottom: 16px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px;">
+      @for (item of searchedItems; track item.id) {
+        <button mat-button type="button" (click)="addItemToLine(item, linesArray.length - 1)" style="text-align: left; width: 100%;">
+          {{ item.nameEn }} ({{ item.code }}) &mdash; {{ item.unitPrice }} {{ item.vatCategory }}{{ '@' }}{{ item.vatRate }}%
+        </button>
+      }
+    </div>
+  }
+
+  <div class="line-header">
+    <span>Description</span><span>Qty</span><span>Unit</span><span>Price</span><span>Discount</span><span>VAT Cat</span><span>VAT %</span><span></span>
+  </div>
+
+  <div formArrayName="lines">
+    @for (lineCtrl of linesArray.controls; track $index; let i = $index) {
+      <div class="line-row" [formGroupName]="i">
+        <mat-form-field appearance="outline" style="width:100%">
+          <input matInput formControlName="descriptionEn" placeholder="Description" (input)="recalcTotals()">
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width:100%">
+          <input matInput type="number" formControlName="quantity" (input)="recalcTotals()">
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width:100%">
+          <input matInput formControlName="unit" placeholder="EA">
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width:100%">
+          <input matInput type="number" formControlName="unitPrice" (input)="recalcTotals()">
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width:100%">
+          <input matInput type="number" formControlName="discountAmount" (input)="recalcTotals()">
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width:100%">
+          <mat-select formControlName="vatCategory" (selectionChange)="recalcTotals()">
+            <mat-option value="S">S</mat-option>
+            <mat-option value="Z">Z</mat-option>
+            <mat-option value="E">E</mat-option>
+            <mat-option value="O">O</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" style="width:100%">
+          <input matInput type="number" formControlName="vatRate" (input)="recalcTotals()">
+        </mat-form-field>
+        <button mat-icon-button type="button" (click)="moveLineUp(i)" [disabled]="i === 0" matTooltip="Move up">
+          <mat-icon>arrow_upward</mat-icon>
+        </button>
+        <button mat-icon-button type="button" (click)="moveLineDown(i)" [disabled]="i === linesArray.length - 1" matTooltip="Move down">
+          <mat-icon>arrow_downward</mat-icon>
+        </button>
+        <button mat-icon-button type="button" color="warn" (click)="removeLine(i)" [disabled]="linesArray.length <= 1">
+          <mat-icon>remove_circle</mat-icon>
+        </button>
+      </div>
+    }
+  </div>
+
+  <div class="add-line-actions">
+    <button mat-stroked-button type="button" (click)="addLine()">
+      <mat-icon>add</mat-icon> Add Line
+    </button>
+  </div>
+
+  <div class="discounts-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Total Allowances</mat-label>
+      <input matInput type="number" formControlName="totalAllowances" (input)="recalcTotals()">
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>Prepaid Amount</mat-label>
+      <input matInput type="number" formControlName="prepaidAmount" (input)="recalcTotals()">
+    </mat-form-field>
+  </div>
+
+  <div class="totals-grid">
+    <span class="label">Total Line Net:</span>
+    <span class="value">{{ totals.totalLineNet | number:'1.2-2' }}</span>
+    <span class="label">Total Allowances:</span>
+    <span class="value">- {{ totals.totalAllowances | number:'1.2-2' }}</span>
+    <span class="label">Total Without VAT:</span>
+    <span class="value">{{ totals.totalWithoutVat | number:'1.2-2' }}</span>
+    <span class="label">Total VAT:</span>
+    <span class="value">{{ totals.totalVat | number:'1.2-2' }}</span>
+    <span class="label" style="font-weight:bold">Total With VAT:</span>
+    <span class="value" style="font-weight:bold">{{ totals.totalWithVat | number:'1.2-2' }}</span>
+    <span class="label">Prepaid:</span>
+    <span class="value">- {{ form.get('prepaidAmount')?.value | number:'1.2-2' }}</span>
+    <span class="label grand">Amount Due:</span>
+    <span class="value grand">{{ totals.amountDue | number:'1.2-2' }}</span>
+  </div>
+
+  @if (vatBreakdown.length > 0) {
+    <div class="vat-section">
+      <h4>VAT Breakdown</h4>
+      <table>
+        <tr><th>Category</th><th>Rate %</th><th>Taxable</th><th>Tax</th></tr>
+        @for (vd of vatBreakdown; track vd.category + vd.rate) {
+          <tr>
+            <td>{{ vd.category }}</td>
+            <td>{{ vd.rate }}</td>
+            <td class="amount">{{ vd.taxable | number:'1.2-2' }}</td>
+            <td class="amount">{{ vd.tax | number:'1.2-2' }}</td>
+          </tr>
+        }
+      </table>
+    </div>
+  }
+</div>

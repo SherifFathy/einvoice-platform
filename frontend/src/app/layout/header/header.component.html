@@ -1,0 +1,21 @@
+<mat-toolbar color="primary">
+  <span class="brand">E-Invoice Platform</span>
+
+  <ng-container *ngIf="sessionCtx.context$ | async">
+    <mat-chip-set>
+      <mat-chip disabled>{{ authority }}</mat-chip>
+      <mat-chip disabled>{{ environment }}</mat-chip>
+      <mat-chip disabled>{{ contextChip }}</mat-chip>
+    </mat-chip-set>
+
+    <span class="spacer"></span>
+
+    @if (isSuperUser) {
+      <span class="super-user-badge">Super User</span>
+    }
+
+    <button mat-icon-button (click)="logout()">
+      <mat-icon>logout</mat-icon>
+    </button>
+  </ng-container>
+</mat-toolbar>

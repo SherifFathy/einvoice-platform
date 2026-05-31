@@ -1,0 +1,110 @@
+<h2>Authority Configuration</h2>
+
+<div class="config-grid">
+  <mat-card>
+    <h3>Add Authority Config</h3>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <mat-form-field>
+        <mat-label>Authority</mat-label>
+        <mat-select formControlName="authority" required>
+          @for (auth of authorities; track auth) {
+            <mat-option [value]="auth">{{ auth }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Environment</mat-label>
+        <mat-select formControlName="environment" required>
+          @for (env of filteredEnvironments; track env) {
+            <mat-option [value]="env">{{ env }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Invoice Prefix</mat-label>
+        <input matInput formControlName="invoicePrefix" />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Starting Number</mat-label>
+        <input matInput type="number" formControlName="invoiceStartingNumber" />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Reset Policy</mat-label>
+        <mat-select formControlName="invoiceResetPolicy">
+          @for (policy of resetPolicies; track policy) {
+            <mat-option [value]="policy">{{ policy }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="form-actions">
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+          @if (submitting) { Creating... } @else { Create Config }
+        </button>
+      </div>
+    </form>
+  </mat-card>
+
+  <mat-card>
+    <h3>Existing Configs</h3>
+    @if (loading) {
+      <p>Loading...</p>
+    } @else if (configs.length === 0) {
+      <p>No authority configs yet.</p>
+    } @else {
+      <table mat-table [dataSource]="configs">
+        <ng-container matColumnDef="authority">
+          <th mat-header-cell *matHeaderCellDef>Authority</th>
+          <td mat-cell *matCellDef="let config">{{ config.authority }}</td>
+        </ng-container>
+        <ng-container matColumnDef="environment">
+          <th mat-header-cell *matHeaderCellDef>Environment</th>
+          <td mat-cell *matCellDef="let config">{{ config.environment }}</td>
+        </ng-container>
+        <ng-container matColumnDef="hasCredentials">
+          <th mat-header-cell *matHeaderCellDef>Creds</th>
+          <td mat-cell *matCellDef="let config">
+            <span class="badge" [class.badge-yes]="config.hasCredentials" [class.badge-no]="!config.hasCredentials">
+              {{ config.hasCredentials ? 'Yes' : 'No' }}
+            </span>
+            @if (!config.hasCredentials) {
+              <input type="file" hidden #credsInput (change)="onCredentialsUpload($event, config)" />
+              <button mat-button (click)="credsInput.click()">Upload</button>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="hasCertificate">
+          <th mat-header-cell *matHeaderCellDef>Cert</th>
+          <td mat-cell *matCellDef="let config">
+            <span class="badge" [class.badge-yes]="config.hasCertificate" [class.badge-no]="!config.hasCertificate">
+              {{ config.hasCertificate ? 'Yes' : 'No' }}
+            </span>
+            @if (!config.hasCertificate) {
+              <input type="file" hidden #certInput (change)="onCertificateUpload($event, config)" />
+              <button mat-button (click)="certInput.click()">Upload</button>
+            }
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="invoicePrefix">
+          <th mat-header-cell *matHeaderCellDef>Prefix</th>
+          <td mat-cell *matCellDef="let config">{{ config.invoicePrefix || '-' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="invoiceResetPolicy">
+          <th mat-header-cell *matHeaderCellDef>Reset</th>
+          <td mat-cell *matCellDef="let config">{{ config.invoiceResetPolicy }}</td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
+    }
+  </mat-card>
+</div>
+
+<div class="nav-actions">
+  <button mat-button (click)="goBack()">Back to Branches</button>
+  <button mat-raised-button color="accent" (click)="goToAssignUser()">Assign Users</button>
+</div>

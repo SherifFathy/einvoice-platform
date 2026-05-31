@@ -1,0 +1,298 @@
+openapi: 3.1.0
+info:
+  title: E-Invoice Platform — ERP Ingestion Gateway
+  version: '1.0.0'
+  description: |
+    Four POST endpoints that accept externally-submitted e-invoice documents from ERP clients
+    for archival, status tracking, and reporting. The platform does NOT submit to ETA / ZATCA
+    from these endpoints — the ERP owns the authority-side lifecycle.
+
+    Sprint 1: unauthenticated (`permitAll()`); API-key authentication arrives in Sprint 2.
+    Every inbound request — successful, validation-failed, duplicate, or 5xx — is persisted
+    to `inbound_payload_archive` before the main ingest transaction begins.
+
+  contact:
+    name: Platform Team
+servers:
+  - url: '/api/integration/v1'
+    description: Integration gateway base path
+
+tags:
+  - name: integration-gateway
+    description: ERP ingestion endpoints (the group name returned at /v3/api-docs/integration-gateway)
+
+paths:
+  /eta/receipts:
+    post:
+      tags: [integration-gateway]
+      operationId: ingestEtaReceipt
+      summary: Ingest an ETA receipt (SDK v1.2 shape) that has been submitted externally.
+      description: |
+        Accepted `environment` for this endpoint: **`PREPROD`** only. `SANDBOX` is a valid
+        DTO enum value but is not registered for ETA — passing it returns HTTP 404
+        `AUTHORITY_ENVIRONMENT_NOT_FOUND` by design (Constitution III registry: ETA has
+        PRODUCTION and PREPROD only; PRODUCTION is intentionally absent from the gateway).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EtaReceiptIngestionRequest'
+      responses:
+        '201':
+          description: Receipt persisted. See DocumentIngestionResponse.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentIngestionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/ResolutionError' }
+        '409':
+          description: Duplicate receipt number for (company, environment).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                duplicate:
+                  value:
+                    code: DUPLICATE_RECEIPT_NUMBER
+                    message: 'Receipt 'R-2026-001' already exists for this company and environment.'
+                    details:
+                      companyId: '00000000-0000-0000-0000-000000000000'
+                      authorityEnvironmentId: 2
+                      receiptNumber: R-2026-001
+        '503': { $ref: '#/components/responses/ArchiveFailure' }
+
+  /eta/invoices:
+    post:
+      tags: [integration-gateway]
+      operationId: ingestEtaInvoice
+      summary: Ingest an ETA invoice (SDK v1.0 shape) that has been submitted externally.
+      description: |
+        Accepted `environment` for this endpoint: **`PREPROD`** only. `SANDBOX` returns 404
+        for the same reason as `/eta/receipts`. Credit / debit notes (`documentType='C'`
+        or `'D'`) MUST include `originalInvoiceNumber`; the gateway performs hybrid
+        resolution per FR-017 (raw string always persisted; FK populated only when the
+        referenced invoice exists locally for the same company + environment).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EtaInvoiceIngestionRequest'
+      responses:
+        '201':
+          description: Invoice persisted. See DocumentIngestionResponse.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentIngestionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/ResolutionError' }
+        '409':
+          description: Duplicate invoice number for (company, environment).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503': { $ref: '#/components/responses/ArchiveFailure' }
+
+  /zatca/standard:
+    post:
+      tags: [integration-gateway]
+      operationId: ingestZatcaStandard
+      summary: Ingest a ZATCA Standard (B2B) invoice that has been cleared by ZATCA.
+      description: |
+        Accepted `environment` for this endpoint: **`SANDBOX`** only. `PREPROD` is a valid
+        DTO enum value but not registered for ZATCA — passing it returns HTTP 404
+        `AUTHORITY_ENVIRONMENT_NOT_FOUND` (Constitution III registry: ZATCA has
+        PRODUCTION, SIMULATION, SANDBOX; SIMULATION is intentionally not exposed by
+        the gateway; PRODUCTION is intentionally absent). `transactionTypeCode` MUST
+        match `1[01]{3}0000` (bit-1 = 1 enforces Standard). `buyer` is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZatcaStandardInvoiceIngestionRequest'
+      responses:
+        '201':
+          description: Standard invoice persisted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentIngestionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/ResolutionError' }
+        '409':
+          description: Duplicate Standard invoice number for (company, environment).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503': { $ref: '#/components/responses/ArchiveFailure' }
+
+  /zatca/simplified:
+    post:
+      tags: [integration-gateway]
+      operationId: ingestZatcaSimplified
+      summary: Ingest a ZATCA Simplified (B2C) invoice that has been reported to ZATCA. Anonymous buyer permitted.
+      description: |
+        Accepted `environment` for this endpoint: **`SANDBOX`** only (same reason as
+        `/zatca/standard`). `transactionTypeCode` MUST match `0[01]{3}0000` (bit-1 = 0
+        enforces Simplified). `buyer` is OPTIONAL — anonymous B2C retail is the dominant
+        case. The status field maps to `reporting_status` (not `clearance_status`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ZatcaSimplifiedInvoiceIngestionRequest'
+      responses:
+        '201':
+          description: Simplified invoice persisted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentIngestionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/ResolutionError' }
+        '409':
+          description: Duplicate Simplified invoice number for (company, environment).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503': { $ref: '#/components/responses/ArchiveFailure' }
+
+components:
+  responses:
+    ValidationError:
+      description: Structural validation failure or malformed JSON. The archive row still exists (filter runs before validation).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            validation:
+              value:
+                code: VALIDATION_ERROR
+                message: 'One or more fields failed validation.'
+                details:
+                  errors:
+                    - field: header.receiptNumber
+                      message: must not be blank
+                    - field: header.uuid
+                      message: 'must match "[a-fA-F0-9]{64}"'
+
+    ResolutionError:
+      description: |
+        Company or authority_environment lookup failed. Possible codes:
+        - `COMPANY_NOT_FOUND` — `companyRegistrationNumber` does not match any active `companies.tax_number`.
+        - `AUTHORITY_ENVIRONMENT_NOT_FOUND` — `(authority, environment)` tuple not present in the registry. ETA+SANDBOX and ZATCA+PREPROD always land here by design.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            companyNotFound:
+              value:
+                code: COMPANY_NOT_FOUND
+                message: 'Company not found for registration number: 999999999'
+                details: { registrationNumber: '999999999' }
+            envNotFound:
+              value:
+                code: AUTHORITY_ENVIRONMENT_NOT_FOUND
+                message: 'No active authority environment found for: ETA / SANDBOX'
+                details: { authority: ETA, environment: SANDBOX }
+
+    ArchiveFailure:
+      description: |
+        FR-OBS-005 — The inbound payload archive write failed. The main ingest transaction was NEVER reached.
+        The platform refuses to accept any payload it cannot first archive, by design. Retry is safe.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            archive:
+              value:
+                code: ARCHIVE_WRITE_FAILED
+                message: 'Inbound payload archive unavailable; ingestion aborted.'
+                details: { cause: 'storage unavailable' }
+
+  schemas:
+    # ─── shared types ────────────────────────────────────────────────────
+    IntegrationEnvironment:
+      type: string
+      description: |
+        Environments accepted by the ingestion gateway.
+        PRODUCTION is intentionally absent — production cutover is gated separately.
+      enum: [SANDBOX, PREPROD]
+
+    IntegrationDocumentStatus:
+      type: string
+      description: ERP-reported lifecycle status. Mapped to internal DocumentState per FR-016.
+      enum: [DRAFT, VALID, INVALID, CLEARED, REPORTED, REJECTED, FAILED, CANCELLED]
+
+    DocumentIngestionResponse:
+      type: object
+      required: [id, documentNumber, internalStatus, message]
+      properties:
+        id:                { type: string, format: uuid, description: Platform-generated header row UUID. }
+        documentNumber:    { type: string, description: Echoed from payload. }
+        erpReferenceId:    { type: string, nullable: true, description: Echoed verbatim from the request. }
+        internalStatus:    { type: string, description: 'Mapped DocumentState (DRAFT | ACCEPTED | REJECTED | CANCELLED).' }
+        message:           { type: string, description: Human-readable confirmation. }
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string, description: 'See contracts/error-codes.md for the full catalogue.' }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+
+    # ─── gateway-routing fields, factored once ───────────────────────────
+    GatewayRoutingFields:
+      type: object
+      required: [companyRegistrationNumber, environment, status]
+      properties:
+        companyRegistrationNumber:
+          type: string
+          maxLength: 100
+          description: Resolves against companies.tax_number (active only).
+        environment:
+          $ref: '#/components/schemas/IntegrationEnvironment'
+        status:
+          $ref: '#/components/schemas/IntegrationDocumentStatus'
+        erpReferenceId:
+          type: string
+          maxLength: 100
+          nullable: true
+
+    # ─── request DTOs ────────────────────────────────────────────────────
+    # NOTE: nested record types (Header, DocumentType, Seller, BranchAddress, Buyer, Discount, ItemData,
+    # TaxableItem, TaxTotal, Contractor, Beneficiary, TaxpayerParty, PartyAddress, InvoiceLine, UnitValue,
+    # LineTax, SellerParty, BuyerParty, LineItem) are NOT fully expanded in this contract — they are
+    # generated at runtime by SpringDoc from the actual Java record sources, which are themselves the
+    # authoritative shape (Docs/sprint-1-ingestion-gateway-implementation-plan.md §6–§10). What lives
+    # here is the routing-level contract integrators see at the top of each request body.
+
+    EtaReceiptIngestionRequest:
+      allOf:
+        - $ref: '#/components/schemas/GatewayRoutingFields'
+        - type: object
+          description: ETA Receipt SDK v1.2 root payload. Full nested-record schema is generated at runtime.
+          required: [header, documentType, seller, buyer, itemData, totalSales, netAmount, totalAmount, paymentMethod]
+
+    EtaInvoiceIngestionRequest:
+      allOf:
+        - $ref: '#/components/schemas/GatewayRoutingFields'
+        - type: object
+          description: ETA Invoice SDK v1.0 payload. Full nested-record schema is generated at runtime.
+          required: [invoiceNumber, documentType, documentTypeVersion, dateTimeIssued, seller, buyer, currency, totalSalesAmount, totalDiscountAmount, extraDiscountAmount, totalItemsDiscountAmount, netAmount, totalAmount, lines]
+
+    ZatcaStandardInvoiceIngestionRequest:
+      allOf:
+        - $ref: '#/components/schemas/GatewayRoutingFields'
+        - type: object
+          description: ZATCA Fatoora v2.0.3 Standard (B2B) payload. Buyer is required.
+          required: [invoiceNumber, invoiceTypeCode, transactionTypeCode, issueDate, issueTime, seller, buyer, currency, lineExtensionAmount, allowanceTotalAmount, taxExclusiveAmount, taxAmount, taxInclusiveAmount, payableAmount, lines]
+
+    ZatcaSimplifiedInvoiceIngestionRequest:
+      allOf:
+        - $ref: '#/components/schemas/GatewayRoutingFields'
+        - type: object
+          description: ZATCA Fatoora v2.0.3 Simplified (B2C) payload. Buyer is optional (anonymous retail).
+          required: [invoiceNumber, invoiceTypeCode, transactionTypeCode, issueDate, issueTime, seller, currency, lineExtensionAmount, allowanceTotalAmount, taxExclusiveAmount, taxAmount, taxInclusiveAmount, payableAmount, lines]

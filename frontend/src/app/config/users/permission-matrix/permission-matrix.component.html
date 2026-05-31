@@ -1,0 +1,19 @@
+<h2 mat-dialog-title>Edit Permissions: {{ data.userName }}</h2>
+
+<mat-dialog-content>
+  <p>Select environments this user can access:</p>
+  <div class="env-list">
+    @for (env of environments; track env) {
+      <mat-checkbox [checked]="selected.has(env)" (change)="toggle(env)">
+        {{ env }}
+      </mat-checkbox>
+    }
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="submitting">
+    @if (submitting) { Saving... } @else { Save Permissions }
+  </button>
+</mat-dialog-actions>

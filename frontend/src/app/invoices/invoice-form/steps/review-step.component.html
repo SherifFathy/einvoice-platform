@@ -1,0 +1,181 @@
+<div>
+  <div class="review-section">
+    <h4>Header Information</h4>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <div class="label">Authority</div>
+        <div class="value">{{ $any(headerValues).authority }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Invoice Type</div>
+        <div class="value">{{ $any(headerValues).type }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Branch</div>
+        <div class="value">{{ $any(headerValues).branchId }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Issue Date</div>
+        <div class="value">{{ $any(headerValues).issueDate }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Currency</div>
+        <div class="value">{{ $any(headerValues).currency }}</div>
+      </div>
+      <div class="meta-item">
+        <div class="label">Payment Means</div>
+        <div class="value">{{ $any(headerValues).paymentMeansCode || '-' }}</div>
+      </div>
+    </div>
+
+    @if (subtypeFlagsList.length > 0) {
+      <div style="margin-top: 8px;">
+        <span class="label">Subtype Flags:</span>
+        <div class="flag-tags">
+          @for (flag of subtypeFlagsList; track flag) {
+            <span class="flag-tag">{{ flag }}</span>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <div class="review-section" style="margin-top: 16px;">
+    <h4>Buyer</h4>
+    @if ($any(headerValues).buyerId) {
+      <div class="buyer-card">
+        Customer ID: {{ $any(headerValues).buyerId }}
+      </div>
+    } @else {
+      <div style="color: #666;">No buyer selected</div>
+    }
+
+    @if ($any(headerValues).originalInvoiceId || $any(headerValues).externalInvoiceReference) {
+      <div style="margin-top: 8px;">
+        <strong>Original Reference:</strong>
+        @if ($any(headerValues).originalInvoiceId) {
+          <span>Invoice {{ $any(headerValues).originalInvoiceId }}</span>
+        }
+        @if ($any(headerValues).externalInvoiceReference) {
+          <span>External: {{ $any(headerValues).externalInvoiceReference }}</span>
+        }
+      </div>
+    }
+  </div>
+
+  <mat-divider></mat-divider>
+
+  <div class="review-section" style="margin-top: 16px;">
+    <h4>Line Items</h4>
+    <table>
+      <tr>
+        <th>#</th><th>Description</th><th>Qty</th><th>Unit</th>
+        <th>Price</th><th>Discount</th><th class="amount">Net</th>
+        <th class="amount">VAT</th><th class="amount">Total</th>
+      </tr>
+      @for (line of lines; track $index; let i = $index) {
+        <tr>
+          <td>{{ i + 1 }}</td>
+          <td>{{ $any(line).descriptionEn }}</td>
+          <td>{{ $any(line).quantity }}</td>
+          <td>{{ $any(line).unit }}</td>
+          <td class="amount">{{ $any(line).unitPrice | number:'1.2-2' }}</td>
+          <td class="amount">{{ $any(line).discountAmount | number:'1.2-2' }}</td>
+          <td class="amount">{{ lineCalculations[i].lineNet | number:'1.2-2' }}</td>
+          <td class="amount">{{ lineCalculations[i].lineVat | number:'1.2-2' }}</td>
+          <td class="amount">{{ lineCalculations[i].lineTotal | number:'1.2-2' }}</td>
+        </tr>
+      }
+    </table>
+  </div>
+
+  <mat-divider></mat-divider>
+
+  @if (vatBreakdown.length > 0) {
+    <div class="vat-section">
+      <h4>VAT Breakdown</h4>
+      <table>
+        <tr><th>Category</th><th>Rate %</th><th class="amount">Taxable</th><th class="amount">Tax</th></tr>
+        @for (vd of vatBreakdown; track vd.category + vd.rate) {
+          <tr>
+            <td>{{ vd.category }}</td>
+            <td>{{ vd.rate }}</td>
+            <td class="amount">{{ vd.taxable | number:'1.2-2' }}</td>
+            <td class="amount">{{ vd.tax | number:'1.2-2' }}</td>
+          </tr>
+        }
+      </table>
+    </div>
+  }
+
+  <div class="totals-grid" style="margin-top: 16px;">
+    <span class="label">Total Line Net:</span>
+    <span class="value">{{ totals.totalLineNet | number:'1.2-2' }}</span>
+    <span class="label">Total Allowances:</span>
+    <span class="value">- {{ totals.totalAllowances | number:'1.2-2' }}</span>
+    <span class="label">Total Without VAT:</span>
+    <span class="value">{{ totals.totalWithoutVat | number:'1.2-2' }}</span>
+    <span class="label">Total VAT:</span>
+    <span class="value">{{ totals.totalVat | number:'1.2-2' }}</span>
+    <span class="label" style="font-weight:bold">Total With VAT:</span>
+    <span class="value" style="font-weight:bold">{{ totals.totalWithVat | number:'1.2-2' }}</span>
+    <span class="label">Prepaid:</span>
+    <span class="value">- {{ $any(headerValues).prepaidAmount | number:'1.2-2' }}</span>
+    <span class="label grand">Amount Due:</span>
+    <span class="value grand">{{ totals.amountDue | number:'1.2-2' }}</span>
+  </div>
+
+  @if (hasFormErrors || hasValidationWarnings) {
+    <div class="validation-warnings" [class.has-warnings]="hasValidationWarnings" [class.no-warnings]="!hasValidationWarnings">
+      @if (hasValidationWarnings) {
+        <h4 style="margin: 0 0 8px 0; display: flex; align-items: center; gap: 4px;">
+          <mat-icon class="warning-icon">warning</mat-icon>
+          Validation Warnings
+        </h4>
+        @for (w of validationWarnings; track w) {
+          <div class="warning-item">
+            <mat-icon class="warning-icon">info</mat-icon>
+            <span>{{ w }}</span>
+          </div>
+        }
+      }
+      @if (hasFormErrors) {
+        <div class="warning-item">
+          <mat-icon style="color: #d32f2f;">error</mat-icon>
+          <span style="color: #d32f2f;">Some required fields are missing or invalid. Go back to fix them.</span>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="validation-warnings no-warnings" style="margin-top: 16px;">
+      <div class="warning-item">
+        <mat-icon class="success-icon">check_circle</mat-icon>
+        <span>All validations passed</span>
+      </div>
+    </div>
+  }
+
+  @if (invoiceId) {
+    <div class="validate-action">
+      <button mat-raised-button color="primary" (click)="onValidate()" [disabled]="!canValidate">
+        <mat-icon>fact_check</mat-icon>
+        Run Authority Validation
+      </button>
+      @if (validating) {
+        <mat-progress-bar mode="indeterminate" style="margin-top: 8px;"></mat-progress-bar>
+      }
+    </div>
+
+    @if (serverValidationDone) {
+      <div class="validation-errors-block">
+        <app-validation-result
+          [errors]="serverErrors"
+          [warnings]="serverWarnings"
+          [checked]="serverValidationDone">
+        </app-validation-result>
+      </div>
+    }
+  }
+</div>

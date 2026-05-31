@@ -1,0 +1,435 @@
+openapi: 3.0.3
+info:
+  title: Wave 5 — Admin API
+  version: 1.0.0
+  description: |
+    Admin endpoints for managing global entities (companies, branches,
+    users) and operational assignments. All endpoints REQUIRE the caller's
+    JWT to carry `isSuperUser=true` (FR-036). They are accessible in both
+    ADMIN_MODE and OPERATIONAL_MODE for Super Users.
+
+    Aligned with spec.md FR-032..FR-036a and Constitution VII.2 / XVII.
+
+servers:
+  - url: /
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: companies
+  - name: branches
+  - name: users
+  - name: assignments
+
+paths:
+  # ------------------------------- Companies -------------------------------
+  /api/admin/companies:
+    get:
+      tags: [companies]
+      summary: List companies
+      parameters:
+        - in: query
+          name: includeInactive
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Company list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Company' }
+    post:
+      tags: [companies]
+      summary: Create a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Company' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/admin/companies/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [companies]
+      summary: Update a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompanyUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Company' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/admin/companies/{id}/deactivate:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [companies]
+      summary: Deactivate a company
+      responses:
+        '204': { description: Deactivated }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # -------------------------------- Branches -------------------------------
+  /api/admin/companies/{id}/branches:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [branches]
+      summary: List branches for a company
+      responses:
+        '200':
+          description: Branch list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Branch' }
+    post:
+      tags: [branches]
+      summary: Create a branch under the company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BranchCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Branch' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /api/admin/branches/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [branches]
+      summary: Update a branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BranchUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Branch' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # --------------------------------- Users ---------------------------------
+  /api/admin/users:
+    get:
+      tags: [users]
+      summary: List users
+      parameters:
+        - in: query
+          name: includeInactive
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/User' }
+    post:
+      tags: [users]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: Email already exists, or violation of FR-036a (last Super User)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/admin/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [users]
+      summary: Update a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '409':
+          description: |
+            Returned (with code `LAST_SUPER_USER_PROTECTED`) when the change
+            would leave the platform with zero active Super Users (FR-036a).
+
+  /api/admin/users/{id}/activate:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    put:
+      tags: [users]
+      summary: Activate a user
+      responses:
+        '204': { description: Activated }
+
+  /api/admin/users/{id}/deactivate:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    put:
+      tags: [users]
+      summary: Deactivate a user
+      responses:
+        '204': { description: Deactivated }
+        '409':
+          description: Returned with `LAST_SUPER_USER_PROTECTED` when the user is the only active Super User
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ------------------------------ Assignments ------------------------------
+  /api/admin/users/{id}/assignments:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    get:
+      tags: [assignments]
+      summary: List assignments for a user
+      responses:
+        '200':
+          description: Assignment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Assignment' }
+    post:
+      tags: [assignments]
+      summary: Grant an assignment to the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignmentCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Assignment' }
+        '400':
+          description: |
+            Validation failure, including:
+            - tax-number collision per FR-007 (`TAX_NUMBER_DUPLICATE_IN_CONTEXT`)
+            - role/transactionType mismatch with the resolved authority
+              (`INVALID_ROLE_FOR_AUTHORITY`)
+        '409':
+          description: Assignment already exists (`ASSIGNMENT_EXISTS`)
+
+  /api/admin/users/{id}/assignments/{assignmentId}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+      - in: path
+        name: assignmentId
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [assignments]
+      summary: Revoke an assignment (hard delete)
+      responses:
+        '204': { description: Revoked }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      in: path
+      name: id
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ValidationError:
+      description: Request body invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    Company:
+      type: object
+      properties:
+        id:        { type: string, format: uuid }
+        nameEn:    { type: string }
+        nameAr:    { type: string }
+        taxNumber: { type: string }
+        crNumber:  { type: string, nullable: true }
+        logoPath:  { type: string, nullable: true }
+        isActive:  { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CompanyCreateRequest:
+      type: object
+      required: [nameEn, nameAr, taxNumber]
+      description: |
+        Wave 5 scope: `logoPath` is intentionally NOT accepted on create or update
+        (see spec.md Q2 / FR-004 revised). The `Company` response schema retains
+        `logoPath` so any value populated by a future wave still serializes; in
+        Wave 5 it is always null on read.
+      properties:
+        nameEn:    { type: string, maxLength: 255 }
+        nameAr:    { type: string, maxLength: 255 }
+        taxNumber: { type: string, maxLength: 100 }
+        crNumber:  { type: string, maxLength: 100, nullable: true }
+
+    CompanyUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/CompanyCreateRequest'
+
+    Branch:
+      type: object
+      properties:
+        id:                   { type: string, format: uuid }
+        companyId:            { type: string, format: uuid }
+        nameEn:               { type: string }
+        nameAr:               { type: string }
+        branchCode:           { type: string, nullable: true }
+        addressLine1:         { type: string, nullable: true }
+        addressLine2:         { type: string, nullable: true }
+        city:                 { type: string, nullable: true }
+        region:               { type: string, nullable: true }
+        postalCode:           { type: string, nullable: true }
+        country:              { type: string, default: 'EG' }
+        buildingNumber:       { type: string, nullable: true }
+        additionalNo:         { type: string, nullable: true }
+        taxpayerActivityCode: { type: string, nullable: true }
+        isActive:             { type: boolean }
+
+    BranchCreateRequest:
+      type: object
+      required: [nameEn, nameAr]
+      properties:
+        nameEn:               { type: string, maxLength: 255 }
+        nameAr:               { type: string, maxLength: 255 }
+        branchCode:           { type: string, maxLength: 50, nullable: true }
+        addressLine1:         { type: string, maxLength: 255, nullable: true }
+        addressLine2:         { type: string, maxLength: 255, nullable: true }
+        city:                 { type: string, maxLength: 100, nullable: true }
+        region:               { type: string, maxLength: 100, nullable: true }
+        postalCode:           { type: string, maxLength: 20, nullable: true }
+        country:              { type: string, maxLength: 10, default: 'EG' }
+        buildingNumber:       { type: string, maxLength: 20, nullable: true }
+        additionalNo:         { type: string, maxLength: 20, nullable: true }
+        taxpayerActivityCode: { type: string, maxLength: 50, nullable: true }
+
+    BranchUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/BranchCreateRequest'
+
+    User:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        name:         { type: string }
+        email:        { type: string, format: email }
+        isSuperUser:  { type: boolean }
+        isActive:     { type: boolean }
+        createdAt:    { type: string, format: date-time }
+        updatedAt:    { type: string, format: date-time }
+
+    UserCreateRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:        { type: string, maxLength: 255 }
+        email:       { type: string, format: email, maxLength: 255 }
+        password:    { type: string, minLength: 1, description: "Wave 5: any non-empty string accepted (FR-006a). Hashed server-side with BCrypt." }
+        isSuperUser: { type: boolean, default: false }
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        name:         { type: string, maxLength: 255 }
+        email:        { type: string, format: email, maxLength: 255 }
+        password:     { type: string, minLength: 1, nullable: true, description: "When non-null, replaces the existing hash" }
+        isSuperUser:  { type: boolean }
+
+    Assignment:
+      type: object
+      properties:
+        id:                       { type: string, format: uuid }
+        userId:                   { type: string, format: uuid }
+        companyId:                { type: string, format: uuid }
+        authorityEnvironmentId:   { type: integer, minimum: 1, maximum: 5 }
+        transactionType:
+          type: string
+          enum: [INVOICE, RECEIPT, STANDARD, SIMPLIFIED, CUSTOMERS, ITEMS, CONFIG]
+        roleCode:
+          type: string
+          enum: [COMPANY_ADMIN, ACCOUNTANT, VIEWER]
+        isActive:                 { type: boolean }
+        grantedBy:                { type: string, format: uuid, nullable: true }
+        grantedAt:                { type: string, format: date-time }
+
+    AssignmentCreateRequest:
+      type: object
+      required: [companyId, authorityEnvironmentId, transactionType, roleCode]
+      properties:
+        companyId:                { type: string, format: uuid }
+        authorityEnvironmentId:   { type: integer, minimum: 1, maximum: 5 }
+        transactionType:
+          type: string
+          enum: [INVOICE, RECEIPT, STANDARD, SIMPLIFIED, CUSTOMERS, ITEMS, CONFIG]
+        roleCode:
+          type: string
+          enum: [COMPANY_ADMIN, ACCOUNTANT, VIEWER]
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:    { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true

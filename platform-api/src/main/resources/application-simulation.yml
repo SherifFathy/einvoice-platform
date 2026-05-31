@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: ${SIMULATION_DB_URL}
+    username: ${SIMULATION_DB_USERNAME}
+    password: ${SIMULATION_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+einvoice:
+  zatca:
+    base-url: https://gw-fatoora.zatca.gov.sa/e-invoicing/simulation
+  eta:
+    base-url: https://preprod.invoicing.eta.gov.eg
+
+logging:
+  level:
+    com.einvoice: INFO

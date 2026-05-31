@@ -1,0 +1,45 @@
+<h2 mat-dialog-title>{{ isCreate ? 'Create Company' : 'Edit Company' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form">
+    <mat-form-field>
+      <mat-label>Name (English)</mat-label>
+      <input matInput formControlName="nameEn" required />
+      @if (form.get('nameEn')?.hasError('required') && form.get('nameEn')?.touched) {
+        <mat-error>Name (EN) is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Name (Arabic)</mat-label>
+      <input matInput formControlName="nameAr" required dir="rtl" />
+      @if (form.get('nameAr')?.hasError('required') && form.get('nameAr')?.touched) {
+        <mat-error>Name (AR) is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Tax Number</mat-label>
+      <input matInput formControlName="taxNumber" required />
+      @if (form.get('taxNumber')?.hasError('required') && form.get('taxNumber')?.touched) {
+        <mat-error>Tax number is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>CR Number</mat-label>
+      <input matInput formControlName="crNumber" placeholder="Optional" />
+    </mat-form-field>
+  </form>
+
+  @if (errorMessage) {
+    <div class="form-error">{{ errorMessage }}</div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="submitting || form.invalid">
+    @if (submitting) { Saving... } @else { Save }
+  </button>
+</mat-dialog-actions>

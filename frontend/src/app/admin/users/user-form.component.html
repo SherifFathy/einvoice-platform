@@ -1,0 +1,48 @@
+<h2 mat-dialog-title>{{ isCreate ? 'Create User' : 'Edit User' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form">
+    <mat-form-field>
+      <mat-label>Name</mat-label>
+      <input matInput formControlName="name" required />
+      @if (form.get('name')?.hasError('required') && form.get('name')?.touched) {
+        <mat-error>Name is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email" required />
+      @if (form.get('email')?.hasError('required') && form.get('email')?.touched) {
+        <mat-error>Email is required</mat-error>
+      }
+      @if (form.get('email')?.hasError('email') && form.get('email')?.touched) {
+        <mat-error>Enter a valid email address</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Password</mat-label>
+      <input matInput type="password" formControlName="password" [required]="isCreate" />
+      @if (form.get('password')?.hasError('required') && form.get('password')?.touched) {
+        <mat-error>Password is required</mat-error>
+      }
+    </mat-form-field>
+    @if (!isCreate) {
+      <div class="password-hint">Leave blank to keep current password.</div>
+    }
+
+    <mat-checkbox formControlName="isSuperUser">Super User</mat-checkbox>
+  </form>
+
+  @if (errorMessage) {
+    <div class="form-error">{{ errorMessage }}</div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="submitting || form.invalid">
+    @if (submitting) { Saving... } @else { Save }
+  </button>
+</mat-dialog-actions>

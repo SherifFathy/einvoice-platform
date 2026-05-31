@@ -1,0 +1,4 @@
+<div *ngIf="overlay" class="overlay">
+  <mat-spinner [diameter]="diameter"></mat-spinner>
+</div>
+<mat-spinner *ngIf="!overlay" [diameter]="diameter"></mat-spinner>

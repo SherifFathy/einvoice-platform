@@ -1,0 +1,93 @@
+{
+  "companyRegistrationNumber": "100200300",
+  "environment": "SANDBOX",
+  "status": "VALID",
+  "erpReferenceId": "ERP-ZATCA-STD-001",
+  "invoiceNumber": "ZATCA-STD-2026-001",
+  "invoiceTypeCode": "388",
+  "transactionTypeCode": "10000000",
+  "issueDate": "2026-05-27",
+  "issueTime": "14:30:00",
+  "seller": {
+    "partyId": "seller-001",
+    "partyIdScheme": "CRN",
+    "vatNumber": "300000000100003",
+    "buildingNumber": "1111",
+    "postalCode": "12345",
+    "street": "King Fahd Road",
+    "city": "Riyadh",
+    "countryCode": "SA"
+  },
+  "buyer": {
+    "partyId": "buyer-001",
+    "partyIdScheme": "CRN",
+    "vatNumber": "300000000200003",
+    "buildingNumber": "2222",
+    "postalCode": "54321",
+    "street": "Olaya Street",
+    "city": "Riyadh",
+    "countryCode": "SA"
+  },
+  "currency": "SAR",
+  "lineExtensionAmount": 1000.00,
+  "allowanceTotalAmount": 50.00,
+  "taxExclusiveAmount": 950.00,
+  "taxAmount": 90.00,
+  "taxInclusiveAmount": 1040.00,
+  "prepaidAmount": 0,
+  "payableAmount": 1040.00,
+  "paymentMeansCode": "10",
+  "paymentMeansText": "Cash",
+  "invoiceCounterValue": 42,
+  "previousInvoiceHash": "prevHashABC",
+  "invoiceHash": "hashDEF123",
+  "qrCodeBase64": "QR_BASE64_DATA",
+  "clearanceStatus": "CLEARED",
+  "allowances": [
+    {
+      "sequence": 1,
+      "amount": 50.00,
+      "baseAmount": 200.00,
+      "vatCategoryCode": "S",
+      "vatRate": 15.00,
+      "reasonCode": "82",
+      "reason": "Sample discount"
+    }
+  ],
+  "lines": [
+    {
+      "lineNumber": 1,
+      "itemCode": "ITEM-S-001",
+      "description": "Standard-rated consulting service",
+      "unitType": "EA",
+      "quantity": 5.0,
+      "unitPrice": 120.00,
+      "itemGrossPrice": 120.00,
+      "itemPriceDiscount": 0,
+      "itemPriceBaseQuantity": 1,
+      "lineExtensionAmount": 600.00,
+      "netAmount": 600.00,
+      "vatCategoryCode": "S",
+      "vatRate": 15.00,
+      "vatAmount": 90.00
+    },
+    {
+      "lineNumber": 2,
+      "itemCode": "ITEM-E-001",
+      "description": "Exempt financial advisory service",
+      "unitType": "EA",
+      "quantity": 2.0,
+      "unitPrice": 200.00,
+      "itemGrossPrice": 200.00,
+      "itemPriceDiscount": 0,
+      "itemPriceBaseQuantity": 1,
+      "lineExtensionAmount": 400.00,
+      "netAmount": 400.00,
+      "vatCategoryCode": "E",
+      "vatRate": 0.00,
+      "vatAmount": 0.00,
+      "exemptionReasonCode": "VATEX-SA-29",
+      "exemptionReasonText": "Financial services exempt under Article 29"
+    }
+  ]
+}

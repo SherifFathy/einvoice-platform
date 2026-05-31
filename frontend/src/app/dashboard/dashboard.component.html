@@ -1,0 +1,32 @@
+<h2>Dashboard</h2>
+
+@if (isAdminMode) {
+  <div class="admin-banner">
+    Admin Mode — operational features require logout and re-login with a company selected.
+  </div>
+}
+
+@if (isSuperUserOperational) {
+  <div class="dashboard-header">
+    <span></span>
+    <a mat-raised-button color="primary" routerLink="/admin/companies">
+      <mat-icon>add</mat-icon> Create Company
+    </a>
+  </div>
+}
+
+<div class="dashboard-grid">
+  @for (company of companies; track company.companyId) {
+    <mat-card class="company-card" [class.inactive]="!company.isActive">
+      <div class="card-header">
+        <div>
+          <div class="company-name">{{ company.companyNameEn }}</div>
+          <div class="company-name-ar">{{ company.companyNameAr }}</div>
+        </div>
+        @if (!company.isActive) {
+          <mat-chip disabled color="warn">Inactive</mat-chip>
+        }
+      </div>
+    </mat-card>
+  }
+</div>

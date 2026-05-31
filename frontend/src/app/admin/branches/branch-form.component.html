@@ -1,0 +1,89 @@
+<h2 mat-dialog-title>{{ isCreate ? 'Create Branch' : 'Edit Branch' }}</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form">
+    <mat-form-field>
+      <mat-label>Name (English)</mat-label>
+      <input matInput formControlName="nameEn" required />
+      @if (form.get('nameEn')?.hasError('required') && form.get('nameEn')?.touched) {
+        <mat-error>Name (EN) is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Name (Arabic)</mat-label>
+      <input matInput formControlName="nameAr" required dir="rtl" />
+      @if (form.get('nameAr')?.hasError('required') && form.get('nameAr')?.touched) {
+        <mat-error>Name (AR) is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Branch Code</mat-label>
+      <input matInput formControlName="branchCode" placeholder="Optional" />
+    </mat-form-field>
+
+    <div class="section-divider">
+      <div class="section-title">Address</div>
+    </div>
+
+    <mat-form-field>
+      <mat-label>Address Line 1</mat-label>
+      <input matInput formControlName="addressLine1" />
+    </mat-form-field>
+
+    <mat-form-field>
+      <mat-label>Address Line 2</mat-label>
+      <input matInput formControlName="addressLine2" />
+    </mat-form-field>
+
+    <div class="form-row">
+      <mat-form-field>
+        <mat-label>City</mat-label>
+        <input matInput formControlName="city" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Region</mat-label>
+        <input matInput formControlName="region" />
+      </mat-form-field>
+    </div>
+
+    <div class="form-row">
+      <mat-form-field>
+        <mat-label>Postal Code</mat-label>
+        <input matInput formControlName="postalCode" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Country</mat-label>
+        <input matInput formControlName="country" />
+      </mat-form-field>
+    </div>
+
+    <div class="form-row">
+      <mat-form-field>
+        <mat-label>Building Number</mat-label>
+        <input matInput formControlName="buildingNumber" />
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Additional Number</mat-label>
+        <input matInput formControlName="additionalNo" />
+      </mat-form-field>
+    </div>
+
+    <mat-form-field>
+      <mat-label>Taxpayer Activity Code</mat-label>
+      <input matInput formControlName="taxpayerActivityCode" />
+    </mat-form-field>
+  </form>
+
+  @if (errorMessage) {
+    <div class="form-error">{{ errorMessage }}</div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions" align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="submitting || form.invalid">
+    @if (submitting) { Saving... } @else { Save }
+  </button>
+</mat-dialog-actions>

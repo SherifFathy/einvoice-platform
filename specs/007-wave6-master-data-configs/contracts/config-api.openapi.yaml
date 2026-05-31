@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: Wave 6 — Configuration API
+  version: "0.1.0"
+  description: |
+    Read/replace ETA and ZATCA certificate and submission configuration
+    for one (company, authority_environment) scope. At most one row per
+    scope. Save-blind validation: required fields, declared types, and
+    maximum lengths only — no URL parsing, no PEM parsing, no outbound
+    network call (research Decision 3 / spec FR-014a / FR-018a).
+
+    `branchId` is schema-only in Wave 6 (spec Q4): the request body MUST
+    NOT include it; if present, the server returns 400 / VALIDATION_ERROR.
+
+    Permission scope: `CONFIG / VIEW` for GET, `CONFIG / EDIT` for PUT
+    (research Decision 6).
+
+servers:
+  - url: /api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CompanyIdPath:
+      name: companyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    EtaConfig:
+      type: object
+      required: [companyId, clientId, clientSecret1, clientSecret2, submissionUrl, tokenUrl, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid, nullable: true, description: "Null when no row exists yet." }
+        companyId: { type: string, format: uuid }
+        clientId: { type: string }
+        clientSecret1: { type: string }
+        clientSecret2: { type: string }
+        tokenName: { type: string, nullable: true }
+        tokenPass: { type: string, nullable: true }
+        submissionUrl: { type: string }
+        tokenUrl: { type: string }
+        posSerial: { type: string, nullable: true }
+        posOsVersion: { type: string, nullable: true }
+        posModel: { type: string, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    EtaConfigWriteRequest:
+      type: object
+      required: [clientId, clientSecret1, clientSecret2, submissionUrl, tokenUrl]
+      properties:
+        clientId: { type: string, minLength: 1 }
+        clientSecret1: { type: string, minLength: 1 }
+        clientSecret2: { type: string, minLength: 1 }
+        tokenName: { type: string, nullable: true }
+        tokenPass: { type: string, nullable: true }
+        submissionUrl: { type: string, minLength: 1 }
+        tokenUrl: { type: string, minLength: 1 }
+        posSerial: { type: string, nullable: true }
+        posOsVersion: { type: string, nullable: true }
+        posModel: { type: string, nullable: true }
+      additionalProperties: false
+      description: |
+        `branchId` MUST NOT appear in this body in Wave 6 (spec Q4).
+        `additionalProperties: false` — any unknown property yields 400.
+
+    ZatcaConfig:
+      type: object
+      required: [companyId, privateKey, deviceUuid, csr, complianceCertificate, complianceApiSecret, isActive, chainStateInitialized, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid, nullable: true }
+        companyId: { type: string, format: uuid }
+        privateKey: { type: string }
+        deviceUuid: { type: string }
+        csr: { type: string }
+        complianceCertificate: { type: string }
+        complianceApiSecret: { type: string }
+        productionCertificate: { type: string, nullable: true }
+        productionApiSecret: { type: string, nullable: true }
+        certificateExpiryDate: { type: string, format: date, nullable: true }
+        chainStateInitialized:
+          type: boolean
+          description: |
+            True once the matching `zatca_chain_state` row exists for
+            this scope (FR-018). Wave 6 ensures the row is created on
+            the first PUT to this resource.
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    ZatcaConfigWriteRequest:
+      type: object
+      required: [privateKey, deviceUuid, csr, complianceCertificate, complianceApiSecret]
+      properties:
+        privateKey: { type: string, minLength: 1 }
+        deviceUuid: { type: string, minLength: 1 }
+        csr: { type: string, minLength: 1 }
+        complianceCertificate: { type: string, minLength: 1 }
+        complianceApiSecret: { type: string, minLength: 1 }
+        productionCertificate: { type: string, nullable: true }
+        productionApiSecret: { type: string, nullable: true }
+        certificateExpiryDate: { type: string, format: date, nullable: true }
+      additionalProperties: false
+      description: |
+        `branchId` MUST NOT appear in this body in Wave 6 (spec Q4).
+        Save-blind: PEM and date values are stored verbatim and not parsed.
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: VALIDATION_ERROR (missing required fields, unknown branchId, etc.).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthenticated:
+      description: Token missing, invalid, or expired.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnauthorizedContext:
+      description: 401 UNAUTHORIZED_CONTEXT or COMPANY_CONTEXT_REQUIRED.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: User lacks `CONFIG / VIEW` or `CONFIG / EDIT`, or in Admin Mode.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /companies/{companyId}/eta/config:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+    get:
+      summary: Read ETA configuration for the active scope
+      description: |
+        Returns 200 with the configuration. When no row exists yet for
+        the (company, authority_environment) scope, returns 200 with all
+        fields nulled (Decision 2). The Angular form renders the empty
+        state from this response.
+      responses:
+        '200':
+          description: Either the populated configuration, or an all-null shell.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaConfig' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      summary: Replace (upsert) the ETA configuration for the active scope
+      description: |
+        Idempotent replacement of the singleton row identified by
+        (companyId, authorityEnvironmentId). Save-blind: validates
+        required fields, types, and lengths only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EtaConfigWriteRequest' }
+      responses:
+        '200':
+          description: The persisted configuration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EtaConfig' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /companies/{companyId}/zatca/config:
+    parameters:
+      - $ref: '#/components/parameters/CompanyIdPath'
+    get:
+      summary: Read ZATCA configuration for the active scope
+      description: |
+        Returns 200 with the configuration (or an all-null shell when no
+        row exists). The `chainStateInitialized` boolean reports whether
+        the matching `zatca_chain_state` row exists yet.
+      responses:
+        '200':
+          description: Either the populated configuration, or an all-null shell.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaConfig' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      summary: Replace (upsert) the ZATCA configuration for the active scope
+      description: |
+        Idempotent replacement. After persisting the configuration, the
+        server ensures a `zatca_chain_state` row exists for the same scope
+        (counter=0, previousHash=null) per FR-018.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZatcaConfigWriteRequest' }
+      responses:
+        '200':
+          description: The persisted configuration with `chainStateInitialized=true`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ZatcaConfig' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }

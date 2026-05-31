@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: ETA Bulk Package API
+  version: 1.0.0
+  description: Request and download ETA bulk document packages. Readiness is polled by the server; clients poll this API.
+
+servers:
+  - url: /api
+
+paths:
+  /eta-bulk-packages:
+    post:
+      summary: Request a new ETA bulk document package
+      operationId: createEtaBulkPackageRequest
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreatePackageRequest' }
+      responses:
+        '202':
+          description: Package request accepted and tracked; poll readiness later
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PackageRequest' }
+        '400': { description: Validation error }
+
+    get:
+      summary: List ETA bulk package requests for the active tenant
+      operationId: listEtaBulkPackageRequests
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [REQUESTED, PREPARING, READY, FAILED, ABANDONED] } }
+        - { name: branchId, in: query, schema: { type: string, format: uuid } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: Paginated list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PackageRequestPage' }
+
+  /eta-bulk-packages/{id}:
+    get:
+      summary: Get status of a single package request
+      operationId: getEtaBulkPackageRequest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Current state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PackageRequest' }
+        '404': { description: Not found or not in the active tenant }
+
+  /eta-bulk-packages/{id}/download:
+    get:
+      summary: Download the package once status is READY
+      operationId: downloadEtaBulkPackage
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Binary package bytes
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '409':
+          description: Package is not READY yet
+
+  /eta-bulk-packages/{id}/cancel:
+    post:
+      summary: Abandon a pending package request
+      operationId: cancelEtaBulkPackageRequest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Marked ABANDONED
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PackageRequest' }
+        '409':
+          description: Already in a terminal state
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    CreatePackageRequest:
+      type: object
+      required: [branchId, environment, criteria]
+      properties:
+        branchId: { type: string, format: uuid }
+        environment: { type: string, enum: [ETA_PREPRODUCTION, ETA_PRODUCTION] }
+        criteria:
+          type: object
+          required: [from, to]
+          properties:
+            from: { type: string, format: date-time }
+            to: { type: string, format: date-time }
+            documentTypes:
+              type: array
+              items: { type: string }
+            direction:
+              type: string
+              enum: [SENT, RECEIVED, BOTH]
+              default: SENT
+
+    PackageRequest:
+      type: object
+      required: [id, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        environment: { type: string, enum: [ETA_PREPRODUCTION, ETA_PRODUCTION] }
+        status: { type: string, enum: [REQUESTED, PREPARING, READY, FAILED, ABANDONED] }
+        etaPackageId: { type: string, nullable: true }
+        criteria: { type: object, additionalProperties: true }
+        requestedByUserId: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        readyAt: { type: string, format: date-time, nullable: true }
+        errorMessage: { type: string, nullable: true }
+
+    PackageRequestPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PackageRequest' }
+        nextCursor: { type: string, nullable: true }

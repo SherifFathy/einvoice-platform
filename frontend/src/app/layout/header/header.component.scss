@@ -1,0 +1,25 @@
+.spacer {
+  flex: 1 1 auto;
+}
+
+.brand {
+  font-weight: 600;
+  margin-right: 16px;
+}
+
+.super-user-badge {
+  background-color: #ff9800;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 4px;
+  margin-right: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+mat-chip-set {
+  margin-left: 16px;
+}

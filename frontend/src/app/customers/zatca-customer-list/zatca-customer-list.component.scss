@@ -1,0 +1,36 @@
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbar .spacer {
+  flex: 1;
+}
+
+.search-field {
+  width: 250px;
+}
+
+.filter-select {
+  width: 200px;
+}
+
+table {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+.active {
+  color: green;
+}
+
+.inactive {
+  color: red;
+}
