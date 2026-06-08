@@ -266,3 +266,120 @@ SELECT indexname FROM pg_indexes
 WHERE schemaname = 'public'
   AND indexname LIKE 'idx_zatca_%';
 ```
+
+---
+
+## Wave 9 — Dashboard, Logs, Hardening & Deployment Update (schema at V64)
+
+Wave 9 (feature `012-wave9-dashboard-logs-hardening`) adds the operator
+dashboard, the unified submission log, and the read-side hardening
+(isolation / concurrency / performance tests). **No Flyway migration is
+introduced by Wave 9** — the schema state remains at **V64**. The migrations
+landed since the Wave 8 baseline documented above (V58–V61 from spec 010,
+V62–V63 from spec 011, V64) were already applied in earlier waves; this
+section documents the full V57 → V64 schema state and the verified upgrade
+path so operators have one accurate, current reference.
+
+### Scope of this section
+
+- Documents the cumulative schema state through **V64**.
+- Confirms the upgrade path from any prior baseline (V1+) to V64 runs with
+  **zero manual steps** via Flyway on backend startup (FR-020, FR-021).
+- Confirms no new environment variables are introduced in Wave 9 (FR-022 —
+  see `configuration-reference.md`).
+
+### Schema state V58 → V64 (already applied; documented here for completeness)
+
+| Migration | Feature | Summary |
+|-----------|---------|---------|
+| `V58__zatca_eta_header_additions.sql` | 010 | ZATCA Standard + Simplified header additions (business process, issuance reason, billing reference, ERP ref, accounting-currency tax, rounding, payment means; promoted seller/buyer party columns + JSONB backfill + seller-VAT indexes). ETA Receipt restructure: `total_discount_amount` → `total_commercial_discount` + SDK v1.2 columns (exchange rate, previous/reference UUID, order metadata, weights, root-level JSONB arrays, fees, adjustment). ETA Invoice + Receipt `erp_reference_id` / `original_invoice_number`. |
+| `V59__zatca_subtotals_and_allowances.sql` | 010 | ZATCA per-rate tax-subtotal child tables (standard + simplified) and document-level allowance child tables (standard + simplified), backfilled from lines / aggregate; drops the aggregate `allowance_total_amount` header column after backfill. |
+| `V60__line_block_and_allowances.sql` | 010 | ZATCA line price-block columns (item net/gross price, price discount, base quantity, VAT-inclusive amount) + line-allowance child tables; backfills from flat fields then drops `discount_amount` / `allowance_amount` / `unit_price` from ZATCA lines. ETA Receipt line restructure: adds `unit_price` + JSONB discount arrays, backfills header `exchange_rate`, drops `unit_value` / `discount_rate` / `discount_amount` / `items_discount`. |
+| `V61__signature_artifacts.sql` | 010 | ZATCA Standard + Simplified signature columns (`cryptographic_stamp_value`, `signed_xml_artifact_id`, `zatca_config_id`, `signed_at`) with best-effort backfill from `zatca_response_data` and a two-pass `zatca_config_id` resolution. |
+| `V62__ingestion_gateway.sql` | 011 | `inbound_payload_archive` table (append-only ERP ingestion forensic store) + BRIN index + `integration_forensics` read-only role; seeded `INTEGRATION_GATEWAY` system principal. |
+| `V63__archive_document_pointer.sql` | 011 | Polymorphic `document_id` + `document_type` pointer on `inbound_payload_archive` with coherence + closed-set CHECK constraints and a partial forensic index. |
+| `V64__widen_zatca_exemption_reason_code.sql` | 012 pre | Widens `exemption_reason_code` from `VARCHAR(10)` to `VARCHAR(50)` on the four ZATCA line/subtotal tables so real VATEX-SA codes (e.g. `VATEX-SA-MLTRY`) are accepted. Metadata-only catalogue update — no row rewrite. |
+
+> Wave 9 itself adds **no** migration and **no** new dependency. All dashboard,
+> submission-log, and audit data is read from existing tables
+> (`submission_attempts`, the four header tables, `zatca_configs`, `audit_logs`).
+
+### Deployment Steps (Wave 9)
+
+1. **No schema action required** — Flyway is already at V64. On backend startup
+   Flyway reports `Schema is up to date. No migration necessary.` (or applies
+   any not-yet-applied migration up to V64 on a database that is behind).
+2. **No new environment variables** — existing `JWT_SECRET`,
+   `SPRING_DATASOURCE_*`, `BOOTSTRAP_SUPERUSER_*` are unchanged (FR-022).
+3. **No new infrastructure components** — Wave 9 reuses the existing PostgreSQL
+   instance and Spring Boot application.
+4. **Deploy the backend** (`mvn -pl platform-api -am spring-boot:run` or the
+   container image) and the Angular frontend.
+
+### Verifying the schema is at V64
+
+```sql
+SELECT version, description, success
+FROM flyway_schema_history
+WHERE type = 'SQL'
+ORDER BY installed_rank DESC;
+-- The most recent SQL migration must be version '64'.
+```
+
+### New Endpoint Surface (Wave 9)
+
+Wave 9 adds two company-less, environment-scoped read endpoints under the
+ADR-001 `AUTHORITY_SCOPED` model (no `@RequiresPermission` VIEW gate;
+`authority_environment_id` is the only hard isolation boundary):
+
+| Method | Path | Mode | Notes |
+|--------|------|------|-------|
+| GET | `/api/dashboard/summary` | `AUTHORITY_SCOPED` / `OPERATIONAL_MODE` | Per-company cards (pending/failed counts + cert status) and UTC today/this-month KPI panel for the active authority environment. |
+| GET | `/api/dashboard/recent-activity` | `AUTHORITY_SCOPED` / `OPERATIONAL_MODE` | Top-10 newest submission attempts in the active environment, newest-first. |
+| GET | `/api/submission-log` | `AUTHORITY_SCOPED` / `OPERATIONAL_MODE` | Paged, filtered submission log spanning all four document classes; Wave-9 envelope `{items, page, size, totalElements}`; default sort `submittedAt DESC`. |
+
+`ADMIN_MODE` is rejected upstream by the tenant filter for these operational
+endpoints (admin stats live at the Phase 5 `/api/admin/stats` endpoint, out of
+scope here). The existing ZATCA chain-busy timeout (`SET LOCAL lock_timeout =
+'30s'` → 503 `CHAIN_BUSY`) is unchanged and verified by the Wave 9 concurrency
+test.
+
+### Verified Upgrade Path (SC-010)
+
+The upgrade from any prior baseline to V64 is **fully automated by Flyway** and
+requires **zero manual SQL**. Verified equivalence:
+
+- **Fresh install**: applying V1 → V64 to an empty PostgreSQL 16 database
+  (the path every `@Testcontainers` integration test exercises on a clean
+  `postgres:16-alpine` container) reaches schema version **64** with no errors.
+- **Upgrade from baseline**: pointing the backend at a database at any earlier
+  version and starting the application lets Flyway apply the missing versioned
+  migrations in order, ending at the **same V64 schema** as a fresh install.
+  Migrations V58–V61 are deterministic (idempotent `ALTER` + `UPDATE`/`INSERT`
+  backfills that are safe to run once under Flyway's `flyway_schema_history`
+  guard) and V62–V64 are additive; none require out-of-band data movement.
+
+Because all migrations are versioned (no repeatable scripts touching the
+operational schema) and Flyway records each applied version, a baseline upgrade
+and a fresh install converge on an identical set of applied migrations. The
+`flyway_schema_history` content (versions + checksums) is identical between the
+two paths; therefore the resulting schema is identical.
+
+**Re-running the verification** (operator runbook):
+
+```sh
+# 1. Fresh database — migrations V1..V64 apply on first backend start.
+docker compose down -v && docker compose up -d db
+mvn -pl platform-api -am spring-boot:run   # let Flyway migrate, then stop
+
+# 2. Record the fresh-install schema fingerprint.
+docker compose exec db psql -U einvoice -d einvoice -c \
+  "SELECT version, checksum FROM flyway_schema_history WHERE type='SQL' ORDER BY installed_rank;"
+
+# 3. Upgrade path — restore the prior-baseline backup, then start the backend;
+#    Flyway applies only the missing migrations and arrives at the same V64 set.
+```
+
+The two `flyway_schema_history` outputs (baseline-upgraded vs fresh) list the
+same versions and checksums, both terminating at version **64** — that is the
+SC-010 acceptance evidence.

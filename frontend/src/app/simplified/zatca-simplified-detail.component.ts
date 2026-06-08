@@ -17,8 +17,8 @@ import { HasPermissionDirective } from '../shared/directives/has-permission.dire
 import { SubmissionHistoryComponent } from '../documents/shared/submission-history.component';
 import { ArtifactDownloadComponent } from '../documents/shared/artifact-download.component';
 import { ToastNotificationService } from '../shared/services/toast.service';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, switchMap } from 'rxjs';
+import { toSignal, toObservable } from '@angular/core/rxjs-interop';
+import { BehaviorSubject, of, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-simplified-number-dialog',
@@ -207,7 +207,7 @@ export class SimplifiedCancelReasonDialogComponent {
 
       <app-artifact-download
         [artifactTypes]="artifactTypes"
-        [companyId]="context()?.activeCompanyId ?? ''"
+        [companyId]="document()?.body?.companyId ?? ''"
         [docId]="document()?.body?.id ?? ''"
         [getArtifactUrl]="getArtifactUrlFn()">
       </app-artifact-download>
@@ -240,17 +240,16 @@ export class ZatcaSimplifiedDetailComponent {
   document = toSignal(
     this.refresh$.pipe(switchMap(() => {
       const id = this.route.snapshot.paramMap.get('id')!;
-      const companyId = this.context()?.activeCompanyId ?? '';
-      return this.service.getById(companyId, id);
+      return this.service.getById(id);
     })), { initialValue: null as unknown as HttpResponse<ZatcaSimplifiedDocument> }
   );
 
   submissions = toSignal(
-    this.route.paramMap.pipe(
-      switchMap(params => {
-        const id = params.get('id')!;
-        const companyId = this.context()?.activeCompanyId ?? '';
-        return this.service.getSubmissions(companyId, id);
+    toObservable(this.document).pipe(
+      switchMap(doc => {
+        const body = doc?.body;
+        if (!body?.companyId || !body?.id) return of([] as SubmissionAttemptResponse[]);
+        return this.service.getSubmissions(body.companyId, body.id);
       })
     ), { initialValue: [] as SubmissionAttemptResponse[] }
   );
@@ -258,14 +257,13 @@ export class ZatcaSimplifiedDetailComponent {
   getArtifactUrlFn(): (type: string) => string {
     const doc = this.document()?.body;
     if (!doc) return () => '';
-    const companyId = this.context()?.activeCompanyId ?? '';
-    return (type: string) => this.service.getArtifactUrl(companyId, doc.id, type);
+    return (type: string) => this.service.getArtifactUrl(doc.companyId, doc.id, type);
   }
 
   submit(): void {
     const doc = this.document()?.body;
     if (!doc) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = doc.companyId;
     this.service.submit(companyId, doc.id).subscribe({
       next: () => this.refresh$.next(),
       error: (err) => this.toast.error('Submit failed: ' + (err?.error?.message || 'Unknown error')),
@@ -275,7 +273,7 @@ export class ZatcaSimplifiedDetailComponent {
   cancel(): void {
     const doc = this.document()?.body;
     if (!doc) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = doc.companyId;
     const ref = this.dialog.open(SimplifiedCancelReasonDialogComponent, {
       width: '400px',
     });
@@ -292,7 +290,7 @@ export class ZatcaSimplifiedDetailComponent {
   retry(): void {
     const doc = this.document()?.body;
     if (!doc) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = doc.companyId;
     this.service.retry(companyId, doc.id).subscribe({
       next: () => this.refresh$.next(),
       error: (err) => this.toast.error('Retry failed: ' + (err?.error?.message || 'Unknown error')),
@@ -302,7 +300,7 @@ export class ZatcaSimplifiedDetailComponent {
   checkStatus(): void {
     const doc = this.document()?.body;
     if (!doc) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = doc.companyId;
     this.service.checkStatus(companyId, doc.id).subscribe({
       next: () => this.refresh$.next(),
       error: (err) => this.toast.error('Check status failed: ' + (err?.error?.message || 'Unknown error')),
@@ -312,7 +310,7 @@ export class ZatcaSimplifiedDetailComponent {
   cloneAsDraft(): void {
     const doc = this.document()?.body;
     if (!doc) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = doc.companyId;
     const ref = this.dialog.open(SimplifiedNumberDialogComponent, {
       width: '400px',
     });

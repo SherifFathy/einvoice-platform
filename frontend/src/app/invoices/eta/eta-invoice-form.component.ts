@@ -44,6 +44,14 @@ function parseJsonField(v: unknown): Record<string, unknown> | null {
     <div class="form-container">
       <h2>{{ isEdit() ? 'Edit Invoice' : 'New Invoice' }}</h2>
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-form-field *ngIf="!isEdit()">
+          <mat-label>Company</mat-label>
+          <mat-select formControlName="owningCompanyId" required>
+            @for (c of companies(); track c.companyId) {
+              <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <mat-card>
           <mat-card-content>
             <mat-form-field><mat-label>Invoice Number</mat-label>
@@ -112,6 +120,7 @@ export class EtaInvoiceFormComponent {
   private sessionCtx = inject(SessionContextService);
   private dialog = inject(MatDialog);
   private context = toSignal(this.sessionCtx.context$);
+  companies = toSignal(this.sessionCtx.companies$, { initialValue: [] });
 
   isEdit = toSignal(
     this.route.paramMap.pipe(map(p => p.has('id'))),
@@ -120,6 +129,7 @@ export class EtaInvoiceFormComponent {
 
   linesValid = false;
   currentVersion: number | null = null;
+  private editCompanyId = '';
 
   form: FormGroup = this.fb.group({
     invoiceNumber: ['', Validators.required],
@@ -132,23 +142,50 @@ export class EtaInvoiceFormComponent {
     buyerData: [{ value: {}, disabled: false }, jsonOrNullValidator],
     deliveryData: [null, jsonOrNullValidator],
     paymentData: [null, jsonOrNullValidator],
+    owningCompanyId: ['', Validators.required],
     lines: this.fb.array([]),
   });
 
   constructor() {
-    this.sessionCtx.context$.pipe(take(1)).subscribe(ctx => {
-      if (!ctx) return;
-      const active = ctx.companies?.find(c =>
-          c.companyId === ctx.activeCompanyId);
-      if (active) {
+    const editId = this.route.snapshot.paramMap.get('id');
+    if (editId) {
+      this.loadForEdit(editId);
+    } else {
+      this.sessionCtx.companies$.pipe(take(1)).subscribe(companies => {
+        if (companies.length > 0) {
+          this.form.patchValue({
+            owningCompanyId: companies[0].companyId,
+            sellerData: {
+              type: 'B',
+              name: companies[0].companyNameEn,
+              nameAr: companies[0].companyNameAr,
+            }
+          });
+        }
+      });
+    }
+  }
+
+  private loadForEdit(id: string): void {
+    this.service.getById(id).pipe(take(1)).subscribe({
+      next: resp => {
+        const doc = resp.body;
+        if (!doc) return;
+        this.editCompanyId = doc.companyId;
+        this.currentVersion = doc.version;
         this.form.patchValue({
-          sellerData: {
-            type: 'B',
-            name: active.companyNameEn,
-            nameAr: active.companyNameAr,
-          }
+          invoiceNumber: doc.invoiceNumber,
+          documentType: doc.documentType,
+          documentTypeVersion: doc.documentTypeVersion,
+          issueDatetime: doc.issueDatetime,
+          currency: doc.currency,
+          taxpayerActivityCode: doc.taxpayerActivityCode,
+          sellerData: doc.sellerData,
+          buyerData: doc.buyerData,
+          deliveryData: doc.deliveryData,
+          paymentData: doc.paymentData,
         });
-      }
+      },
     });
   }
 
@@ -162,7 +199,6 @@ export class EtaInvoiceFormComponent {
 
   onSubmit(): void {
     if (this.form.invalid || !this.linesValid) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
     const raw = this.form.value;
     const payload = {
       ...raw,
@@ -171,8 +207,10 @@ export class EtaInvoiceFormComponent {
       deliveryData: parseJsonField(raw.deliveryData),
       paymentData: parseJsonField(raw.paymentData),
     };
+    delete (payload as any).owningCompanyId;
     if (this.isEdit()) {
       const id = this.route.snapshot.paramMap.get('id')!;
+      const companyId = this.editCompanyId;
       this.service.update(companyId, id, payload,
           String(this.currentVersion ?? 0))
         .subscribe({
@@ -180,6 +218,7 @@ export class EtaInvoiceFormComponent {
           error: (err: ConflictBody) => this.handleConflict(err, companyId, id),
         });
     } else {
+      const companyId = raw.owningCompanyId;
       this.service.create(companyId, payload).subscribe({
         next: resp => this.currentVersion = resp.body?.version ?? null,
       });

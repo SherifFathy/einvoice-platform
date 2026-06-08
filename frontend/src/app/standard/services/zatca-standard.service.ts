@@ -103,7 +103,7 @@ export class ZatcaStandardService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
 
-  list(companyId: string, params: {
+  list(params: {
     status?: string;
     company?: string;
     dateFrom?: string;
@@ -119,12 +119,12 @@ export class ZatcaStandardService {
     query.push(`page=${params.page ?? 0}`);
     query.push(`size=${params.size ?? 50}`);
     return this.http.get<ZatcaStandardListResult>(
-        `/api/companies/${companyId}/zatca/standard?${query.join('&')}`);
+        `/api/zatca/standard?${query.join('&')}`);
   }
 
-  getById(companyId: string, id: string): Observable<HttpResponse<ZatcaStandardDocument>> {
+  getById(id: string): Observable<HttpResponse<ZatcaStandardDocument>> {
     return this.http.get<ZatcaStandardDocument>(
-        `/api/companies/${companyId}/zatca/standard/${id}`,
+        `/api/zatca/standard/${id}`,
         { observe: 'response' });
   }
 

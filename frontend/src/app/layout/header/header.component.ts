@@ -62,7 +62,7 @@ export class HeaderComponent implements OnDestroy {
     const companies = ctx.companies ?? [];
     if (companies.length === 1) return companies[0].companyNameEn;
     if (companies.length >= 2) return `${companies.length} companies`;
-    return '';
+    return ctx.mode === 'AUTHORITY_SCOPED' ? 'Authority-scoped' : '';
   }
 
   get isSuperUser(): boolean {

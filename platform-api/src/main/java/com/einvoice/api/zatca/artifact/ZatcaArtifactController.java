@@ -7,7 +7,6 @@ import com.einvoice.core.domain.shared.TransactionType;
 import com.einvoice.core.error.UnauthorizedContextException;
 import com.einvoice.core.repository.shared.InvoiceArtifactRepository;
 import com.einvoice.core.repository.shared.SubmissionAttemptRepository;
-import com.einvoice.core.security.RequiresPermission;
 import com.einvoice.security.operational.RequireOperationalMode;
 import com.einvoice.security.tenant.TenantContext;
 import java.util.LinkedHashMap;
@@ -47,7 +46,6 @@ public class ZatcaArtifactController {
      * @return ordered list of submission attempt maps
      */
     @GetMapping("/standard/{docId}/submissions")
-    @RequiresPermission(transactionType = "STANDARD", action = "VIEW")
     public ResponseEntity<List<Map<String, Object>>>
             listStandardSubmissions(
                     @PathVariable UUID companyId,
@@ -68,7 +66,6 @@ public class ZatcaArtifactController {
      * @return ordered list of submission attempt maps
      */
     @GetMapping("/simplified/{docId}/submissions")
-    @RequiresPermission(transactionType = "SIMPLIFIED", action = "VIEW")
     public ResponseEntity<List<Map<String, Object>>>
             listSimplifiedSubmissions(
                     @PathVariable UUID companyId,
@@ -92,7 +89,6 @@ public class ZatcaArtifactController {
      * @return artifact bytes with content-type derived from artifact type
      */
     @GetMapping("/standard/{docId}/artifacts/{type}")
-    @RequiresPermission(transactionType = "STANDARD", action = "VIEW")
     public ResponseEntity<byte[]> downloadStandardArtifact(
             @PathVariable UUID companyId,
             @PathVariable UUID docId,
@@ -114,7 +110,6 @@ public class ZatcaArtifactController {
      * @return artifact bytes with content-type derived from artifact type
      */
     @GetMapping("/simplified/{docId}/artifacts/{type}")
-    @RequiresPermission(transactionType = "SIMPLIFIED", action = "VIEW")
     public ResponseEntity<byte[]> downloadSimplifiedArtifact(
             @PathVariable UUID companyId,
             @PathVariable UUID docId,
@@ -207,6 +202,12 @@ public class ZatcaArtifactController {
     }
 
     private void verifyContext(UUID pathCompanyId) {
+        // Cross-company document detail (submission history + artifacts) is an open
+        // read in an authority-scoped session, so the path company need not match a
+        // (null) token company. These endpoints carry no @RequiresPermission.
+        if (TenantContext.getMode() == TenantContext.Mode.AUTHORITY_SCOPED) {
+            return;
+        }
         UUID jwtCompanyId = TenantContext.getCompanyId();
         if (jwtCompanyId == null
                 || !jwtCompanyId.equals(pathCompanyId)) {

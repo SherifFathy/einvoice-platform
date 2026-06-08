@@ -3,7 +3,24 @@ import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
-import { SubmissionAttemptResponse } from '../../invoices/eta/services/eta-invoice.service';
+
+/**
+ * View-model accepted by the shared submission-history table. It is intentionally
+ * decoupled from any single authority's DTO: ETA exposes `submittedAt`/`completedAt`
+ * while ZATCA exposes `startedAt`/`finalisedAt`. Both shapes are structurally
+ * assignable to this interface, and the template falls back across the two naming
+ * conventions so timestamps render for every document type.
+ */
+export interface SubmissionAttemptView {
+  attemptNumber: number;
+  submittedBy?: string | null;
+  result?: string | null;
+  errorSummary?: string | null;
+  submittedAt?: string | null;
+  completedAt?: string | null;
+  startedAt?: string | null;
+  finalisedAt?: string | null;
+}
 
 @Component({
   selector: 'app-submission-history',
@@ -22,7 +39,7 @@ import { SubmissionAttemptResponse } from '../../invoices/eta/services/eta-invoi
           </ng-container>
           <ng-container matColumnDef="time">
             <th mat-header-cell *matHeaderCellDef>Timestamp</th>
-            <td mat-cell *matCellDef="let a">{{ a.submittedAt | date:'short' }}</td>
+            <td mat-cell *matCellDef="let a">{{ (a.submittedAt || a.startedAt) | date:'short' }}</td>
           </ng-container>
           <ng-container matColumnDef="user">
             <th mat-header-cell *matHeaderCellDef>User</th>
@@ -45,8 +62,8 @@ import { SubmissionAttemptResponse } from '../../invoices/eta/services/eta-invoi
           <ng-container matColumnDef="completed">
             <th mat-header-cell *matHeaderCellDef>Completed</th>
             <td mat-cell *matCellDef="let a">
-              <ng-container *ngIf="a.completedAt; else dash">
-                {{ a.completedAt | date:'short' }}
+              <ng-container *ngIf="(a.completedAt || a.finalisedAt); else dash">
+                {{ (a.completedAt || a.finalisedAt) | date:'short' }}
               </ng-container>
               <ng-template #dash>-</ng-template>
             </td>
@@ -65,6 +82,6 @@ import { SubmissionAttemptResponse } from '../../invoices/eta/services/eta-invoi
   `]
 })
 export class SubmissionHistoryComponent {
-  @Input() attempts: SubmissionAttemptResponse[] = [];
+  @Input() attempts: SubmissionAttemptView[] = [];
   columns = ['number', 'time', 'user', 'result', 'error', 'completed'];
 }

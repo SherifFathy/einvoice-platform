@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,7 +31,6 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/componen
     .actions { display: flex; gap: 4px; }
     .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CompanyListComponent implements OnInit {
   companies: CompanyResponse[] = [];

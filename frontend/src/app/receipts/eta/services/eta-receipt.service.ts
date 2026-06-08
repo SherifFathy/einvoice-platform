@@ -95,7 +95,7 @@ export interface ConflictBody {
 export class EtaReceiptService {
   private http = inject(HttpClient);
 
-  list(companyId: string, params: {
+  list(params: {
     status?: string;
     companyId?: string;
     receiptType?: string;
@@ -113,12 +113,12 @@ export class EtaReceiptService {
     query.push(`page=${params.page ?? 0}`);
     query.push(`size=${params.size ?? 50}`);
     return this.http.get<EtaReceiptListResult>(
-        `/api/companies/${companyId}/eta/receipts?${query.join('&')}`);
+        `/api/eta/receipts?${query.join('&')}`);
   }
 
-  getById(companyId: string, id: string): Observable<HttpResponse<EtaReceipt>> {
+  getById(id: string): Observable<HttpResponse<EtaReceipt>> {
     return this.http.get<EtaReceipt>(
-        `/api/companies/${companyId}/eta/receipts/${id}`,
+        `/api/eta/receipts/${id}`,
         { observe: 'response' });
   }
 

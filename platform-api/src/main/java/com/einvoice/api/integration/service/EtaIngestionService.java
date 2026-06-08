@@ -1,11 +1,11 @@
 package com.einvoice.api.integration.service;
 
 import com.einvoice.api.audit.service.AuditService;
-import com.einvoice.api.integration.filter.IngestionRequestAttributes;
 import com.einvoice.api.integration.dto.eta.EtaInvoiceIngestionRequest;
 import com.einvoice.api.integration.dto.eta.EtaReceiptIngestionRequest;
 import com.einvoice.api.integration.dto.shared.DocumentIngestionResponse;
 import com.einvoice.api.integration.dto.shared.IntegrationDocumentStatus;
+import com.einvoice.api.integration.filter.IngestionRequestAttributes;
 import com.einvoice.core.domain.eta.EtaInvoiceHeader;
 import com.einvoice.core.domain.eta.EtaInvoiceLine;
 import com.einvoice.core.domain.eta.EtaInvoiceLineTax;
@@ -33,6 +33,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Persists externally-submitted ETA invoices and receipts arriving through the
+ * ERP ingestion gateway (Wave 8). Resolves the owning company and authority
+ * environment, maps the SDK-shaped payload to domain entities, and records an
+ * audit trail.
+ */
 @Service
 @Transactional
 public class EtaIngestionService {
@@ -43,6 +49,15 @@ public class EtaIngestionService {
     private final AuditService auditService;
     private final UUID gatewayPrincipalId;
 
+    /**
+     * Constructs the ETA ingestion service.
+     *
+     * @param companyResolutionService resolves company + environment from the payload
+     * @param etaReceiptHeaderRepository ETA receipt header repository
+     * @param etaInvoiceHeaderRepository ETA invoice header repository
+     * @param auditService audit-trail service
+     * @param gatewayPrincipalId synthetic principal id attributed to gateway writes
+     */
     public EtaIngestionService(CompanyResolutionService companyResolutionService,
             EtaReceiptHeaderRepository etaReceiptHeaderRepository,
             EtaInvoiceHeaderRepository etaInvoiceHeaderRepository,
@@ -55,6 +70,12 @@ public class EtaIngestionService {
         this.gatewayPrincipalId = gatewayPrincipalId;
     }
 
+    /**
+     * Ingests an externally-submitted ETA receipt.
+     *
+     * @param req the SDK-shaped receipt ingestion request
+     * @return the persisted-document ingestion response
+     */
     public DocumentIngestionResponse ingestReceipt(EtaReceiptIngestionRequest req) {
         CompanyResolutionService.ResolvedContext ctx = companyResolutionService.resolve(
                 req.companyRegistrationNumber(), "ETA", req.environment().name());
@@ -63,6 +84,12 @@ public class EtaIngestionService {
         return doIngestReceipt(req, ctx);
     }
 
+    /**
+     * Ingests an externally-submitted ETA invoice.
+     *
+     * @param req the SDK-shaped invoice ingestion request
+     * @return the persisted-document ingestion response
+     */
     public DocumentIngestionResponse ingestInvoice(EtaInvoiceIngestionRequest req) {
         CompanyResolutionService.ResolvedContext ctx = companyResolutionService.resolve(
                 req.companyRegistrationNumber(), "ETA", req.environment().name());
@@ -365,14 +392,14 @@ public class EtaIngestionService {
 
     private static DocumentState toDocumentState(IntegrationDocumentStatus status) {
         return switch (status) {
-            case DRAFT -> DocumentState.DRAFT;
-            case VALID -> DocumentState.ACCEPTED;
-            case INVALID -> DocumentState.REJECTED;
-            case CLEARED -> DocumentState.ACCEPTED;
-            case REPORTED -> DocumentState.ACCEPTED;
-            case REJECTED -> DocumentState.REJECTED;
-            case FAILED -> DocumentState.REJECTED;
-            case CANCELLED -> DocumentState.CANCELLED;
+          case DRAFT -> DocumentState.DRAFT;
+          case VALID -> DocumentState.ACCEPTED;
+          case INVALID -> DocumentState.REJECTED;
+          case CLEARED -> DocumentState.ACCEPTED;
+          case REPORTED -> DocumentState.ACCEPTED;
+          case REJECTED -> DocumentState.REJECTED;
+          case FAILED -> DocumentState.REJECTED;
+          case CANCELLED -> DocumentState.CANCELLED;
         };
     }
 
@@ -397,23 +424,45 @@ public class EtaIngestionService {
     private static Map<String, Object> toBranchAddressMap(
             EtaReceiptIngestionRequest.BranchAddress addr) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (addr.country() != null) map.put("country", addr.country());
-        if (addr.governate() != null) map.put("governate", addr.governate());
-        if (addr.regionCity() != null) map.put("regionCity", addr.regionCity());
-        if (addr.street() != null) map.put("street", addr.street());
-        if (addr.building() != null) map.put("building", addr.building());
-        if (addr.postalCode() != null) map.put("postalCode", addr.postalCode());
-        if (addr.floor() != null) map.put("floor", addr.floor());
-        if (addr.room() != null) map.put("room", addr.room());
-        if (addr.landmark() != null) map.put("landmark", addr.landmark());
+        if (addr.country() != null) {
+            map.put("country", addr.country());
+        }
+        if (addr.governate() != null) {
+            map.put("governate", addr.governate());
+        }
+        if (addr.regionCity() != null) {
+            map.put("regionCity", addr.regionCity());
+        }
+        if (addr.street() != null) {
+            map.put("street", addr.street());
+        }
+        if (addr.building() != null) {
+            map.put("building", addr.building());
+        }
+        if (addr.postalCode() != null) {
+            map.put("postalCode", addr.postalCode());
+        }
+        if (addr.floor() != null) {
+            map.put("floor", addr.floor());
+        }
+        if (addr.room() != null) {
+            map.put("room", addr.room());
+        }
+        if (addr.landmark() != null) {
+            map.put("landmark", addr.landmark());
+        }
         return map;
     }
 
     private static Map<String, Object> toBuyerMap(EtaReceiptIngestionRequest.Buyer buyer) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("type", buyer.type());
-        if (buyer.id() != null) map.put("id", buyer.id());
-        if (buyer.name() != null) map.put("name", buyer.name());
+        if (buyer.id() != null) {
+            map.put("id", buyer.id());
+        }
+        if (buyer.name() != null) {
+            map.put("name", buyer.name());
+        }
         return map;
     }
 
@@ -441,7 +490,9 @@ public class EtaIngestionService {
         map.put("discounts", discounts.stream().map(d -> {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("amount", d.amount());
-            if (d.description() != null) item.put("description", d.description());
+            if (d.description() != null) {
+                item.put("description", d.description());
+            }
             return item;
         }).toList());
         return map;
@@ -450,17 +501,27 @@ public class EtaIngestionService {
     private static Map<String, Object> toContractorMap(
             EtaReceiptIngestionRequest.Contractor contractor) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (contractor.name() != null) map.put("name", contractor.name());
-        if (contractor.amount() != null) map.put("amount", contractor.amount());
-        if (contractor.rate() != null) map.put("rate", contractor.rate());
+        if (contractor.name() != null) {
+            map.put("name", contractor.name());
+        }
+        if (contractor.amount() != null) {
+            map.put("amount", contractor.amount());
+        }
+        if (contractor.rate() != null) {
+            map.put("rate", contractor.rate());
+        }
         return map;
     }
 
     private static Map<String, Object> toBeneficiaryMap(
             EtaReceiptIngestionRequest.Beneficiary beneficiary) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (beneficiary.amount() != null) map.put("amount", beneficiary.amount());
-        if (beneficiary.rate() != null) map.put("rate", beneficiary.rate());
+        if (beneficiary.amount() != null) {
+            map.put("amount", beneficiary.amount());
+        }
+        if (beneficiary.rate() != null) {
+            map.put("rate", beneficiary.rate());
+        }
         return map;
     }
 
@@ -484,10 +545,18 @@ public class EtaIngestionService {
         map.put("regionCity", addr.regionCity());
         map.put("street", addr.street());
         map.put("buildingNumber", addr.buildingNumber());
-        if (addr.postalCode() != null) map.put("postalCode", addr.postalCode());
-        if (addr.floor() != null) map.put("floor", addr.floor());
-        if (addr.room() != null) map.put("room", addr.room());
-        if (addr.landmark() != null) map.put("landmark", addr.landmark());
+        if (addr.postalCode() != null) {
+            map.put("postalCode", addr.postalCode());
+        }
+        if (addr.floor() != null) {
+            map.put("floor", addr.floor());
+        }
+        if (addr.room() != null) {
+            map.put("room", addr.room());
+        }
+        if (addr.landmark() != null) {
+            map.put("landmark", addr.landmark());
+        }
         if (addr.additionalInformation() != null) {
             map.put("additionalInformation", addr.additionalInformation());
         }

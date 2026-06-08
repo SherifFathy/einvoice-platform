@@ -85,17 +85,13 @@ public class EtaInvoiceService {
     public Page<EtaInvoiceResponse> list(String status, UUID filterCompanyId,
             String dateFrom, String dateTo, int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
 
         Specification<EtaInvoiceHeader> spec =
-                EtaInvoiceSpecifications.inActiveTenantAndAssignedCompany(assigned, authEnvId);
+                OperationalRepositorySupport.<EtaInvoiceHeader>
+                        authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
-            if (assigned.contains(filterCompanyId)) {
-                spec = spec.and(EtaInvoiceSpecifications.forCompany(filterCompanyId));
-            } else {
-                spec = spec.and((root, q, cb) -> cb.disjunction());
-            }
+            spec = spec.and(EtaInvoiceSpecifications.forCompany(filterCompanyId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(EtaInvoiceSpecifications.inState(DocumentState.valueOf(status)));
@@ -125,11 +121,12 @@ public class EtaInvoiceService {
     /**
      * Creates a new DRAFT invoice.
      *
+     * @param companyId the owning company
      * @param form the write form
      * @return the created invoice response
      */
-    public EtaInvoiceResponse create(EtaInvoiceWriteForm form) {
-        UUID companyId = TenantContext.getCompanyId();
+    public EtaInvoiceResponse create(UUID companyId,
+            EtaInvoiceWriteForm form) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         validateOriginalDocument(form, companyId, authEnvId);
@@ -345,10 +342,14 @@ public class EtaInvoiceService {
      */
     public EtaInvoiceHeader loadWithinTenant(UUID docId) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
         Specification<EtaInvoiceHeader> spec =
-                EtaInvoiceSpecifications.inActiveTenantAndAssignedCompany(assigned, authEnvId)
+                OperationalRepositorySupport.<EtaInvoiceHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(docId));
+        UUID ctxCompanyId = TenantContext.getCompanyId();
+        if (ctxCompanyId != null) {
+            spec = spec.and(OperationalRepositorySupport.companyIdEquals(ctxCompanyId));
+        }
         return repository.findOne(spec)
                 .orElseThrow(() -> new com.einvoice.core.error.ItemNotFoundException(
                         "Invoice not found"));
@@ -377,8 +378,8 @@ public class EtaInvoiceService {
         }
 
         Specification<EtaInvoiceHeader> spec =
-                EtaInvoiceSpecifications.inActiveTenantAndAssignedCompany(
-                        getAssignedCompanyIds(), authEnvId)
+                OperationalRepositorySupport.<EtaInvoiceHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(
                                 form.originalDocumentId()));
         EtaInvoiceHeader original = repository.findOne(spec)

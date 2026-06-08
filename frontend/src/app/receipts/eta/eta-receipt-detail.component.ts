@@ -18,8 +18,8 @@ import { ArtifactDownloadComponent } from '../../documents/shared/artifact-downl
 import { isAllowed, receiptTransitions } from '../../invoices/shared/generated/eta-states';
 import { CancelEtaDialogComponent } from '../../shared/dialogs/cancel-eta-dialog.component';
 import { ToastNotificationService } from '../../shared/services/toast.service';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, switchMap } from 'rxjs';
+import { toSignal, toObservable } from '@angular/core/rxjs-interop';
+import { BehaviorSubject, of, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-receipt-number-dialog',
@@ -185,7 +185,7 @@ export class ReceiptNumberDialogComponent {
 
       <app-artifact-download
         [artifactTypes]="artifactTypes"
-        [companyId]="context()?.activeCompanyId ?? ''"
+        [companyId]="receipt()?.body?.companyId ?? ''"
         [docId]="receipt()?.body?.id ?? ''"
         [getArtifactUrl]="getArtifactUrlFn()">
       </app-artifact-download>
@@ -217,17 +217,16 @@ export class EtaReceiptDetailComponent {
   receipt = toSignal(
     this.refresh$.pipe(switchMap(() => {
       const id = this.route.snapshot.paramMap.get('id')!;
-      const companyId = this.context()?.activeCompanyId ?? '';
-      return this.service.getById(companyId, id);
+      return this.service.getById(id);
     })), { initialValue: null as unknown as HttpResponse<EtaReceipt> }
   );
 
   submissions = toSignal(
-    this.route.paramMap.pipe(
-      switchMap(params => {
-        const id = params.get('id')!;
-        const companyId = this.context()?.activeCompanyId ?? '';
-        return this.service.getSubmissions(companyId, id);
+    toObservable(this.receipt).pipe(
+      switchMap(rec => {
+        const body = rec?.body;
+        if (!body?.companyId || !body?.id) return of([] as SubmissionAttemptResponse[]);
+        return this.service.getSubmissions(body.companyId, body.id);
       })
     ), { initialValue: [] as SubmissionAttemptResponse[] }
   );
@@ -244,14 +243,13 @@ export class EtaReceiptDetailComponent {
   getArtifactUrlFn(): (type: string) => string {
     const rec = this.receipt()?.body;
     if (!rec) return () => '';
-    const companyId = this.context()?.activeCompanyId ?? '';
-    return (type: string) => this.service.getArtifactUrl(companyId, rec.id, type);
+    return (type: string) => this.service.getArtifactUrl(rec.companyId, rec.id, type);
   }
 
   submit(): void {
     const rec = this.receipt()?.body;
     if (!rec) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = rec.companyId;
     this.service.submit(companyId, rec.id).subscribe({
       next: () => this.refresh$.next(),
       error: (err) => this.toast.error('Submit failed: ' + (err?.error?.message || 'Unknown error')),
@@ -261,7 +259,7 @@ export class EtaReceiptDetailComponent {
   cloneAsDraft(): void {
     const rec = this.receipt()?.body;
     if (!rec) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = rec.companyId;
     const ref = this.dialog.open(ReceiptNumberDialogComponent, {
       width: '400px',
     });
@@ -278,7 +276,7 @@ export class EtaReceiptDetailComponent {
   checkStatus(): void {
     const rec = this.receipt()?.body;
     if (!rec) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = rec.companyId;
     this.service.checkStatus(companyId, [rec.id]).subscribe({
       next: () => this.refresh$.next(),
       error: (err) => this.toast.error('Check status failed: ' + (err?.error?.message || 'Unknown error')),
@@ -288,7 +286,7 @@ export class EtaReceiptDetailComponent {
   cancel(): void {
     const rec = this.receipt()?.body;
     if (!rec) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = rec.companyId;
     const ref = this.dialog.open(CancelEtaDialogComponent, {
       width: '400px',
       data: { reason: '' },
@@ -306,7 +304,7 @@ export class EtaReceiptDetailComponent {
   retry(): void {
     const rec = this.receipt()?.body;
     if (!rec) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
+    const companyId = rec.companyId;
     this.service.retry(companyId, rec.id).subscribe({
       next: () => this.refresh$.next(),
       error: (err) => this.toast.error('Retry failed: ' + (err?.error?.message || 'Unknown error')),

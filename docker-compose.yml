@@ -1,21 +1,52 @@
 services:
+
+  # ── PostgreSQL 16 ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16
     container_name: einvoice-postgres
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
     environment:
-      POSTGRES_DB: einvoice
-      POSTGRES_USER: einvoice
-      POSTGRES_PASSWORD: einvoice_dev
+      POSTGRES_DB:       ${POSTGRES_DB:-einvoice}
+      POSTGRES_USER:     ${POSTGRES_USER:-einvoice}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U einvoice"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-einvoice} -d ${POSTGRES_DB:-einvoice}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
+  # ── Spring Boot Application ───────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: einvoice-platform:local
+    container_name: einvoice-app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      # Override the datasource URL so the app reaches the postgres *container*,
+      # not localhost (which the dev profile hardcodes to 5433 on the host).
+      SPRING_DATASOURCE_URL:      jdbc:postgresql://postgres:5432/${POSTGRES_DB:-einvoice}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-einvoice}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      JWT_SECRET:                    ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      JWT_TTL_SECONDS:               ${JWT_TTL_SECONDS:-28800}
+      ENCRYPTION_MASTER_KEY:         ${ENCRYPTION_MASTER_KEY:?ENCRYPTION_MASTER_KEY must be set in .env}
+      BOOTSTRAP_SUPERUSER_EMAIL:     ${BOOTSTRAP_SUPERUSER_EMAIL:-}
+      BOOTSTRAP_SUPERUSER_PASSWORD_HASH: ${BOOTSTRAP_SUPERUSER_PASSWORD_HASH:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── pgAdmin 4 (optional — activate with: docker compose --profile tools up) ──
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: einvoice-pgadmin
@@ -24,11 +55,13 @@ services:
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@einvoice.local
+      PGADMIN_DEFAULT_EMAIL:    admin@einvoice.local
       PGADMIN_DEFAULT_PASSWORD: admin
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres-data:
+    name: einvoice_postgres_data

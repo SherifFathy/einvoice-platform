@@ -259,7 +259,7 @@ class EtaReceiptCrossEnvIsolationTest {
         mockMvc.perform(post("/api/companies/{companyId}/eta/receipts/{docId}/submit", companyId, docId)
                         .header("Authorization", "Bearer " + superPreprodToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.state").value("VALID"));
+                .andExpect(jsonPath("$.state").value("ACCEPTED"));
 
         mockMvc.perform(get("/api/companies/{companyId}/eta/receipts/{docId}/submissions", companyId, docId)
                         .header("Authorization", "Bearer " + superProdToken))

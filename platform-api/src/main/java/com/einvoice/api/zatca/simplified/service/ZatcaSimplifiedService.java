@@ -83,20 +83,14 @@ public class ZatcaSimplifiedService {
             UUID filterCompanyId, String dateFrom, String dateTo,
             int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
 
         Specification<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader> spec =
-                ZatcaSimplifiedSpecifications
-                        .inActiveTenantAndAssignedCompany(
-                                assigned, authEnvId);
+                OperationalRepositorySupport.<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
+                        authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
-            if (assigned.contains(filterCompanyId)) {
-                spec = spec.and(ZatcaSimplifiedSpecifications.forCompany(
-                        filterCompanyId));
-            } else {
-                spec = spec.and((root, q, cb) -> cb.disjunction());
-            }
+            spec = spec.and(ZatcaSimplifiedSpecifications.forCompany(
+                    filterCompanyId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(ZatcaSimplifiedSpecifications.inState(
@@ -131,11 +125,12 @@ public class ZatcaSimplifiedService {
     /**
      * Create a new simplified document in DRAFT state.
      *
+     * @param companyId the owning company
      * @param form the validated write form
      * @return the created document response
      */
-    public ZatcaSimplifiedResponse create(ZatcaSimplifiedWriteForm form) {
-        UUID companyId = TenantContext.getCompanyId();
+    public ZatcaSimplifiedResponse create(UUID companyId,
+            ZatcaSimplifiedWriteForm form) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         validateTransactionTypeCode(form.transactionTypeCode());
@@ -360,13 +355,15 @@ public class ZatcaSimplifiedService {
     public com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader
             loadWithinTenant(UUID docId) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
         Specification<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
                 spec =
-                ZatcaSimplifiedSpecifications
-                        .inActiveTenantAndAssignedCompany(
-                                assigned, authEnvId)
+                OperationalRepositorySupport.<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(docId));
+        UUID ctxCompanyId = TenantContext.getCompanyId();
+        if (ctxCompanyId != null) {
+            spec = spec.and(OperationalRepositorySupport.companyIdEquals(ctxCompanyId));
+        }
         return repository.findOne(spec)
                 .orElseThrow(
                         () -> new com.einvoice.core.error.ItemNotFoundException(
@@ -460,12 +457,10 @@ public class ZatcaSimplifiedService {
                     null, form.invoiceTypeCode());
         }
 
-        List<UUID> assigned = getAssignedCompanyIds();
         Specification<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
                 spec =
-                ZatcaSimplifiedSpecifications
-                        .inActiveTenantAndAssignedCompany(
-                                assigned, authEnvId)
+                OperationalRepositorySupport.<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(
                                 form.originalInvoiceId()));
         var original = repository.findOne(spec)

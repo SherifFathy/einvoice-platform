@@ -100,7 +100,7 @@ class EtaInvoiceControllerContractTest {
 
     @Test
     void createReturns201WithETag() throws Exception {
-        when(service.create(any())).thenReturn(sampleResponse);
+        when(service.create(any(), any())).thenReturn(sampleResponse);
 
         mvc.perform(post("/api/companies/{companyId}/eta/invoices", companyId)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -215,7 +215,7 @@ class EtaInvoiceControllerContractTest {
 
     @Test
     void createWithMissingUnitValueKeyReturns400() throws Exception {
-        when(service.create(any()))
+        when(service.create(any(), any()))
                 .thenThrow(new InvalidUnitValueException(
                         "Missing key", "unitValue", List.of("amountEGP")));
 

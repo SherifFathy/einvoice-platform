@@ -9,6 +9,10 @@ import {
 import { Subscription } from 'rxjs';
 import { SessionContextService } from '../services/session-context.service';
 
+// Document modules whose VIEW (read) access is open to every authenticated user in
+// the company-less redesign. Writes (CREATE/EDIT/...) stay per-company.
+const DOC_MODULES = new Set(['invoice', 'receipt', 'standard', 'simplified']);
+
 @Directive({
   selector: '[appHasPermission]',
   standalone: true,
@@ -64,7 +68,12 @@ export class HasPermissionDirective implements OnDestroy {
 
     let show = false;
 
-    if (ctx.isSuperUser && ctx.mode === 'OPERATIONAL_MODE') {
+    if (ctx.isSuperUser
+        && (ctx.mode === 'OPERATIONAL_MODE' || ctx.mode === 'AUTHORITY_SCOPED')) {
+      show = true;
+    } else if (ctx.mode === 'AUTHORITY_SCOPED'
+        && this.currentAction.toLowerCase() === 'view'
+        && DOC_MODULES.has(this.currentModule.toLowerCase())) {
       show = true;
     } else if (this.currentModule) {
       const moduleKey = this.currentModule.toLowerCase();

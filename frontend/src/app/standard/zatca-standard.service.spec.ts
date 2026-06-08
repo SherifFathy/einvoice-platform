@@ -27,7 +27,7 @@ describe('ZatcaStandardService', () => {
 
   it('should list standard documents', () => {
     const mockResult = { items: [], page: 0, size: 50, totalElements: 0 };
-    service.list(companyId, { page: 0, size: 50 }).subscribe(result => {
+    service.list({ page: 0, size: 50 }).subscribe(result => {
       expect(result).toEqual(mockResult);
     });
     const req = httpMock.expectOne(r => r.url.includes('/zatca/standard'));

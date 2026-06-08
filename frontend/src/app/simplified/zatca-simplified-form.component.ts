@@ -51,6 +51,14 @@ function parseJsonField(v: unknown): Record<string, unknown> | null {
     <div class="form-container">
       <h2>{{ isEdit() ? 'Edit Simplified Document' : 'New Simplified Document' }}</h2>
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-form-field *ngIf="!isEdit()">
+          <mat-label>Company</mat-label>
+          <mat-select formControlName="owningCompanyId" required>
+            @for (c of companies(); track c.companyId) {
+              <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <mat-card>
           <mat-card-content>
             <mat-form-field><mat-label>Invoice Number</mat-label>
@@ -115,6 +123,7 @@ export class ZatcaSimplifiedFormComponent {
   private sessionCtx = inject(SessionContextService);
   private dialog = inject(MatDialog);
   private context = toSignal(this.sessionCtx.context$);
+  companies = toSignal(this.sessionCtx.companies$, { initialValue: [] });
 
   isEdit = toSignal(
     this.route.paramMap.pipe(map(p => p.has('id'))),
@@ -124,6 +133,7 @@ export class ZatcaSimplifiedFormComponent {
   linesValid = false;
   currentVersion: number | null = null;
   error: string | null = null;
+  private editCompanyId = '';
 
   form: FormGroup = this.fb.group({
     invoiceNumber: ['', Validators.required],
@@ -137,6 +147,7 @@ export class ZatcaSimplifiedFormComponent {
     sellerData: [{ value: {}, disabled: false }, jsonOrNullValidator],
     buyerData: [{ value: null, disabled: false }, jsonOrNullValidator],
     originalInvoiceId: [null],
+    owningCompanyId: ['', Validators.required],
     lines: this.fb.array([]),
   });
 
@@ -145,15 +156,13 @@ export class ZatcaSimplifiedFormComponent {
     if (editId) {
       this.loadForEdit(editId);
     } else {
-      this.sessionCtx.context$.pipe(take(1)).subscribe(ctx => {
-        if (!ctx) return;
-        const active = ctx.companies?.find(c =>
-            c.companyId === ctx.activeCompanyId);
-        if (active) {
+      this.sessionCtx.companies$.pipe(take(1)).subscribe(companies => {
+        if (companies.length > 0) {
           this.form.patchValue({
+            owningCompanyId: companies[0].companyId,
             sellerData: {
               taxRegistrationNumber: '',
-              partyName: active.companyNameEn,
+              partyName: companies[0].companyNameEn,
             }
           });
         }
@@ -162,11 +171,11 @@ export class ZatcaSimplifiedFormComponent {
   }
 
   private loadForEdit(id: string): void {
-    const companyId = this.context()?.activeCompanyId ?? '';
-    this.service.getById(companyId, id).pipe(take(1)).subscribe({
+    this.service.getById(id).pipe(take(1)).subscribe({
       next: resp => {
         const doc = resp.body;
         if (!doc) return;
+        this.editCompanyId = doc.companyId;
         this.currentVersion = doc.version;
         this.form.patchValue({
           invoiceNumber: doc.invoiceNumber,
@@ -197,15 +206,16 @@ export class ZatcaSimplifiedFormComponent {
   onSubmit(): void {
     if (this.form.invalid || !this.linesValid) return;
     this.error = null;
-    const companyId = this.context()?.activeCompanyId ?? '';
     const raw = this.form.value;
     const payload = {
       ...raw,
       sellerData: parseJsonField(raw.sellerData),
       buyerData: parseJsonField(raw.buyerData),
     };
+    delete (payload as any).owningCompanyId;
     if (this.isEdit()) {
       const id = this.route.snapshot.paramMap.get('id')!;
+      const companyId = this.editCompanyId;
       this.service.update(companyId, id, payload,
           String(this.currentVersion ?? 0))
         .subscribe({
@@ -222,6 +232,7 @@ export class ZatcaSimplifiedFormComponent {
           },
         });
     } else {
+      const companyId = raw.owningCompanyId;
       this.service.create(companyId, payload).subscribe({
         next: resp => {
           const newId = resp.body?.id;

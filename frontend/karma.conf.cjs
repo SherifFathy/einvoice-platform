@@ -23,6 +23,15 @@ module.exports = function (config) {
     },
     reporters: ['progress', 'kjhtml'],
     browsers: ['Chrome'],
+    customLaunchers: {
+      ChromeHeadlessCI: {
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+      },
+    },
+    browserNoActivityTimeout: 60000,
+    browserDisconnectTimeout: 10000,
+    browserDisconnectTolerance: 2,
     restartOnFileChange: true,
   });
 };

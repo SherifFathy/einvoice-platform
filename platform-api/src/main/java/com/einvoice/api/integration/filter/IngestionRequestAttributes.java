@@ -28,7 +28,12 @@ public final class IngestionRequestAttributes {
     private IngestionRequestAttributes() {
     }
 
-    /** Called by ingestion services after CompanyResolutionService.resolve() succeeds. */
+    /**
+     * Called by ingestion services after CompanyResolutionService.resolve() succeeds.
+     *
+     * @param companyId the resolved company
+     * @param authorityEnvironmentId the resolved authority environment
+     */
     public static void stash(UUID companyId, Short authorityEnvironmentId) {
         RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
         if (attrs == null) {
@@ -42,6 +47,9 @@ public final class IngestionRequestAttributes {
      * Called by each ingestion service right after {@code repository.save(header)} succeeds
      * so the archive filter can patch the polymorphic document pointer on the archive row
      * (V63 — closes the archive → document forensic trace gap).
+     *
+     * @param documentId the persisted document identifier
+     * @param documentType the persisted document type discriminator
      */
     public static void stashDocument(UUID documentId, String documentType) {
         RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
@@ -73,7 +81,11 @@ public final class IngestionRequestAttributes {
         return v instanceof String s ? s : null;
     }
 
-    /** Test-only convenience. */
+    /**
+     * Test-only convenience.
+     *
+     * @return the stashed company id for the current request, or {@code null}
+     */
     public static UUID readCompanyIdFromCurrentRequest() {
         ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();

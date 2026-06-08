@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -35,7 +35,6 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/componen
     .user-selector { min-width: 300px; }
     .active-badge { color: #2e7d32; font-weight: 600; }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AssignmentListComponent implements OnInit {
   users: UserResponse[] = [];

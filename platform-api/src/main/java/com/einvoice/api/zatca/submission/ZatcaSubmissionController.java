@@ -40,6 +40,15 @@ public class ZatcaSubmissionController {
     private final BulkCheckStatusService bulkCheckStatusService;
     private final BulkCheckStatusRunRegistry bulkRunRegistry;
 
+    /**
+     * Constructs the ZATCA submission controller.
+     *
+     * @param orchestrator submission orchestrator
+     * @param standardService ZATCA standard service
+     * @param simplifiedService ZATCA simplified service
+     * @param bulkCheckStatusService bulk status-check service
+     * @param bulkRunRegistry bulk run registry
+     */
     public ZatcaSubmissionController(
             ZatcaSubmissionOrchestrator orchestrator,
             ZatcaStandardService standardService,
@@ -109,6 +118,14 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(body);
     }
 
+    /**
+     * Cancel a Standard document.
+     *
+     * @param companyId the company context
+     * @param docId the document to cancel
+     * @param body request body carrying the cancel {@code reason}
+     * @return cancel outcome with state, clearance status, and attempt
+     */
     @PostMapping("/standard/{docId}/cancel")
     @RequiresPermission(transactionType = "STANDARD", action = "CANCEL")
     public ResponseEntity<Map<String, Object>> cancelStandard(
@@ -133,6 +150,13 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Retry a failed Standard submission.
+     *
+     * @param companyId the company context
+     * @param docId the document to retry
+     * @return retry outcome with state, clearance status, and attempt
+     */
     @PostMapping("/standard/{docId}/retry")
     @RequiresPermission(transactionType = "STANDARD", action = "SUBMIT")
     public ResponseEntity<Map<String, Object>> retryStandard(
@@ -155,6 +179,13 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Refresh the ZATCA clearance status of a Standard document.
+     *
+     * @param companyId the company context
+     * @param docId the document to refresh
+     * @return status outcome with state, clearance status, and attempt
+     */
     @PostMapping("/standard/{docId}/check-status")
     @RequiresPermission(transactionType = "STANDARD", action = "REFRESH")
     public ResponseEntity<Map<String, Object>> checkStandardStatus(
@@ -177,6 +208,14 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Cancel a Simplified document.
+     *
+     * @param companyId the company context
+     * @param docId the document to cancel
+     * @param body request body carrying the cancel {@code reason}
+     * @return cancel outcome with state, reporting status, and attempt
+     */
     @PostMapping("/simplified/{docId}/cancel")
     @RequiresPermission(transactionType = "SIMPLIFIED", action = "CANCEL")
     public ResponseEntity<Map<String, Object>> cancelSimplified(
@@ -201,6 +240,13 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Retry a failed Simplified submission.
+     *
+     * @param companyId the company context
+     * @param docId the document to retry
+     * @return retry outcome with state, reporting status, and attempt
+     */
     @PostMapping("/simplified/{docId}/retry")
     @RequiresPermission(transactionType = "SIMPLIFIED", action = "SUBMIT")
     public ResponseEntity<Map<String, Object>> retrySimplified(
@@ -223,6 +269,13 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Refresh the ZATCA reporting status of a Simplified document.
+     *
+     * @param companyId the company context
+     * @param docId the document to refresh
+     * @return status outcome with state, reporting status, and attempt
+     */
     @PostMapping("/simplified/{docId}/check-status")
     @RequiresPermission(transactionType = "SIMPLIFIED", action = "REFRESH")
     public ResponseEntity<Map<String, Object>> checkSimplifiedStatus(
@@ -245,6 +298,14 @@ public class ZatcaSubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * Bulk-refresh the clearance status of multiple Standard documents,
+     * streaming NDJSON results.
+     *
+     * @param companyId the company context
+     * @param body request body carrying the {@code documentIds} list
+     * @return a streaming NDJSON response of per-document outcomes
+     */
     @PostMapping("/standard/check-status")
     @RequiresPermission(transactionType = "STANDARD", action = "REFRESH")
     public ResponseEntity<StreamingResponseBody> bulkCheckStandardStatus(
@@ -267,6 +328,14 @@ public class ZatcaSubmissionController {
                 .body(stream);
     }
 
+    /**
+     * Bulk-refresh the reporting status of multiple Simplified documents,
+     * streaming NDJSON results.
+     *
+     * @param companyId the company context
+     * @param body request body carrying the {@code documentIds} list
+     * @return a streaming NDJSON response of per-document outcomes
+     */
     @PostMapping("/simplified/check-status")
     @RequiresPermission(transactionType = "SIMPLIFIED", action = "REFRESH")
     public ResponseEntity<StreamingResponseBody> bulkCheckSimplifiedStatus(

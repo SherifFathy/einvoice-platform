@@ -327,3 +327,53 @@ Full catalogue: [`specs/009-zatca-docs-submission/contracts/error-codes.md`](../
 ### Two-Decimal Money Precision (Constitution XIII.6)
 
 ZATCA document totals and line amounts use `NUMERIC(18,2)` per ZATCA Phase-2 spec. The `ZatcaMoneyMath` helper centralises rounding (`RoundingMode.HALF_EVEN`, 2 fractional digits). Source quantities and unit prices use `NUMERIC(18,5)` for computational precision.
+
+---
+
+## Wave 9 — Dashboard, Logs, Hardening & Deployment Update
+
+### No New Environment Variables (FR-022)
+
+Wave 9 (feature `012-wave9-dashboard-logs-hardening`) introduces **no new
+environment variables** and changes no existing ones. The configuration surface
+documented in the sections above is unchanged:
+
+| Variable | Status in Wave 9 |
+|----------|------------------|
+| `JWT_SECRET` | Unchanged (required). |
+| `JWT_TTL_SECONDS` | Unchanged (optional, default `28800`). |
+| `ENCRYPTION_MASTER_KEY` | Unchanged (reserved for the future AES-256-GCM upgrade; not wired by Wave 9). |
+| `BOOTSTRAP_SUPERUSER_EMAIL` / `BOOTSTRAP_SUPERUSER_PASSWORD_HASH` | Unchanged. |
+| `SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | Unchanged. |
+| `SPRING_PROFILES_ACTIVE` | Unchanged. |
+
+### No Schema / Dependency Changes
+
+- **Schema stays at V64** — Wave 9 adds no Flyway migration (see
+  `deployment-guide.md` → "Wave 9"). All dashboard, submission-log, and audit
+  reads consume existing tables.
+- **No new Maven/npm dependencies** are introduced by Wave 9.
+
+### Read-Side Scoping (ADR-001 — company-less read model)
+
+Wave 9 ships the operator dashboard and unified submission log under the
+company-less `AUTHORITY_SCOPED` scope adopted in ADR-001:
+
+- **Read boundary**: the JWT's `authority_environment_id` is the **only** hard
+  isolation boundary for these read endpoints (FR-018). Cross-company reads
+  within an environment are intended, not a leak; per-company read isolation on
+  these endpoints was deliberately removed (ADR-001 supersedes 012
+  FR-010/FR-011a/FR-013).
+- **No `@RequiresPermission` VIEW gate** on `/api/dashboard/**` or
+  `/api/submission-log` — any authenticated user in the authority+environment
+  can read (ADR-001 D4).
+- **ZATCA chain-busy timeout** (`SET LOCAL lock_timeout = '30s'` → 503
+  `CHAIN_BUSY`) is unchanged and not configurable via environment variable; it
+  remains hardcoded in `ZatcaChainService.acquireForUpdate()` and is verified by
+  the Wave 9 concurrency test (FR-019).
+
+### UTC Date Boundaries
+
+Dashboard "today" / "this-month" KPI windows and submission-log date filters
+are computed in UTC via the `UtcDateRange` utility; timestamps are serialized
+as ISO-8601 `Z` (`OffsetDateTime`).

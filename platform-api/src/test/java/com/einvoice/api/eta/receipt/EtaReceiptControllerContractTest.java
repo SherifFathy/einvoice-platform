@@ -110,7 +110,7 @@ class EtaReceiptControllerContractTest {
 
     @Test
     void createReturns201WithETag() throws Exception {
-        when(service.create(any())).thenReturn(sampleResponse);
+        when(service.create(any(), any())).thenReturn(sampleResponse);
 
         mvc.perform(post("/api/companies/{companyId}/eta/receipts",
                 companyId)
@@ -249,7 +249,7 @@ class EtaReceiptControllerContractTest {
 
     @Test
     void createCancellationWithoutOriginalReturns400() throws Exception {
-        when(service.create(any()))
+        when(service.create(any(), any()))
                 .thenThrow(new MissingOriginalDocumentException(
                         "cr requires original", null, "cr"));
 
@@ -282,7 +282,7 @@ class EtaReceiptControllerContractTest {
 
     @Test
     void createWithMissingUnitValueKeyReturns400() throws Exception {
-        when(service.create(any()))
+        when(service.create(any(), any()))
                 .thenThrow(new InvalidUnitValueException(
                         "Missing key", "unitValue",
                         List.of("amountEGP")));

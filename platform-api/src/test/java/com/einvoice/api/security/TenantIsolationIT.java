@@ -2,8 +2,10 @@ package com.einvoice.api.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.einvoice.api.auth.dto.LoginRequest;
 import com.einvoice.core.domain.company.Company;
 import com.einvoice.core.domain.rbac.UserCompanyTransactionRole;
 import com.einvoice.core.domain.user.User;
@@ -14,12 +16,14 @@ import com.einvoice.security.jwt.JwtTokenProvider;
 import com.einvoice.security.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -123,7 +127,7 @@ class TenantIsolationIT {
         String token = jwtTokenProvider.createToken(
                 user.getId(), user.getEmail(), false,
                 "ETA", "PREPROD", (short) 2,
-                etaCompany.getId(), TenantContext.Mode.OPERATIONAL_MODE);
+                null, TenantContext.Mode.AUTHORITY_SCOPED);
 
         MvcResult result = mockMvc.perform(get("/api/session/context")
                         .header("Authorization", "Bearer " + token))
@@ -131,8 +135,11 @@ class TenantIsolationIT {
                 .andReturn();
 
         JsonNode ctx = objectMapper.readTree(result.getResponse().getContentAsString());
-        assertThat(ctx.get("companies").size()).isEqualTo(1);
-        assertThat(ctx.get("companies").get(0).get("companyNameEn").asText())
+        assertThat(ctx.get("mode").asText()).isEqualTo("AUTHORITY_SCOPED");
+        assertThat(ctx.get("activeCompanyId")).isNull();
+        JsonNode companies = ctx.get("companies");
+        assertThat(companies.size()).isEqualTo(1);
+        assertThat(companies.get(0).get("companyNameEn").asText())
                 .isEqualTo("ETA Isolation Co");
     }
 
@@ -141,7 +148,7 @@ class TenantIsolationIT {
         String token = jwtTokenProvider.createToken(
                 user.getId(), user.getEmail(), false,
                 "ZATCA", "SANDBOX", (short) 5,
-                zatcaCompany.getId(), TenantContext.Mode.OPERATIONAL_MODE);
+                null, TenantContext.Mode.AUTHORITY_SCOPED);
 
         MvcResult result = mockMvc.perform(get("/api/session/context")
                         .header("Authorization", "Bearer " + token))
@@ -149,8 +156,11 @@ class TenantIsolationIT {
                 .andReturn();
 
         JsonNode ctx = objectMapper.readTree(result.getResponse().getContentAsString());
-        assertThat(ctx.get("companies").size()).isEqualTo(1);
-        assertThat(ctx.get("companies").get(0).get("companyNameEn").asText())
+        assertThat(ctx.get("mode").asText()).isEqualTo("AUTHORITY_SCOPED");
+        assertThat(ctx.get("activeCompanyId")).isNull();
+        JsonNode companies = ctx.get("companies");
+        assertThat(companies.size()).isEqualTo(1);
+        assertThat(companies.get(0).get("companyNameEn").asText())
                 .isEqualTo("ZATCA Isolation Co");
     }
 
@@ -159,7 +169,40 @@ class TenantIsolationIT {
         String token = jwtTokenProvider.createToken(
                 superUser.getId(), superUser.getEmail(), true,
                 "ETA", "PREPROD", (short) 2,
-                etaCompany.getId(), TenantContext.Mode.OPERATIONAL_MODE);
+                null, TenantContext.Mode.AUTHORITY_SCOPED);
+
+        MvcResult result = mockMvc.perform(get("/api/session/context")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode ctx = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(ctx.get("mode").asText()).isEqualTo("AUTHORITY_SCOPED");
+        JsonNode companies = ctx.get("companies");
+        for (JsonNode c : companies) {
+            assertThat(c.get("companyNameEn").asText()).isNotEqualTo("ZATCA Isolation Co");
+        }
+    }
+
+    @Test
+    void authorityScopedUser_canReadCrossCompanyDocuments() throws Exception {
+        Company secondCompany = Company.builder()
+                .nameEn("Second ETA Co")
+                .nameAr("شركة ETA الثانية")
+                .taxNumber("300000000000800")
+                .isActive(true)
+                .build();
+        secondCompany = companyRepository.save(secondCompany);
+        uctrRepo.save(UserCompanyTransactionRole.builder()
+                .user(user).company(secondCompany)
+                .authorityEnvironmentId((short) 2)
+                .transactionType("INVOICE").roleCode("VIEWER")
+                .isActive(true).build());
+
+        String token = jwtTokenProvider.createToken(
+                user.getId(), user.getEmail(), false,
+                "ETA", "PREPROD", (short) 2,
+                null, TenantContext.Mode.AUTHORITY_SCOPED);
 
         MvcResult result = mockMvc.perform(get("/api/session/context")
                         .header("Authorization", "Bearer " + token))
@@ -168,8 +211,27 @@ class TenantIsolationIT {
 
         JsonNode ctx = objectMapper.readTree(result.getResponse().getContentAsString());
         JsonNode companies = ctx.get("companies");
-        for (JsonNode c : companies) {
-            assertThat(c.get("companyNameEn").asText()).isNotEqualTo("ZATCA Isolation Co");
-        }
+        assertThat(companies.size()).isEqualTo(2);
+        assertThat(StreamSupport.stream(companies.spliterator(), false)
+                .anyMatch(c -> "ETA Isolation Co".equals(c.get("companyNameEn").asText()))).isTrue();
+        assertThat(StreamSupport.stream(companies.spliterator(), false)
+                .anyMatch(c -> "Second ETA Co".equals(c.get("companyNameEn").asText()))).isTrue();
+    }
+
+    @Test
+    void companylessLogin_nonSuperUser_succeeds() throws Exception {
+        LoginRequest request = new LoginRequest(
+                user.getEmail(), "pass",
+                "ETA", "PREPROD", null);
+
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(body.get("accessToken").asText()).isNotBlank();
+        assertThat(body.get("mode").asText()).isEqualTo("AUTHORITY_SCOPED");
     }
 }

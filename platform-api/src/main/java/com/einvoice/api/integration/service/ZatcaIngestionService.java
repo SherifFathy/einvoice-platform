@@ -3,11 +3,11 @@ package com.einvoice.api.integration.service;
 import com.einvoice.api.audit.service.AuditService;
 import com.einvoice.api.integration.dto.shared.DocumentIngestionResponse;
 import com.einvoice.api.integration.dto.shared.IntegrationDocumentStatus;
-import com.einvoice.api.integration.filter.IngestionRequestAttributes;
 import com.einvoice.api.integration.dto.zatca.ZatcaSimplifiedInvoiceIngestionRequest;
 import com.einvoice.api.integration.dto.zatca.ZatcaStandardInvoiceIngestionRequest;
 import com.einvoice.api.integration.dto.zatca.ZatcaStandardInvoiceIngestionRequest.HeaderAllowance;
 import com.einvoice.api.integration.dto.zatca.ZatcaStandardInvoiceIngestionRequest.LineItem;
+import com.einvoice.api.integration.filter.IngestionRequestAttributes;
 import com.einvoice.core.domain.shared.DocumentState;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedAllowance;
 import com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader;
@@ -69,6 +69,19 @@ public class ZatcaIngestionService {
 
     /**
      * All-repository constructor.
+     *
+     * @param companyResolutionService resolves company + environment from the payload
+     * @param zatcaStandardHeaderRepository ZATCA standard header repository
+     * @param zatcaSimplifiedHeaderRepository ZATCA simplified header repository
+     * @param zatcaStandardTaxSubtotalRepository ZATCA standard tax-subtotal repository
+     * @param zatcaStandardAllowanceRepository ZATCA standard allowance repository
+     * @param zatcaStandardLineAllowanceRepository ZATCA standard line-allowance repository
+     * @param zatcaSimplifiedTaxSubtotalRepository ZATCA simplified tax-subtotal repository
+     * @param zatcaSimplifiedAllowanceRepository ZATCA simplified allowance repository
+     * @param zatcaSimplifiedLineAllowanceRepository ZATCA simplified line-allowance repository
+     * @param auditService audit-trail service
+     * @param zatcaConfigRepository ZATCA config repository
+     * @param gatewayPrincipalId synthetic principal id attributed to gateway writes
      */
     public ZatcaIngestionService(
             CompanyResolutionService companyResolutionService,
@@ -100,6 +113,9 @@ public class ZatcaIngestionService {
     /**
      * Ingests a ZATCA Standard (B2B) invoice.
      * Populates TenantContext for the duration of the call.
+     *
+     * @param req the SDK-shaped standard-invoice ingestion request
+     * @return the persisted-document ingestion response
      */
     public DocumentIngestionResponse ingestStandard(ZatcaStandardInvoiceIngestionRequest req) {
         CompanyResolutionService.ResolvedContext ctx = companyResolutionService.resolve(
@@ -231,6 +247,13 @@ public class ZatcaIngestionService {
                 "Standard invoice ingested successfully");
     }
 
+    /**
+     * Ingests a ZATCA Simplified (B2C) invoice.
+     * Populates TenantContext for the duration of the call.
+     *
+     * @param req the SDK-shaped simplified-invoice ingestion request
+     * @return the persisted-document ingestion response
+     */
     public DocumentIngestionResponse ingestSimplified(ZatcaSimplifiedInvoiceIngestionRequest req) {
         CompanyResolutionService.ResolvedContext ctx = companyResolutionService.resolve(
                 req.companyRegistrationNumber(), "ZATCA", req.environment().name());
@@ -653,14 +676,14 @@ public class ZatcaIngestionService {
 
     private static DocumentState toDocumentState(IntegrationDocumentStatus status) {
         return switch (status) {
-            case DRAFT -> DocumentState.DRAFT;
-            case VALID -> DocumentState.ACCEPTED;
-            case INVALID -> DocumentState.REJECTED;
-            case CLEARED -> DocumentState.ACCEPTED;
-            case REPORTED -> DocumentState.ACCEPTED;
-            case REJECTED -> DocumentState.REJECTED;
-            case FAILED -> DocumentState.REJECTED;
-            case CANCELLED -> DocumentState.CANCELLED;
+          case DRAFT -> DocumentState.DRAFT;
+          case VALID -> DocumentState.ACCEPTED;
+          case INVALID -> DocumentState.REJECTED;
+          case CLEARED -> DocumentState.ACCEPTED;
+          case REPORTED -> DocumentState.ACCEPTED;
+          case REJECTED -> DocumentState.REJECTED;
+          case FAILED -> DocumentState.REJECTED;
+          case CANCELLED -> DocumentState.CANCELLED;
         };
     }
 

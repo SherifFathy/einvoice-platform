@@ -125,7 +125,7 @@ class ZatcaStandardControllerContractTest {
 
     @Test
     void createReturns201WithETag() throws Exception {
-        when(service.create(any())).thenReturn(sampleResponse);
+        when(service.create(any(), any())).thenReturn(sampleResponse);
 
         mvc.perform(post("/api/companies/{companyId}/zatca/standard",
                         companyId)
@@ -246,7 +246,7 @@ class ZatcaStandardControllerContractTest {
 
     @Test
     void missingBuyerReturns400() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new com.einvoice.core.error.MissingBuyerForStandardException(
                         "Buyer data is required for Standard documents"));
 
@@ -269,7 +269,7 @@ class ZatcaStandardControllerContractTest {
 
     @Test
     void vatExemptionReasonReturns400() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new com.einvoice.core.error.VatExemptionReasonRequiredException(
                         "VAT exemption reason required for category E", "E"));
 
@@ -292,7 +292,7 @@ class ZatcaStandardControllerContractTest {
 
     @Test
     void duplicateStandardNumberReturns409() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new com.einvoice.core.error.DuplicateStandardNumberException(
                         "Duplicate standard number: STD-DUP",
                         companyId, "STD-DUP"));

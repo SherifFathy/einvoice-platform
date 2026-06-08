@@ -35,6 +35,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Application service for ZATCA Standard (B2B) invoice reads and draft writes,
+ * scoped to the active authority environment.
+ */
 @Service
 @Transactional
 public class ZatcaStandardService {
@@ -47,6 +51,14 @@ public class ZatcaStandardService {
     private final CompanyRepository companyRepository;
     private final AuditService auditService;
 
+    /**
+     * Constructs the ZATCA standard service.
+     *
+     * @param repository ZATCA standard header repository
+     * @param uctrRepository user-company-role repository
+     * @param companyRepository company repository
+     * @param auditService audit-trail service
+     */
     public ZatcaStandardService(
             ZatcaStandardHeaderRepository repository,
             UserCompanyTransactionRoleRepository uctrRepository,
@@ -58,25 +70,29 @@ public class ZatcaStandardService {
         this.auditService = auditService;
     }
 
-    /** List standard documents with optional filters. */
+    /**
+     * List standard documents with optional filters.
+     *
+     * @param status optional document-state filter
+     * @param filterCompanyId optional single-company narrowing
+     * @param dateFrom optional inclusive issue-date lower bound
+     * @param dateTo optional inclusive issue-date upper bound
+     * @param page zero-based page index
+     * @param size page size
+     * @return a page of standard-invoice responses
+     */
     @Transactional(readOnly = true)
     public Page<ZatcaStandardResponse> list(String status,
             UUID filterCompanyId, String dateFrom, String dateTo,
             int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
 
         Specification<com.einvoice.core.domain.zatca.ZatcaStandardHeader> spec =
-                ZatcaStandardSpecifications.inActiveTenantAndAssignedCompany(
-                        assigned, authEnvId);
+                OperationalRepositorySupport.authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
-            if (assigned.contains(filterCompanyId)) {
-                spec = spec.and(ZatcaStandardSpecifications.forCompany(
-                        filterCompanyId));
-            } else {
-                spec = spec.and((root, q, cb) -> cb.disjunction());
-            }
+            spec = spec.and(ZatcaStandardSpecifications.forCompany(
+                    filterCompanyId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(ZatcaStandardSpecifications.inState(
@@ -101,9 +117,15 @@ public class ZatcaStandardService {
         return ZatcaStandardFormMapper.toResponse(loadWithinTenant(docId));
     }
 
-    /** Create a new standard document. */
-    public ZatcaStandardResponse create(ZatcaStandardWriteForm form) {
-        UUID companyId = TenantContext.getCompanyId();
+    /**
+     * Create a new standard document.
+     *
+     * @param companyId the owning company
+     * @param form the validated write form
+     * @return the created standard-invoice response
+     */
+    public ZatcaStandardResponse create(UUID companyId,
+            ZatcaStandardWriteForm form) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         validateBuyerRequired(form);
@@ -133,7 +155,14 @@ public class ZatcaStandardService {
         return ZatcaStandardFormMapper.toResponse(header);
     }
 
-    /** Update an existing draft standard document. */
+    /**
+     * Update an existing draft standard document.
+     *
+     * @param docId the standard-invoice identifier
+     * @param form the validated write form
+     * @param ifMatchVersion the optimistic-lock version from {@code If-Match}
+     * @return the updated standard-invoice response
+     */
     public ZatcaStandardResponse update(UUID docId,
             ZatcaStandardWriteForm form, Long ifMatchVersion) {
         com.einvoice.core.domain.zatca.ZatcaStandardHeader header =
@@ -320,11 +349,14 @@ public class ZatcaStandardService {
     public com.einvoice.core.domain.zatca.ZatcaStandardHeader loadWithinTenant(
             UUID docId) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
         Specification<com.einvoice.core.domain.zatca.ZatcaStandardHeader> spec =
-                ZatcaStandardSpecifications.inActiveTenantAndAssignedCompany(
-                        assigned, authEnvId)
+                OperationalRepositorySupport.<com.einvoice.core.domain.zatca.ZatcaStandardHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(docId));
+        UUID ctxCompanyId = TenantContext.getCompanyId();
+        if (ctxCompanyId != null) {
+            spec = spec.and(OperationalRepositorySupport.companyIdEquals(ctxCompanyId));
+        }
         return repository.findOne(spec)
                 .orElseThrow(() -> new com.einvoice.core.error.ItemNotFoundException(
                         "Standard document not found"));
@@ -414,10 +446,9 @@ public class ZatcaStandardService {
                     null, form.invoiceTypeCode());
         }
 
-        List<UUID> assigned = getAssignedCompanyIds();
         Specification<com.einvoice.core.domain.zatca.ZatcaStandardHeader> spec =
-                ZatcaStandardSpecifications.inActiveTenantAndAssignedCompany(
-                        assigned, authEnvId)
+                OperationalRepositorySupport.<com.einvoice.core.domain.zatca.ZatcaStandardHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(
                                 form.originalInvoiceId()));
         var original = repository.findOne(spec)

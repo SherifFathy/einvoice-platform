@@ -83,19 +83,14 @@ public class EtaReceiptService {
             String receiptType, String dateFrom, String dateTo,
             int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
 
         Specification<EtaReceiptHeader> spec =
-                EtaReceiptSpecifications.inActiveTenantAndAssignedCompany(
-                        assigned, authEnvId);
+                OperationalRepositorySupport.<EtaReceiptHeader>
+                        authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
-            if (assigned.contains(filterCompanyId)) {
-                spec = spec.and(EtaReceiptSpecifications.forCompany(
-                        filterCompanyId));
-            } else {
-                spec = spec.and((root, q, cb) -> cb.disjunction());
-            }
+            spec = spec.and(EtaReceiptSpecifications.forCompany(
+                    filterCompanyId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(EtaReceiptSpecifications.inState(
@@ -132,11 +127,12 @@ public class EtaReceiptService {
     /**
      * Creates a new DRAFT receipt.
      *
+     * @param companyId the owning company
      * @param form the write form
      * @return the created receipt response
      */
-    public EtaReceiptResponse create(EtaReceiptWriteForm form) {
-        UUID companyId = TenantContext.getCompanyId();
+    public EtaReceiptResponse create(UUID companyId,
+            EtaReceiptWriteForm form) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         validateOriginalDocument(form, companyId, authEnvId);
@@ -398,11 +394,14 @@ public class EtaReceiptService {
      */
     public EtaReceiptHeader loadWithinTenant(UUID docId) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
-        List<UUID> assigned = getAssignedCompanyIds();
         Specification<EtaReceiptHeader> spec =
-                EtaReceiptSpecifications.inActiveTenantAndAssignedCompany(
-                        assigned, authEnvId)
+                OperationalRepositorySupport.<EtaReceiptHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(docId));
+        UUID ctxCompanyId = TenantContext.getCompanyId();
+        if (ctxCompanyId != null) {
+            spec = spec.and(OperationalRepositorySupport.companyIdEquals(ctxCompanyId));
+        }
         return repository.findOne(spec)
                 .orElseThrow(() -> new com.einvoice.core.error
                         .ItemNotFoundException("Receipt not found"));
@@ -442,8 +441,8 @@ public class EtaReceiptService {
         }
 
         EtaReceiptHeader original = repository.findOne(
-                EtaReceiptSpecifications.inActiveTenantAndAssignedCompany(
-                        getAssignedCompanyIds(), authEnvId)
+                OperationalRepositorySupport.<EtaReceiptHeader>
+                        authorityEnvironmentIdEquals(authEnvId)
                         .and(OperationalRepositorySupport.idEquals(
                                 form.originalReceiptId())))
                 .orElseThrow(() -> new MissingOriginalDocumentException(

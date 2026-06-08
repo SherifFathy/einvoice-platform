@@ -107,7 +107,7 @@ export class ZatcaSimplifiedService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
 
-  list(companyId: string, params: {
+  list(params: {
     status?: string;
     company?: string;
     dateFrom?: string;
@@ -123,12 +123,12 @@ export class ZatcaSimplifiedService {
     query.push(`page=${params.page ?? 0}`);
     query.push(`size=${params.size ?? 50}`);
     return this.http.get<ZatcaSimplifiedListResult>(
-        `/api/companies/${companyId}/zatca/simplified?${query.join('&')}`);
+        `/api/zatca/simplified?${query.join('&')}`);
   }
 
-  getById(companyId: string, id: string): Observable<HttpResponse<ZatcaSimplifiedDocument>> {
+  getById(id: string): Observable<HttpResponse<ZatcaSimplifiedDocument>> {
     return this.http.get<ZatcaSimplifiedDocument>(
-        `/api/companies/${companyId}/zatca/simplified/${id}`,
+        `/api/zatca/simplified/${id}`,
         { observe: 'response' });
   }
 

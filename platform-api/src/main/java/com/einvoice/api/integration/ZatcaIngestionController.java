@@ -20,6 +20,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * ERP ingestion gateway for externally-cleared ZATCA documents (Wave 8).
+ * Accepts SDK-shaped ZATCA standard and simplified payloads for the SANDBOX
+ * environment and persists them via {@link ZatcaIngestionService}.
+ */
 @RestController
 @RequestMapping("/api/integration/v1/zatca")
 @Tag(name = "integration-gateway")
@@ -27,10 +32,21 @@ public class ZatcaIngestionController {
 
     private final ZatcaIngestionService zatcaIngestionService;
 
+    /**
+     * Constructs the controller with the ZATCA ingestion service.
+     *
+     * @param zatcaIngestionService the ZATCA ingestion service
+     */
     public ZatcaIngestionController(ZatcaIngestionService zatcaIngestionService) {
         this.zatcaIngestionService = zatcaIngestionService;
     }
 
+    /**
+     * Ingests an externally-cleared ZATCA standard (B2B) invoice.
+     *
+     * @param req the SDK-shaped standard-invoice ingestion request
+     * @return the persisted-document ingestion response
+     */
     @PostMapping("/standard")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -70,6 +86,12 @@ public class ZatcaIngestionController {
         return zatcaIngestionService.ingestStandard(req);
     }
 
+    /**
+     * Ingests an externally-reported ZATCA simplified (B2C) invoice.
+     *
+     * @param req the SDK-shaped simplified-invoice ingestion request
+     * @return the persisted-document ingestion response
+     */
     @PostMapping("/simplified")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(

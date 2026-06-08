@@ -188,7 +188,7 @@ class EtaInvoiceLifecycleIntegrationTest {
         mockMvc.perform(post("/api/companies/{companyId}/eta/invoices/{docId}/submit", companyId, docId)
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.state").value("VALID"));
+            .andExpect(jsonPath("$.state").value("ACCEPTED"));
 
         int artifactCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM invoice_artifacts "

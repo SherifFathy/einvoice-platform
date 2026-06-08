@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -13,13 +13,14 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { EtaReceiptService, EtaReceiptListResult } from './services/eta-receipt.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 import { BulkStatusCheckDialogComponent, BulkStatusDialogData } from '../../documents/shared/bulk-status-check.dialog';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, switchMap } from 'rxjs';
+import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
 
 const RECEIPT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'r', label: 'Standard (r)' },
@@ -54,7 +55,7 @@ const RECEIPT_TYPE_OPTIONS: { value: string; label: string }[] = [
             MatPaginatorModule, MatButtonModule, MatIconModule, MatChipsModule,
             MatFormFieldModule, MatSelectModule, MatInputModule,
             MatCheckboxModule, MatDialogModule, MatToolbarModule,
-            HasPermissionDirective],
+            MatProgressBarModule, HasPermissionDirective],
   template: `
     <div class="list-container">
       <div class="list-header">
@@ -105,18 +106,29 @@ const RECEIPT_TYPE_OPTIONS: { value: string; label: string }[] = [
         </mat-form-field>
       </div>
 
-      <mat-toolbar *ngIf="selectedIds.size > 0" class="bulk-toolbar">
-        <span>{{ selectedIds.size }} selected</span>
-        <span class="spacer"></span>
-        <ng-container *appHasPermission="['RECEIPT', 'REFRESH']">
-          <button mat-raised-button color="accent" (click)="bulkCheckStatus()">
-            <mat-icon>refresh</mat-icon> Check Status
-          </button>
-        </ng-container>
-        <button mat-button (click)="clearSelection()">Clear</button>
-      </mat-toolbar>
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <div class="state-banner">Loading receipts…</div>
+      } @else if (error()) {
+        <div class="state-banner error">
+          Could not load receipts. Please try again.
+          <div><button mat-button color="primary" (click)="refresh$.next()">Retry</button></div>
+        </div>
+      } @else if ((receipts()?.items ?? []).length === 0) {
+        <div class="state-banner">No documents match the current filters.</div>
+      } @else {
+        <mat-toolbar *ngIf="selectedIds.size > 0" class="bulk-toolbar">
+          <span>{{ selectedIds.size }} selected</span>
+          <span class="spacer"></span>
+          <ng-container *appHasPermission="['RECEIPT', 'REFRESH']">
+            <button mat-raised-button color="accent" (click)="bulkCheckStatus()">
+              <mat-icon>refresh</mat-icon> Check Status
+            </button>
+          </ng-container>
+          <button mat-button (click)="clearSelection()">Clear</button>
+        </mat-toolbar>
 
-      <table mat-table [dataSource]="receipts()?.items ?? []">
+        <table mat-table [dataSource]="receipts()?.items ?? []">
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef>
             <mat-checkbox (change)="toggleAll($event.checked)"></mat-checkbox>
@@ -174,6 +186,7 @@ const RECEIPT_TYPE_OPTIONS: { value: string; label: string }[] = [
       <mat-paginator [length]="receipts()?.totalElements ?? 0"
         [pageSize]="50" [pageIndex]="currentPage"
         (page)="onPage($event)"></mat-paginator>
+      }
     </div>
   `,
   styles: [`
@@ -183,6 +196,8 @@ const RECEIPT_TYPE_OPTIONS: { value: string; label: string }[] = [
     .filters mat-form-field { width: 180px; }
     .bulk-toolbar { margin-bottom: 8px; }
     .spacer { flex: 1 1 auto; }
+    .state-banner { padding: 24px; text-align: center; color: #666; }
+    .state-banner.error { color: #c62828; }
   `]
 })
 export class EtaReceiptListComponent {
@@ -192,6 +207,9 @@ export class EtaReceiptListComponent {
   private toast = inject(ToastNotificationService);
   context = toSignal(this.sessionCtx.context$, { initialValue: null });
   refresh$ = new BehaviorSubject<void>(undefined);
+
+  loading = signal(true);
+  error = signal(false);
 
   typeOptions = RECEIPT_TYPE_OPTIONS;
   columns = ['select', 'receiptNumber', 'company', 'documentType', 'issueDatetime',
@@ -204,16 +222,23 @@ export class EtaReceiptListComponent {
   dateTo = '';
   selectedIds = new Set<string>();
 
+  private readonly emptyResult: EtaReceiptListResult = {
+    items: [], page: 0, size: 50, totalElements: 0,
+  };
+
   receipts = toSignal(
-    this.refresh$.pipe(switchMap(() => this.loadReceipts())),
-    { initialValue: { items: [] as EtaReceiptListResult['items'],
-        page: 0, size: 50, totalElements: 0 } }
+    this.refresh$.pipe(
+      tap(() => { this.loading.set(true); this.error.set(false); }),
+      switchMap(() => this.loadReceipts().pipe(
+        catchError(() => { this.error.set(true); return of(this.emptyResult); }),
+      )),
+      tap(() => this.loading.set(false)),
+    ),
+    { initialValue: this.emptyResult },
   );
 
   private loadReceipts() {
-    const ctx = this.context();
-    const pathCompanyId = ctx?.activeCompanyId ?? '';
-    return this.service.list(pathCompanyId, {
+    return this.service.list({
       status: this.statusFilter || undefined,
       companyId: this.companyFilter || undefined,
       receiptType: this.receiptTypeFilter || undefined,
@@ -252,9 +277,10 @@ export class EtaReceiptListComponent {
   }
 
   bulkCheckStatus(): void {
-    const ctx = this.context();
-    const companyId = ctx?.activeCompanyId ?? '';
-    this.service.checkStatus(companyId, Array.from(this.selectedIds)).subscribe({
+    const items = this.receipts()?.items ?? [];
+    const ids = Array.from(this.selectedIds);
+    const companyId = items.find(i => ids.includes(i.id))?.companyId ?? this.companyFilter ?? '';
+    this.service.checkStatus(companyId, ids).subscribe({
       next: resp => {
         this.dialog.open(BulkStatusCheckDialogComponent, {
           width: '700px',

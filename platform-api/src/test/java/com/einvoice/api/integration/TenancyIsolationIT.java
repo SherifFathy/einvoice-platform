@@ -74,8 +74,8 @@ class TenancyIsolationIT {
 
     private Company companyA;
     private Company companyB;
-    private String tokenA_etaPreprod;
-    private String tokenA_zatcaSandbox;
+    private String tokenAEtaPreprod;
+    private String tokenAZatcaSandbox;
 
     @BeforeEach
     void setUp() {
@@ -112,10 +112,10 @@ class TenancyIsolationIT {
                     .isActive(true).build());
         }
 
-        tokenA_etaPreprod = jwtTokenProvider.createToken(userA.getId(), userA.getEmail(), false,
+        tokenAEtaPreprod = jwtTokenProvider.createToken(userA.getId(), userA.getEmail(), false,
                 "ETA", "PREPROD", ETA_PREPROD_ID, companyA.getId(),
                 TenantContext.Mode.OPERATIONAL_MODE);
-        tokenA_zatcaSandbox = jwtTokenProvider.createToken(userA.getId(), userA.getEmail(), false,
+        tokenAZatcaSandbox = jwtTokenProvider.createToken(userA.getId(), userA.getEmail(), false,
                 "ZATCA", "SANDBOX", ZATCA_SANDBOX_ID, companyA.getId(),
                 TenantContext.Mode.OPERATIONAL_MODE);
     }
@@ -154,14 +154,14 @@ class TenancyIsolationIT {
         // Cross-company isolation under the same authority/environment:
         // user A scoped to Company A + PREPROD must NOT see Company B's invoice.
         mockMvc.perform(get("/api/companies/{companyId}/eta/invoices", companyA.getId())
-                        .header("Authorization", "Bearer " + tokenA_etaPreprod))
+                        .header("Authorization", "Bearer " + tokenAEtaPreprod))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].invoiceNumber").value("ISO-A-ETA-1"));
 
         // Cross-authority isolation: same user under SANDBOX sees the ZATCA standard.
         mockMvc.perform(get("/api/companies/{companyId}/zatca/standard", companyA.getId())
-                        .header("Authorization", "Bearer " + tokenA_zatcaSandbox))
+                        .header("Authorization", "Bearer " + tokenAZatcaSandbox))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].invoiceNumber").value("ISO-A-ZAT-1"));
@@ -172,14 +172,14 @@ class TenancyIsolationIT {
         // the spec filter. A 403 here is a stricter form of the FR-009 invariant
         // than the env-id filter alone would give.
         mockMvc.perform(get("/api/companies/{companyId}/zatca/standard", companyA.getId())
-                        .header("Authorization", "Bearer " + tokenA_etaPreprod))
+                        .header("Authorization", "Bearer " + tokenAEtaPreprod))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
         // Cross-company boundary at the controller: accessing Company B's path
         // with user A's token is rejected by verifyContext (401).
         mockMvc.perform(get("/api/companies/{companyId}/eta/invoices", companyB.getId())
-                        .header("Authorization", "Bearer " + tokenA_etaPreprod))
+                        .header("Authorization", "Bearer " + tokenAEtaPreprod))
                 .andExpect(status().isUnauthorized());
     }
 

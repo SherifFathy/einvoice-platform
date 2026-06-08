@@ -5,8 +5,9 @@ import { PageResponse } from '../components/data-table/data-table.component';
 
 export interface AuditLogResponse {
   id: number;
-  companyId: number;
-  userId: number;
+  companyId: string | null;
+  companyName: string;
+  userId: string | null;
   action: string;
   entityType: string;
   entityId: string;
@@ -22,8 +23,10 @@ export class AuditLogService {
   private readonly apiUrl = '/api/audit-logs';
 
   list(page: number, size: number, entityType?: string,
-      entityId?: string, from?: string, to?: string): Observable<PageResponse<AuditLogResponse>> {
+      entityId?: string, from?: string, to?: string,
+      companyId?: string): Observable<PageResponse<AuditLogResponse>> {
     let url = `${this.apiUrl}?page=${page}&size=${size}`;
+    if (companyId) url += `&companyId=${encodeURIComponent(companyId)}`;
     if (entityType) url += `&entityType=${encodeURIComponent(entityType)}`;
     if (entityId) url += `&entityId=${encodeURIComponent(entityId)}`;
     if (from) url += `&from=${encodeURIComponent(from)}`;

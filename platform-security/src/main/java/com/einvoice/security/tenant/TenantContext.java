@@ -8,7 +8,8 @@ public final class TenantContext {
     /** Javadoc. */
     public enum Mode {
         ADMIN_MODE,
-        OPERATIONAL_MODE
+        OPERATIONAL_MODE,
+        AUTHORITY_SCOPED
     }
 
     private static final ThreadLocal<Holder> CURRENT = new ThreadLocal<>();
