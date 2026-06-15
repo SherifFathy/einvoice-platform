@@ -37,7 +37,7 @@
   } @else {
     @if (loading) {
       <div class="state-banner">
-        <mat-icon>progress_activity</mat-icon>
+        <mat-spinner diameter="34"></mat-spinner>
         <div class="state-title">Loading dashboard</div>
         <p class="state-text">Fetching the latest operational totals and submission activity.</p>
       </div>
@@ -117,7 +117,7 @@
       @if (kpi) {
         <section aria-labelledby="kpi-title">
           <div class="section-header">
-            <h3 id="kpi-title">Activity (UTC)</h3>
+            <h3 id="kpi-title">Activity</h3>
           </div>
 
           <div class="kpi-panel">
@@ -184,7 +184,7 @@
                 <div class="activity-company">{{ entry.companyName }}</div>
                 <div class="activity-type">{{ entry.transactionType }}</div>
                 <div><app-status-badge [status]="entry.outcome"></app-status-badge></div>
-                <time class="activity-time">{{ entry.submittedAt | date: 'short' }}</time>
+                <time class="activity-time" [attr.datetime]="entry.submittedAt">{{ entry.submittedAt | date: 'short' }}</time>
               </div>
             }
           </div>

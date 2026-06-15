@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, takeUntil } from 'rxjs';
 import { StatusBadgeComponent } from '../shared/components/status-badge/status-badge.component';
 import { SessionContextService } from '../shared/services/session-context.service';
@@ -36,6 +37,7 @@ const STATUS_ORDER = [
     MatIconModule,
     MatChipsModule,
     MatButtonModule,
+    MatProgressSpinnerModule,
     StatusBadgeComponent,
   ],
   templateUrl: './dashboard.component.html',
@@ -176,10 +178,27 @@ const STATUS_ORDER = [
       padding: 16px;
     }
 
+    .section-header {
+      margin-bottom: 12px;
+    }
+
+    .kpi-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
     .kpi-title {
       font-size: 16px;
       font-weight: 600;
       color: #212121;
+    }
+
+    .kpi-zone {
+      color: #9e9e9e;
+      font-size: 12px;
     }
 
     .kpi-status-grid {
