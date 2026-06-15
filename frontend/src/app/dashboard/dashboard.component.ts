@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatButtonModule } from '@angular/material/button';
 import { Subject, takeUntil } from 'rxjs';
+import { StatusBadgeComponent } from '../shared/components/status-badge/status-badge.component';
 import { SessionContextService } from '../shared/services/session-context.service';
 import { SessionContext } from '../shared/services/auth.service';
 import {
@@ -35,118 +36,343 @@ const STATUS_ORDER = [
     MatIconModule,
     MatChipsModule,
     MatButtonModule,
+    StatusBadgeComponent,
   ],
   templateUrl: './dashboard.component.html',
   styles: `
+    :host {
+      display: block;
+    }
+
+    .dashboard-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 16px;
-      margin-top: 16px;
     }
+
     .company-card {
-      padding: 16px;
+      border: 1px solid #eeeeee;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
     }
+
+    .company-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 18px;
+    }
+
     .company-card.inactive {
-      opacity: 0.6;
       border-color: #bdbdbd;
+      background: #fafafa;
     }
+
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
+      gap: 12px;
     }
+
+    .company-identity {
+      min-width: 0;
+    }
+
     .company-name {
       font-weight: 600;
-      font-size: 16px;
+      font-size: 18px;
+      line-height: 1.25;
+      color: #212121;
+      overflow-wrap: anywhere;
     }
+
     .company-name-ar {
-      color: #666;
+      color: #616161;
       font-size: 14px;
+      line-height: 1.4;
+      margin-top: 2px;
+      overflow-wrap: anywhere;
     }
+
+    .company-tax-number {
+      color: #757575;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
     .card-stats {
-      display: flex;
-      gap: 24px;
-      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
     }
+
+    .stat-tile {
+      border: 1px solid #eeeeee;
+      border-radius: 8px;
+      background: #fafafa;
+      padding: 12px;
+    }
+
+    .stat-tile.failed.has-failures {
+      border-color: #ffcdd2;
+      background: #ffebee;
+    }
+
     .stat-value {
-      font-size: 20px;
+      color: #212121;
+      font-size: 26px;
       font-weight: 600;
+      line-height: 1;
     }
+
     .stat-value.failed {
       color: #c62828;
     }
+
     .stat-label {
-      color: #666;
+      color: #616161;
       font-size: 12px;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
+
     .cert-line {
-      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #616161;
       font-size: 13px;
+      line-height: 1.4;
     }
+
     .cert-line.warn {
       color: #e65100;
     }
+
     .cert-line.expired {
       color: #c62828;
       font-weight: 600;
     }
+
     .kpi-panel {
-      display: flex;
-      gap: 32px;
-      flex-wrap: wrap;
-      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
     }
+
     .kpi-block {
-      flex: 1 1 320px;
+      border: 1px solid #eeeeee;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 16px;
     }
+
+    .kpi-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #212121;
+    }
+
+    .kpi-status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+    }
+
     .kpi-row {
       display: flex;
       justify-content: space-between;
-      padding: 2px 0;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid #eeeeee;
+      border-radius: 8px;
+      background: #fafafa;
+      padding: 8px;
       font-size: 13px;
     }
-    .kpi-total {
+
+    .kpi-row.is-zero {
+      opacity: 0.56;
+    }
+
+    .kpi-count {
+      color: #212121;
       font-weight: 600;
-      border-top: 1px solid #e0e0e0;
-      margin-top: 4px;
-      padding-top: 4px;
+      min-width: 20px;
+      text-align: right;
     }
-    .activity-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 6px 0;
-      border-bottom: 1px solid #f0f0f0;
-      font-size: 13px;
-    }
-    .admin-banner {
-      background-color: #fff3e0;
-      border: 1px solid #ff9800;
-      border-radius: 4px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      color: #e65100;
-      font-size: 14px;
-    }
-    .state-banner {
-      padding: 24px;
-      text-align: center;
-      color: #666;
-    }
-    .state-banner.error {
-      color: #c62828;
-    }
-    .dashboard-header {
+
+    .kpi-total {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border-top: 1px solid #eeeeee;
+      font-weight: 600;
+      margin-top: 14px;
+      padding-top: 12px;
     }
+
+    .kpi-total-value {
+      font-size: 22px;
+      color: #212121;
+    }
+
+    .activity-list {
+      border: 1px solid #eeeeee;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .activity-row {
+      display: grid;
+      grid-template-columns: minmax(140px, 1.4fr) minmax(100px, 0.9fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr);
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 13px;
+    }
+
+    .activity-company {
+      font-weight: 600;
+      color: #212121;
+      overflow-wrap: anywhere;
+    }
+
+    .activity-type,
+    .activity-time {
+      color: #616161;
+    }
+
+    .admin-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background-color: #fff3e0;
+      border: 1px solid #ff9800;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #e65100;
+      font-size: 14px;
+    }
+
+    .state-banner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 180px;
+      border: 1px dashed #d6d6d6;
+      border-radius: 8px;
+      background: #fafafa;
+      padding: 28px;
+      text-align: center;
+      color: #616161;
+    }
+
+    .state-banner mat-icon {
+      color: #9e9e9e;
+      font-size: 34px;
+      height: 34px;
+      width: 34px;
+    }
+
+    .state-banner.error {
+      border-color: #ffcdd2;
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .state-banner.error mat-icon {
+      color: #c62828;
+    }
+
+    .state-title {
+      color: #212121;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .state-banner.error .state-title {
+      color: #c62828;
+    }
+
+    .state-text {
+      max-width: 420px;
+      margin: 0;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .dashboard-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+
+    .dashboard-subtitle {
+      color: #616161;
+      margin-top: 4px;
+      font-size: 14px;
+    }
+
     h2 {
       margin-bottom: 0;
     }
+
+    h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
     section {
-      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (max-width: 700px) {
+      .dashboard-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .dashboard-header a {
+        align-self: flex-start;
+      }
+
+      .activity-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .dashboard-grid,
+      .kpi-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .company-card-content,
+      .kpi-block {
+        padding: 14px;
+      }
     }
   `,
 })

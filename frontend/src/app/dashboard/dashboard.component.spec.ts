@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, NEVER, of, throwError } from 'rxjs';
 import { SessionContext } from '../shared/services/auth.service';
 import { SessionContextService } from '../shared/services/session-context.service';
 import { DashboardComponent } from './dashboard.component';
@@ -91,6 +91,7 @@ describe('DashboardComponent', () => {
     mockDashboard.summary.and.returnValue(of(makeSummary()));
     mockDashboard.recentActivity.and.returnValue(of({ entries: [] } as RecentActivity));
 
+    fixture.detectChanges();
     contextSubject.next(makeContext());
     fixture.detectChanges();
 
@@ -102,6 +103,101 @@ describe('DashboardComponent', () => {
     expect(text).toContain('Certificate expires in 12 day(s)');
     expect(component.loading).toBeFalse();
     expect(component.error).toBeFalse();
+  });
+
+  it('renders loading and error states with a working retry action', () => {
+    setup();
+    mockDashboard.summary.and.returnValues(
+      throwError(() => new Error('summary failed')),
+      of(makeSummary()),
+    );
+    mockDashboard.recentActivity.and.returnValue(of({ entries: [] } as RecentActivity));
+
+    fixture.detectChanges();
+    contextSubject.next(makeContext());
+    fixture.detectChanges();
+
+    let text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Could not load the dashboard');
+    expect(text).toContain('Retry');
+
+    const retry = (fixture.nativeElement as HTMLElement).querySelector('button');
+    retry?.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+
+    expect(mockDashboard.summary).toHaveBeenCalledTimes(2);
+    text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Acme LLC');
+    expect(component.error).toBeFalse();
+  });
+
+  it('shows the loading state while dashboard data is in flight', () => {
+    setup();
+    mockDashboard.summary.and.returnValue(NEVER);
+    mockDashboard.recentActivity.and.returnValue(of({ entries: [] } as RecentActivity));
+
+    contextSubject.next(makeContext());
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Loading dashboard');
+    expect(text).toContain('Fetching the latest operational totals');
+  });
+
+  it('renders recent activity outcomes through the shared status badge', () => {
+    setup();
+    mockDashboard.summary.and.returnValue(of(makeSummary()));
+    mockDashboard.recentActivity.and.returnValue(of({
+      entries: [{
+        attemptId: 'a1',
+        companyId: 'c1',
+        companyName: 'Acme LLC',
+        transactionType: 'ETA_INVOICE',
+        documentId: 'd1',
+        outcome: 'FAILED_RETRYABLE',
+        submittedAt: '2026-06-15T08:00:00Z',
+      }],
+    } as RecentActivity));
+
+    contextSubject.next(makeContext());
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Recent Activity');
+    expect(text).toContain('FAILED RETRYABLE');
+    expect(text).not.toContain('FAILED_RETRYABLE');
+  });
+
+  it('renders expired, expiring, and valid certificate states', () => {
+    setup();
+    mockDashboard.summary.and.returnValue(of(makeSummary({
+      cards: [
+        {
+          companyId: 'expired', nameEn: 'Expired Co', nameAr: null, taxNumber: null,
+          active: true, pendingCount: 0, failedCount: 0,
+          certificate: { daysRemaining: -3, expiringSoon: false, expired: true },
+        },
+        {
+          companyId: 'soon', nameEn: 'Soon Co', nameAr: null, taxNumber: null,
+          active: true, pendingCount: 0, failedCount: 0,
+          certificate: { daysRemaining: 5, expiringSoon: true, expired: false },
+        },
+        {
+          companyId: 'valid', nameEn: 'Valid Co', nameAr: null, taxNumber: null,
+          active: true, pendingCount: 0, failedCount: 0,
+          certificate: { daysRemaining: 90, expiringSoon: false, expired: false },
+        },
+      ],
+    })));
+    mockDashboard.recentActivity.and.returnValue(of({ entries: [] } as RecentActivity));
+
+    contextSubject.next(makeContext());
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Certificate expired 3 day(s) ago');
+    expect(text).toContain('Certificate expires in 5 day(s)');
+    expect(text).toContain('Certificate valid (90 days remaining)');
   });
 
   it('shows the empty state when no companies are returned', () => {
@@ -127,5 +223,20 @@ describe('DashboardComponent', () => {
     expect(mockDashboard.summary).not.toHaveBeenCalled();
     expect(mockDashboard.recentActivity).not.toHaveBeenCalled();
     expect(component.isAdminMode).toBeTrue();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Admin Mode');
+    expect(text).not.toContain('Recent Activity');
+  });
+
+  it('shows the create-company action for super users in operational mode', () => {
+    setup();
+    mockDashboard.summary.and.returnValue(of(makeSummary()));
+    mockDashboard.recentActivity.and.returnValue(of({ entries: [] } as RecentActivity));
+
+    contextSubject.next(makeContext({ isSuperUser: true }));
+    fixture.detectChanges();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector('a[routerLink="/admin/companies"]');
+    expect(link?.textContent).toContain('Create Company');
   });
 });
