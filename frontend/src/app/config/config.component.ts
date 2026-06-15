@@ -1,102 +1,69 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTableModule } from '@angular/material/table';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { CompanyConfigService } from '../shared/services/company-config.service';
-import { ToastNotificationService } from '../shared/services/toast.service';
-import { EtaPollingService, PollingStatusResponse } from '../shared/services/eta-polling.service';
+import { Subject, takeUntil } from 'rxjs';
+import { SessionContextService } from '../shared/services/session-context.service';
 
 @Component({
   selector: 'app-config',
   imports: [
     CommonModule, RouterModule,
-    MatCardModule, MatButtonModule, MatIconModule, MatTableModule,
-    MatProgressSpinnerModule,
+    MatCardModule, MatButtonModule, MatIconModule,
   ],
   templateUrl: './config.component.html',
   styles: [`
     .config-section { margin-bottom: 24px; }
-    .config-nav { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-    table { width: 100%; }
-    .polling-status { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-    .status-indicator { display: flex; align-items: center; gap: 6px; font-weight: 500; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .status-dot.active { background-color: #4caf50; }
-    .status-dot.stopped { background-color: #f44336; }
-    .polling-meta { color: #666; font-size: 0.9em; }
-    .polling-actions { display: flex; gap: 8px; }
+    .scope-banner {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 12px 16px; margin-bottom: 24px; border-radius: 8px;
+      background: #eef3fb; border: 1px solid #d6e0f5;
+    }
+    .scope-banner mat-icon { color: #3f51b5; }
+    .scope-chip {
+      padding: 2px 10px; border-radius: 12px; font-weight: 600; font-size: 0.85em;
+      background: #3f51b5; color: #fff;
+    }
+    .scope-meta { color: #555; }
+    .config-description { color: #666; font-size: 0.9em; }
   `],
 })
-export class ConfigComponent implements OnInit {
-  private configService = inject(CompanyConfigService);
-  private toast = inject(ToastNotificationService);
-  private etaPollingService = inject(EtaPollingService);
+export class ConfigComponent implements OnInit, OnDestroy {
+  private sessionCtx = inject(SessionContextService);
+  private destroy$ = new Subject<void>();
 
-  branches: { id: string; nameEn: string; branchCode: string | null }[] = [];
-  displayedColumns = ['nameEn', 'branchCode', 'actions'];
-  loading = false;
+  /** Active authority + environment scope, derived from the login context. */
+  authority: string | null = null;
+  environment: string | null = null;
+  companyId: string | null = null;
+  companyName: string | null = null;
 
-  pollingStatus: PollingStatusResponse | null = null;
-  pollingLoading = false;
-  pollingToggling = false;
+  get isEta(): boolean { return this.authority === 'ETA'; }
+  get isZatca(): boolean { return this.authority === 'ZATCA'; }
 
   ngOnInit(): void {
-    this.loadBranches();
-    this.loadPollingStatus();
-  }
+    // The configuration screen is mapped to — and refreshed through — the
+    // authority + environment the user logged in with, not a company picker.
+    this.sessionCtx.context$.pipe(takeUntil(this.destroy$)).subscribe((ctx) => {
+      if (!ctx) {
+        this.authority = this.environment = this.companyId = this.companyName = null;
+        return;
+      }
+      this.authority = ctx.loginContext?.authority ?? null;
+      this.environment = ctx.loginContext?.environment ?? null;
 
-  loadBranches(): void {
-    this.loading = true;
-    const companyIdStr = localStorage.getItem('companyId');
-    if (!companyIdStr) {
-      this.loading = false;
-      return;
-    }
-    this.configService.listBranches(Number(companyIdStr)).subscribe({
-      next: (branches) => { this.branches = branches; this.loading = false; },
-      error: () => { this.loading = false; },
+      const activeCompanyId = ctx.activeCompanyId ?? ctx.companies?.[0]?.companyId ?? null;
+      this.companyId = activeCompanyId;
+      const company = ctx.companies?.find((c) => c.companyId === activeCompanyId)
+        ?? ctx.companies?.[0];
+      this.companyName = company?.companyNameEn ?? null;
     });
   }
 
-  loadPollingStatus(): void {
-    this.pollingLoading = true;
-    this.etaPollingService.getStatus().subscribe({
-      next: (status) => { this.pollingStatus = status; this.pollingLoading = false; },
-      error: () => { this.pollingLoading = false; },
-    });
-  }
-
-  stopPolling(): void {
-    this.pollingToggling = true;
-    this.etaPollingService.stop().subscribe({
-      next: (status) => {
-        this.pollingStatus = status;
-        this.pollingToggling = false;
-        this.toast.success('ETA polling stopped');
-      },
-      error: () => {
-        this.toast.error('Failed to stop polling');
-        this.pollingToggling = false;
-      },
-    });
-  }
-
-  resumePolling(): void {
-    this.pollingToggling = true;
-    this.etaPollingService.resume().subscribe({
-      next: (status) => {
-        this.pollingStatus = status;
-        this.pollingToggling = false;
-        this.toast.success('ETA polling resumed');
-      },
-      error: () => {
-        this.toast.error('Failed to resume polling');
-        this.pollingToggling = false;
-      },
-    });
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

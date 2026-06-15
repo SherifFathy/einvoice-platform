@@ -1,91 +1,57 @@
-<div class="config-nav">
-  <a mat-raised-button routerLink="company-profile">Company Profile</a>
-  <a mat-raised-button routerLink="users">Users</a>
-  <a mat-raised-button routerLink="/eta-codes">ETA Item Codes</a>
-</div>
-
-<mat-card class="config-section">
-  <mat-card-header>
-    <mat-card-title>Branch ZATCA Configuration</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    @if (loading) {
-      <p>Loading branches...</p>
-    } @else if (branches.length === 0) {
-      <p>No branches configured. Go to Company Management to add branches first.</p>
-    } @else {
-      <table mat-table [dataSource]="branches">
-        <ng-container matColumnDef="nameEn">
-          <th mat-header-cell *matHeaderCellDef>Branch Name</th>
-          <td mat-cell *matCellDef="let branch">{{ branch.nameEn }}</td>
-        </ng-container>
-        <ng-container matColumnDef="branchCode">
-          <th mat-header-cell *matHeaderCellDef>Code</th>
-          <td mat-cell *matCellDef="let branch">{{ branch.branchCode }}</td>
-        </ng-container>
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>ZATCA Actions</th>
-          <td mat-cell *matCellDef="let branch">
-            <a mat-button [routerLink]="['/config/branches', branch.id, 'zatca-onboarding']">
-              <mat-icon>login</mat-icon> Onboarding
-            </a>
-            <a mat-button [routerLink]="['/config/branches', branch.id, 'zatca-certificate']">
-              <mat-icon>verified</mat-icon> Certificate
-            </a>
-          </td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-      </table>
+<!-- Active authority + environment scope (driven by the login context) -->
+@if (authority) {
+  <div class="scope-banner">
+    <mat-icon>settings</mat-icon>
+    <span class="scope-chip">{{ authority }}</span>
+    @if (environment) {
+      <span class="scope-meta">Environment: <strong>{{ environment }}</strong></span>
     }
-  </mat-card-content>
-</mat-card>
-
-<mat-card class="config-section">
-  <mat-card-header>
-    <mat-card-title>ETA Polling Controls</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    @if (pollingLoading) {
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <mat-spinner diameter="20"></mat-spinner>
-        <span>Loading polling status...</span>
-      </div>
-    } @else if (pollingStatus) {
-      <div class="polling-status">
-        <div class="status-indicator">
-          <span class="status-dot" [class.active]="pollingStatus.running" [class.stopped]="!pollingStatus.running"></span>
-          {{ pollingStatus.running ? 'Running' : 'Stopped' }}
-        </div>
-        <span class="polling-meta">
-          Invoices in review: {{ pollingStatus.invoicesInReview }}
-        </span>
-        @if (pollingStatus.lastPollAt) {
-          <span class="polling-meta">
-            Last poll: {{ pollingStatus.lastPollAt | date:'medium' }}
-          </span>
-        }
-        <div class="polling-actions">
-          @if (pollingStatus.running) {
-            <button mat-raised-button color="warn" (click)="stopPolling()" [disabled]="pollingToggling">
-              @if (pollingToggling) { <mat-spinner diameter="18"></mat-spinner> }
-              <mat-icon>stop</mat-icon> Stop
-            </button>
-          } @else {
-            <button mat-raised-button color="primary" (click)="resumePolling()" [disabled]="pollingToggling">
-              @if (pollingToggling) { <mat-spinner diameter="18"></mat-spinner> }
-              <mat-icon>play_arrow</mat-icon> Resume
-            </button>
-          }
-          <button mat-stroked-button (click)="loadPollingStatus()">
-            <mat-icon>refresh</mat-icon> Refresh
-          </button>
-        </div>
-      </div>
-    } @else {
-      <p class="polling-meta">Unable to load ETA polling status.</p>
+    @if (companyName) {
+      <span class="scope-meta">Company: <strong>{{ companyName }}</strong></span>
     }
-  </mat-card-content>
-</mat-card>
+  </div>
+} @else {
+  <div class="scope-banner">
+    <mat-icon>info</mat-icon>
+    <span class="scope-meta">No active session scope. Please log in with an authority and environment.</span>
+  </div>
+}
+
+<!-- ETA scope: ETA credentials + POS config -->
+@if (isEta) {
+  <mat-card class="config-section">
+    <mat-card-header>
+      <mat-card-title>ETA Configuration</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="config-description">
+        Manage the ETA client credentials, token/submission endpoints and POS device
+        details used to authenticate and submit documents for
+        <strong>{{ environment }}</strong>.
+      </p>
+      <a mat-raised-button color="primary" routerLink="eta">
+        <mat-icon>tune</mat-icon> Open ETA Configuration
+      </a>
+    </mat-card-content>
+  </mat-card>
+}
+
+<!-- ZATCA scope: device/certificate onboarding + signing config -->
+@if (isZatca) {
+  <mat-card class="config-section">
+    <mat-card-header>
+      <mat-card-title>ZATCA Configuration</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="config-description">
+        Manage the ZATCA device onboarding, CSR, compliance/production certificates and
+        signing keys used for <strong>{{ environment }}</strong>.
+      </p>
+      <a mat-raised-button color="primary" routerLink="zatca">
+        <mat-icon>verified</mat-icon> Open ZATCA Configuration
+      </a>
+    </mat-card-content>
+  </mat-card>
+}
 
 <router-outlet />

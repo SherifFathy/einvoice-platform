@@ -121,13 +121,10 @@ public class SessionContextAssembler {
 
     private List<CompanyContext> buildSuperUserCompanies(TenantContext.Holder holder,
             List<String> moduleKeys) {
-        List<UUID> companyIds = uctrRepo
-                .findDistinctCompanyIdsByAuthorityEnvironmentIdAndIsActiveTrue(
-                        holder.authorityEnvironmentId());
-
-        List<Company> companies = companyRepository.findAllById(companyIds).stream()
-                .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
-                .toList();
+        // A super user operates across every active company in the system
+        // (mirrors AuthService.listCompanies), independent of role assignments,
+        // so newly created companies are immediately visible and configurable.
+        List<Company> companies = companyRepository.findByIsActiveTrue();
 
         List<CompanyContext> result = new ArrayList<>();
         for (Company company : companies) {

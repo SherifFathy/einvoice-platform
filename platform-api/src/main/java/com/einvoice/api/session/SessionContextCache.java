@@ -38,6 +38,16 @@ public class SessionContextCache {
         return response;
     }
 
+    /**
+     * Invalidates every cached session context. Called when shared data that the
+     * context derives from changes (e.g. a company is created, renamed, or
+     * deactivated) so all active sessions recompute their company list on the
+     * next request instead of waiting for the per-token TTL to lapse.
+     */
+    public void invalidateAll() {
+        cache.clear();
+    }
+
     void clearForTesting() {
         cache.clear();
     }

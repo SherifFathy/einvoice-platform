@@ -125,13 +125,14 @@ public class DashboardQueryService {
      * active environment plus the UTC today / this-month KPI panel.
      *
      * @param env the active authority environment
+     * @param superUser whether the caller is a super user (sees all companies)
      * @return the summary read-model (empty cards and zeroed KPIs when no env)
      */
-    public DashboardSummary summary(Short env) {
+    public DashboardSummary summary(Short env, boolean superUser) {
         if (env == null) {
             return emptySummary();
         }
-        final List<Company> companies = resolveCompanies(env);
+        final List<Company> companies = resolveCompanies(env, superUser);
 
         Map<UUID, Long> pendingByCompany = new HashMap<>();
         addPendingCounts(pendingByCompany,
@@ -198,13 +199,14 @@ public class DashboardQueryService {
      * accessible companies in the active environment (at most 10).
      *
      * @param env the active authority environment
+     * @param superUser whether the caller is a super user (sees all companies)
      * @return the activity read-model (possibly with an empty entry list)
      */
-    public RecentActivity recentActivity(Short env) {
+    public RecentActivity recentActivity(Short env, boolean superUser) {
         if (env == null) {
             return new RecentActivity(List.of());
         }
-        final List<Company> companies = resolveCompanies(env);
+        final List<Company> companies = resolveCompanies(env, superUser);
         if (companies.isEmpty()) {
             return new RecentActivity(List.of());
         }
@@ -233,9 +235,16 @@ public class DashboardQueryService {
      * {@code SessionContextAssembler.buildSuperUserCompanies}.
      *
      * @param env the active authority environment
+     * @param superUser whether the caller is a super user
      * @return active companies registered in the environment
      */
-    private List<Company> resolveCompanies(Short env) {
+    private List<Company> resolveCompanies(Short env, boolean superUser) {
+        if (superUser) {
+            // Super users operate across every active company, including ones
+            // not yet assigned in this environment (mirrors
+            // SessionContextAssembler.buildSuperUserCompanies).
+            return companyRepository.findByIsActiveTrue();
+        }
         List<UUID> ids = uctrRepository
                 .findDistinctCompanyIdsByAuthorityEnvironmentIdAndIsActiveTrue(env);
         return companyRepository.findAllById(ids).stream()

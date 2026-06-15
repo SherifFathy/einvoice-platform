@@ -8,6 +8,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AdminService, CompanyResponse } from '../../shared/services/admin.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
+import { SessionContextService } from '../../shared/services/session-context.service';
 import { CompanyFormComponent } from './company-form.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 
@@ -41,6 +42,17 @@ export class CompanyListComponent implements OnInit {
   private adminService = inject(AdminService);
   private toast = inject(ToastNotificationService);
   private dialog = inject(MatDialog);
+  private sessionCtx = inject(SessionContextService);
+
+  /**
+   * Reloads the session context so dependent screens (the dashboard and the
+   * configuration company switcher) immediately reflect company changes without
+   * requiring a re-login. The backend session cache is invalidated server-side
+   * on the same mutations.
+   */
+  private refreshSession(): void {
+    this.sessionCtx.loadContext().subscribe({ error: () => {} });
+  }
 
   ngOnInit(): void {
     this.loadCompanies();
@@ -66,7 +78,10 @@ export class CompanyListComponent implements OnInit {
       data: { mode: 'create' as const },
     });
     dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) this.loadCompanies();
+      if (result) {
+        this.loadCompanies();
+        this.refreshSession();
+      }
     });
   }
 
@@ -77,7 +92,10 @@ export class CompanyListComponent implements OnInit {
       data: { mode: 'edit' as const, company },
     });
     dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) this.loadCompanies();
+      if (result) {
+        this.loadCompanies();
+        this.refreshSession();
+      }
     });
   }
 
@@ -96,6 +114,7 @@ export class CompanyListComponent implements OnInit {
         next: () => {
           this.toast.success('Company deactivated');
           this.loadCompanies();
+          this.refreshSession();
         },
         error: (err) => this.toast.error(err.error?.message || 'Failed to deactivate company'),
       });

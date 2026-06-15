@@ -51,7 +51,8 @@ public class DashboardController {
      */
     @GetMapping("/summary")
     public DashboardSummaryDto summary() {
-        return toDto(service.summary(TenantContext.getAuthorityEnvironmentId()));
+        return toDto(service.summary(
+                TenantContext.getAuthorityEnvironmentId(), TenantContext.isSuperUser()));
     }
 
     /**
@@ -61,7 +62,8 @@ public class DashboardController {
      */
     @GetMapping("/recent-activity")
     public RecentActivityDto recentActivity() {
-        return toDto(service.recentActivity(TenantContext.getAuthorityEnvironmentId()));
+        return toDto(service.recentActivity(
+                TenantContext.getAuthorityEnvironmentId(), TenantContext.isSuperUser()));
     }
 
     /**

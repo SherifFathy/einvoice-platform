@@ -3,6 +3,18 @@
     <mat-card-title>ZATCA Configuration</mat-card-title>
   </mat-card-header>
   <mat-card-content>
+    <mat-form-field appearance="outline" class="company-switcher">
+      <mat-label>Company</mat-label>
+      <mat-select [value]="selectedCompanyId" (selectionChange)="onCompanyChange($event.value)">
+        @for (company of companies; track company.companyId) {
+          <mat-option [value]="company.companyId">{{ company.companyNameEn }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    @if (companies.length === 0) {
+      <p>No companies are available in this environment yet.</p>
+    }
+
     @if (loading) {
       <p>Loading...</p>
     } @else {
