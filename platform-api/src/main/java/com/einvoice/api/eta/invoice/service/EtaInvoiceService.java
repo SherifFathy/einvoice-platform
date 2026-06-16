@@ -89,8 +89,8 @@ public class EtaInvoiceService {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         Specification<EtaInvoiceHeader> spec =
-                EtaInvoiceSpecifications.inActiveTenantAndAssignedCompany(
-                        getAssignedCompanyIds(), authEnvId);
+                OperationalRepositorySupport.<EtaInvoiceHeader>
+                        authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
             spec = spec.and(EtaInvoiceSpecifications.forCompany(filterCompanyId));

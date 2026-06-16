@@ -86,8 +86,8 @@ public class EtaReceiptService {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         Specification<EtaReceiptHeader> spec =
-                EtaReceiptSpecifications.inActiveTenantAndAssignedCompany(
-                        getAssignedCompanyIds(), authEnvId);
+                OperationalRepositorySupport.<EtaReceiptHeader>
+                        authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
             spec = spec.and(EtaReceiptSpecifications.forCompany(

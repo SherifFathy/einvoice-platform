@@ -85,10 +85,9 @@ public class ZatcaSimplifiedService {
             String dateTo, int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
-        Specification<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
-                spec =
-                ZatcaSimplifiedSpecifications.inActiveTenantAndAssignedCompany(
-                        getAssignedCompanyIds(), authEnvId);
+        Specification<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader> spec =
+                OperationalRepositorySupport.<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader>
+                        authorityEnvironmentIdEquals(authEnvId);
 
         if (filterCompanyId != null) {
             spec = spec.and(ZatcaSimplifiedSpecifications.forCompany(
