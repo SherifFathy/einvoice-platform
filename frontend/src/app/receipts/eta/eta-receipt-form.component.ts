@@ -293,7 +293,7 @@ export class EtaReceiptFormComponent {
       sellerData: parseJsonField(raw.sellerData),
       buyerData: parseJsonField(raw.buyerData),
     };
-    delete (payload as any).owningCompanyId;
+    delete (payload as Record<string, unknown>)['owningCompanyId'];
     if (this.isEdit()) {
       const id = this.route.snapshot.paramMap.get('id')!;
       const companyId = this.editCompanyId;

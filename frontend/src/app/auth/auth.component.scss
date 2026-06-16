@@ -12,6 +12,26 @@
   margin: 16px;
 }
 
+.login-brand {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 56px;
+  padding: 24px 24px 8px;
+
+  img {
+    max-height: 48px;
+    max-width: 240px;
+    object-fit: contain;
+  }
+
+  span {
+    color: #333;
+    font-size: 22px;
+    font-weight: 600;
+  }
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

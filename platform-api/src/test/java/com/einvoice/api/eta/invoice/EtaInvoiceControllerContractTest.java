@@ -90,7 +90,8 @@ class EtaInvoiceControllerContractTest {
     void listReturnsPagedResults() throws Exception {
         Page<EtaInvoiceResponse> page = new PageImpl<>(List.of(sampleResponse),
                 PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(page);
+        when(service.list(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/eta/invoices", companyId))
                 .andExpect(status().isOk())

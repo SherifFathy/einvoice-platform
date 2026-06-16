@@ -110,6 +110,7 @@ export class ZatcaSimplifiedService {
   list(params: {
     status?: string;
     company?: string;
+    branchId?: string;
     dateFrom?: string;
     dateTo?: string;
     page?: number;
@@ -118,6 +119,7 @@ export class ZatcaSimplifiedService {
     const query: string[] = [];
     if (params.status) query.push(`status=${params.status}`);
     if (params.company) query.push(`company=${params.company}`);
+    if (params.branchId) query.push(`branchId=${params.branchId}`);
     if (params.dateFrom) query.push(`dateFrom=${params.dateFrom}`);
     if (params.dateTo) query.push(`dateTo=${params.dateTo}`);
     query.push(`page=${params.page ?? 0}`);

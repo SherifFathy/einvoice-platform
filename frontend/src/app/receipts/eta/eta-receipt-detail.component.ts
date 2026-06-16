@@ -235,7 +235,7 @@ export class EtaReceiptDetailComponent {
     return isAllowed(state, action, receiptTransitions);
   }
 
-  sumAmount(arr: any[]): string {
+  sumAmount(arr: Array<{ amount?: unknown }> | null | undefined): string {
     if (!arr?.length) return '0';
     return arr.reduce((sum, x) => sum + Number(x?.amount ?? 0), 0).toFixed(2);
   }

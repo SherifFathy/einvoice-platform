@@ -1,4 +1,14 @@
 <mat-card class="login-card">
+  <div class="login-brand">
+    <img
+      *ngIf="!logoFailed"
+      [src]="logoUrl"
+      alt="Platform logo"
+      (error)="logoFailed = true"
+    >
+    <span *ngIf="logoFailed">E-Invoice Platform</span>
+  </div>
+
   <mat-card-header>
     <mat-card-title>Global E-Invoicing Gateway</mat-card-title>
     <mat-card-subtitle>Sign in to your account</mat-card-subtitle>

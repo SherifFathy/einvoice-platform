@@ -237,7 +237,7 @@ describe('SidebarComponent', () => {
 
     it('should show admin sidebar items in Admin Mode', () => {
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).toEqual(['Dashboard', 'Companies', 'Branches', 'Users', 'Assignments', 'Logs']);
+      expect(labels).toEqual(['Dashboard', 'Companies', 'Branches', 'Branding', 'Users', 'Assignments', 'Logs']);
     });
 
     it('should not show operational module items in Admin Mode', () => {

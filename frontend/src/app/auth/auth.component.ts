@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject, switchMap, takeUntil, of } from 'rxjs';
 import { AuthService, EnvironmentEntry } from '../shared/services/auth.service';
 import { SessionContextService } from '../shared/services/session-context.service';
+import { PlatformBrandingService } from '../shared/services/platform-branding.service';
 
 @Component({
   selector: 'app-auth',
@@ -34,6 +35,7 @@ export class AuthComponent implements OnDestroy {
   submitting = false;
   errorMessage = '';
   loadingEnvironments = false;
+  logoFailed = false;
 
   readonly authorityOptions = [
     { value: 'ETA', label: 'ETA' },
@@ -47,6 +49,7 @@ export class AuthComponent implements OnDestroy {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private sessionCtx = inject(SessionContextService);
+  private branding = inject(PlatformBrandingService);
   private router = inject(Router);
 
   constructor() {
@@ -89,6 +92,10 @@ export class AuthComponent implements OnDestroy {
 
   get loginDisabled(): boolean {
     return this.form.invalid || this.submitting;
+  }
+
+  get logoUrl(): string {
+    return this.branding.logoUrl();
   }
 
   onSubmit(): void {

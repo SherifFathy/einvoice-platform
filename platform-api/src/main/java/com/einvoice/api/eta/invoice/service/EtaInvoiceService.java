@@ -75,6 +75,7 @@ public class EtaInvoiceService {
      *
      * @param status optional state filter
      * @param filterCompanyId optional company filter
+     * @param branchId optional branch filter
      * @param dateFrom optional start date
      * @param dateTo optional end date
      * @param page page number
@@ -83,15 +84,19 @@ public class EtaInvoiceService {
      */
     @Transactional(readOnly = true)
     public Page<EtaInvoiceResponse> list(String status, UUID filterCompanyId,
-            String dateFrom, String dateTo, int page, int size) {
+            UUID branchId, String dateFrom, String dateTo, int page,
+            int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         Specification<EtaInvoiceHeader> spec =
-                OperationalRepositorySupport.<EtaInvoiceHeader>
-                        authorityEnvironmentIdEquals(authEnvId);
+                EtaInvoiceSpecifications.inActiveTenantAndAssignedCompany(
+                        getAssignedCompanyIds(), authEnvId);
 
         if (filterCompanyId != null) {
             spec = spec.and(EtaInvoiceSpecifications.forCompany(filterCompanyId));
+        }
+        if (branchId != null) {
+            spec = spec.and(EtaInvoiceSpecifications.forBranch(branchId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(EtaInvoiceSpecifications.inState(DocumentState.valueOf(status)));

@@ -17,6 +17,10 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { EtaInvoiceService, EtaInvoiceListResult } from './services/eta-invoice.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import {
+  BranchLookupService,
+  groupBranchesByCompany,
+} from '../../shared/services/branch-lookup.service';
 import { BulkStatusCheckDialogComponent, BulkStatusDialogData } from '../../documents/shared/bulk-status-check.dialog';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -46,6 +50,20 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
             <mat-option value="">All</mat-option>
             @for (c of context()?.companies ?? []; track c.companyId) {
               <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select [(ngModel)]="branchFilter"
+                      (selectionChange)="refresh$.next()">
+            <mat-option value="">All branches</mat-option>
+            @for (group of branchesByCompany(); track group.companyId) {
+              <mat-optgroup [label]="group.companyNameEn">
+                @for (branch of group.branches; track branch.id) {
+                  <mat-option [value]="branch.id">{{ branch.nameEn }}</mat-option>
+                }
+              </mat-optgroup>
             }
           </mat-select>
         </mat-form-field>
@@ -105,7 +123,14 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
         </ng-container>
         <ng-container matColumnDef="invoiceNumber">
           <th mat-header-cell *matHeaderCellDef>Document Number</th>
-          <td mat-cell *matCellDef="let row">{{ row.invoiceNumber }}</td>
+          <td mat-cell *matCellDef="let row">
+            <ng-container *appHasPermission="['INVOICE', 'VIEW']; else plainInvoiceNumber">
+              <a [routerLink]="['/invoices/eta', row.id]" class="doc-link">
+                {{ row.invoiceNumber }}
+              </a>
+            </ng-container>
+            <ng-template #plainInvoiceNumber>{{ row.invoiceNumber }}</ng-template>
+          </td>
         </ng-container>
         <ng-container matColumnDef="company">
           <th mat-header-cell *matHeaderCellDef>Company</th>
@@ -161,6 +186,8 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
     .filters mat-form-field { width: 180px; }
     .bulk-toolbar { margin-bottom: 8px; }
     .spacer { flex: 1 1 auto; }
+    .doc-link { color: #1976d2; font-weight: 500; text-decoration: none; }
+    .doc-link:hover { text-decoration: underline; }
     .state-banner { padding: 24px; text-align: center; color: #666; }
     .state-banner.error { color: #c62828; }
   `]
@@ -168,9 +195,11 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
 export class EtaInvoiceListComponent {
   private service = inject(EtaInvoiceService);
   private sessionCtx = inject(SessionContextService);
+  private branchLookup = inject(BranchLookupService);
   private dialog = inject(MatDialog);
   private toast = inject(ToastNotificationService);
   context = toSignal(this.sessionCtx.context$, { initialValue: null });
+  branches = toSignal(this.branchLookup.list(), { initialValue: [] });
   refresh$ = new BehaviorSubject<void>(undefined);
 
   loading = signal(true);
@@ -181,6 +210,7 @@ export class EtaInvoiceListComponent {
   currentPage = 0;
   statusFilter = '';
   companyFilter = '';
+  branchFilter = '';
   dateFrom = '';
   dateTo = '';
   selectedIds = new Set<string>();
@@ -204,6 +234,7 @@ export class EtaInvoiceListComponent {
     return this.service.list({
       status: this.statusFilter || undefined,
       companyId: this.companyFilter || undefined,
+      branchId: this.branchFilter || undefined,
       dateFrom: this.dateFrom || undefined,
       dateTo: this.dateTo || undefined,
       page: this.currentPage,
@@ -214,6 +245,10 @@ export class EtaInvoiceListComponent {
   companyName(id: string): string {
     const companies = this.context()?.companies ?? [];
     return companies.find(c => c.companyId === id)?.companyNameEn ?? id;
+  }
+
+  branchesByCompany() {
+    return groupBranchesByCompany(this.branches());
   }
 
   onPage(event: PageEvent): void {

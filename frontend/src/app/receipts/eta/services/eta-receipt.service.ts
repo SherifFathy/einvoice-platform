@@ -98,6 +98,7 @@ export class EtaReceiptService {
   list(params: {
     status?: string;
     companyId?: string;
+    branchId?: string;
     receiptType?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -107,6 +108,7 @@ export class EtaReceiptService {
     const query: string[] = [];
     if (params.status) query.push(`status=${params.status}`);
     if (params.companyId) query.push(`companyId=${params.companyId}`);
+    if (params.branchId) query.push(`branchId=${params.branchId}`);
     if (params.receiptType) query.push(`receiptType=${params.receiptType}`);
     if (params.dateFrom) query.push(`dateFrom=${params.dateFrom}`);
     if (params.dateTo) query.push(`dateTo=${params.dateTo}`);

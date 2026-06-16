@@ -210,7 +210,7 @@ export class ZatcaStandardFormComponent {
       sellerData: parseJsonField(raw.sellerData),
       buyerData: parseJsonField(raw.buyerData),
     };
-    delete (payload as any).owningCompanyId;
+    delete (payload as Record<string, unknown>)['owningCompanyId'];
     if (this.isEdit()) {
       const id = this.route.snapshot.paramMap.get('id')!;
       const companyId = this.editCompanyId;
@@ -221,11 +221,12 @@ export class ZatcaStandardFormComponent {
             this.currentVersion = resp.body?.version ?? this.currentVersion;
             this.router.navigate(['/standard', id]);
           },
-          error: (err: ConflictBody | any) => {
+          error: (err: ConflictBody | { error?: { message?: string }; message?: string; code?: string }) => {
             if (err?.code === 'OPTIMISTIC_LOCK_CONFLICT') {
               this.handleConflict(err as ConflictBody, companyId, id);
             } else {
-              this.error = err?.error?.message || err?.message || 'Update failed';
+              const failure = err as { error?: { message?: string }; message?: string };
+              this.error = failure.error?.message || failure.message || 'Update failed';
             }
           },
         });

@@ -46,6 +46,7 @@ public class ZatcaSimplifiedController {
      * @param companyId tenant company id
      * @param status optional status filter
      * @param filterCompanyId optional explicit company filter
+     * @param branchId optional branch filter
      * @param dateFrom inclusive ISO date lower bound
      * @param dateTo inclusive ISO date upper bound
      * @param page zero-based page index
@@ -59,12 +60,13 @@ public class ZatcaSimplifiedController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "company", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<ZatcaSimplifiedResponse> result = service.list(status,
-                filterCompanyId, dateFrom, dateTo, page, size);
+                filterCompanyId, branchId, dateFrom, dateTo, page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),
                 "page", result.getNumber(),

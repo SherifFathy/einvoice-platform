@@ -75,6 +75,7 @@ public class ZatcaStandardService {
      *
      * @param status optional document-state filter
      * @param filterCompanyId optional single-company narrowing
+     * @param branchId optional branch narrowing
      * @param dateFrom optional inclusive issue-date lower bound
      * @param dateTo optional inclusive issue-date upper bound
      * @param page zero-based page index
@@ -83,16 +84,20 @@ public class ZatcaStandardService {
      */
     @Transactional(readOnly = true)
     public Page<ZatcaStandardResponse> list(String status,
-            UUID filterCompanyId, String dateFrom, String dateTo,
-            int page, int size) {
+            UUID filterCompanyId, UUID branchId, String dateFrom,
+            String dateTo, int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         Specification<com.einvoice.core.domain.zatca.ZatcaStandardHeader> spec =
-                OperationalRepositorySupport.authorityEnvironmentIdEquals(authEnvId);
+                ZatcaStandardSpecifications.inActiveTenantAndAssignedCompany(
+                        getAssignedCompanyIds(), authEnvId);
 
         if (filterCompanyId != null) {
             spec = spec.and(ZatcaStandardSpecifications.forCompany(
                     filterCompanyId));
+        }
+        if (branchId != null) {
+            spec = spec.and(ZatcaStandardSpecifications.forBranch(branchId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(ZatcaStandardSpecifications.inState(

@@ -71,6 +71,7 @@ public class EtaReceiptService {
      *
      * @param status optional state filter
      * @param filterCompanyId optional company filter
+     * @param branchId optional branch filter
      * @param receiptType optional document type filter
      * @param dateFrom optional start date
      * @param dateTo optional end date
@@ -80,17 +81,20 @@ public class EtaReceiptService {
      */
     @Transactional(readOnly = true)
     public Page<EtaReceiptResponse> list(String status, UUID filterCompanyId,
-            String receiptType, String dateFrom, String dateTo,
+            UUID branchId, String receiptType, String dateFrom, String dateTo,
             int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         Specification<EtaReceiptHeader> spec =
-                OperationalRepositorySupport.<EtaReceiptHeader>
-                        authorityEnvironmentIdEquals(authEnvId);
+                EtaReceiptSpecifications.inActiveTenantAndAssignedCompany(
+                        getAssignedCompanyIds(), authEnvId);
 
         if (filterCompanyId != null) {
             spec = spec.and(EtaReceiptSpecifications.forCompany(
                     filterCompanyId));
+        }
+        if (branchId != null) {
+            spec = spec.and(EtaReceiptSpecifications.forBranch(branchId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(EtaReceiptSpecifications.inState(

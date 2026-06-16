@@ -44,6 +44,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - einvoice-artifacts:/var/lib/einvoice/artifacts
     restart: unless-stopped
 
   # ── pgAdmin 4 (optional — activate with: docker compose --profile tools up) ──
@@ -65,3 +67,5 @@ services:
 volumes:
   postgres-data:
     name: einvoice_postgres_data
+  einvoice-artifacts:
+    name: einvoice_artifacts
