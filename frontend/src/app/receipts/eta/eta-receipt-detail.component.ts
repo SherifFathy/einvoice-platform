@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
@@ -132,7 +132,7 @@ export class ReceiptNumberDialogComponent {
       </ng-container>
 
       <ng-container tab-lines>
-        <div *ngIf="rec.lines?.length; else noLines" class="dd-table-wrap">
+        <div *ngIf="rec.lines.length; else noLines" class="dd-table-wrap">
           <table mat-table [dataSource]="rec.lines" class="dd-lines-table">
             <ng-container matColumnDef="code">
               <th mat-header-cell *matHeaderCellDef>Code</th>
@@ -239,14 +239,14 @@ export class EtaReceiptDetailComponent {
   }
 
   subline(rec: EtaReceipt): string {
-    return [rec.issueDatetime, rec.currency, 'ETA', rec.paymentMethod].filter(Boolean).join(' - ');
+    return [this.fmtDateTime(rec.issueDatetime), rec.currency, 'ETA', rec.paymentMethod].filter(Boolean).join(' - ');
   }
 
   overviewRows(rec: EtaReceipt): DetailGridRow[] {
     return [
       { label: 'State', value: rec.state },
       { label: 'Type', value: rec.documentType },
-      { label: 'Issue Date', value: rec.issueDatetime },
+      { label: 'Issue Date', value: this.fmtDateTime(rec.issueDatetime) },
       { label: 'Currency', value: rec.currency },
       { label: 'POS Serial', value: rec.posSerial },
       { label: 'Payment Method', value: rec.paymentMethod },
@@ -296,6 +296,12 @@ export class EtaReceiptDetailComponent {
   private formatAmount(value: unknown): string {
     const numeric = Number(value ?? 0);
     return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
+  }
+
+  private fmtDateTime(value: string | null | undefined): string {
+    if (!value) return '';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : formatDate(parsed, 'short', 'en-US');
   }
 
   getArtifactUrlFn(): (type: string) => string {

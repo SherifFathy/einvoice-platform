@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
@@ -117,7 +117,7 @@ export class InvoiceNumberDialogComponent {
       </ng-container>
 
       <ng-container tab-lines>
-        <div *ngIf="inv.lines?.length; else noLines" class="dd-table-wrap">
+        <div *ngIf="inv.lines.length; else noLines" class="dd-table-wrap">
           <table mat-table [dataSource]="inv.lines" class="dd-lines-table">
             <ng-container matColumnDef="code">
               <th mat-header-cell *matHeaderCellDef>Code</th>
@@ -208,14 +208,14 @@ export class EtaInvoiceDetailComponent {
   }
 
   subline(inv: EtaInvoice): string {
-    return [inv.issueDatetime, inv.currency, 'ETA'].filter(Boolean).join(' - ');
+    return [this.fmtDateTime(inv.issueDatetime), inv.currency, 'ETA'].filter(Boolean).join(' - ');
   }
 
   overviewRows(inv: EtaInvoice): DetailGridRow[] {
     return [
       { label: 'State', value: inv.state },
       { label: 'Type', value: inv.documentType },
-      { label: 'Issue Date', value: inv.issueDatetime },
+      { label: 'Issue Date', value: this.fmtDateTime(inv.issueDatetime) },
       { label: 'Currency', value: inv.currency },
       { label: 'Total Sales', value: inv.totalSalesAmount },
       { label: 'Net Amount', value: inv.netAmount },
@@ -242,6 +242,12 @@ export class EtaInvoiceDetailComponent {
   private formatAmount(value: unknown): string {
     const numeric = Number(value ?? 0);
     return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
+  }
+
+  private fmtDateTime(value: string | null | undefined): string {
+    if (!value) return '';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : formatDate(parsed, 'short', 'en-US');
   }
 
   getArtifactUrlFn(): (type: string) => string {

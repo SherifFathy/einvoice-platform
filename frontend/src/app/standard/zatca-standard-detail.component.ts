@@ -148,7 +148,7 @@ export class StandardCancelReasonDialogComponent {
       </ng-container>
 
       <ng-container tab-lines>
-        <div *ngIf="doc.lines?.length; else noLines" class="dd-table-wrap">
+        <div *ngIf="doc.lines.length; else noLines" class="dd-table-wrap">
           <table mat-table [dataSource]="doc.lines" class="dd-lines-table">
             <ng-container matColumnDef="code">
               <th mat-header-cell *matHeaderCellDef>Code</th>

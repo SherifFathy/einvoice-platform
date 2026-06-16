@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
@@ -154,7 +154,7 @@ export class SimplifiedCancelReasonDialogComponent {
       </ng-container>
 
       <ng-container tab-lines>
-        <div *ngIf="doc.lines?.length; else noLines" class="dd-table-wrap">
+        <div *ngIf="doc.lines.length; else noLines" class="dd-table-wrap">
           <table mat-table [dataSource]="doc.lines" class="dd-lines-table">
             <ng-container matColumnDef="code">
               <th mat-header-cell *matHeaderCellDef>Code</th>
@@ -286,8 +286,14 @@ export class ZatcaSimplifiedDetailComponent {
     return [
       { label: 'Stamp Value (ECDSA SignatureValue)', value: doc.cryptographicStampValue, mono: true },
       { label: 'Signed XML Artifact', value: doc.signedXmlArtifactId ? 'SIGNED_UBL_XML download available below' : null },
-      { label: 'Signed At', value: doc.signedAt, mono: true },
+      { label: 'Signed At', value: this.fmtDateTime(doc.signedAt) },
     ];
+  }
+
+  private fmtDateTime(value: string | null | undefined): string {
+    if (!value) return '';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : formatDate(parsed, 'medium', 'en-US');
   }
 
   sumLineNet(lines: ZatcaSimplifiedDocument['lines']): string {
