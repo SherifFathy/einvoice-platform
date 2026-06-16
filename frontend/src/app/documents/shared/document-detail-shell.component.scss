@@ -1,0 +1,216 @@
+@use './document-detail.tokens';
+
+.dd-shell {
+  --dd-accent: var(--dd-accent-eta);
+  --dd-accent-soft: var(--dd-accent-eta-soft);
+  display: block;
+  padding: 20px;
+  color: var(--dd-text);
+}
+
+.dd-shell--zatca {
+  --dd-accent: var(--dd-accent-zatca);
+  --dd-accent-soft: var(--dd-accent-zatca-soft);
+}
+
+.dd-back-link {
+  margin-bottom: 10px;
+  color: var(--dd-text-muted);
+}
+
+.dd-back-link mat-icon {
+  margin-right: 4px;
+}
+
+.dd-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: var(--dd-shadow);
+}
+
+.dd-hero__accent {
+  height: 8px;
+  background: linear-gradient(90deg, var(--dd-accent), var(--dd-accent-soft));
+}
+
+.dd-hero__main {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 18px;
+}
+
+.dd-hero__copy {
+  min-width: 0;
+}
+
+.dd-eyebrow {
+  margin-bottom: 8px;
+  color: var(--dd-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dd-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+h1 {
+  margin: 0;
+  color: var(--dd-text);
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.dd-subline {
+  margin-top: 10px;
+  color: var(--dd-text-muted);
+  font-size: 14px;
+}
+
+.dd-secondary-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--dd-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--dd-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dd-actions {
+  position: sticky;
+  top: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dd-status-rule {
+  height: 3px;
+}
+
+.dd-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.dd-tile {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface);
+  box-shadow: var(--dd-shadow);
+}
+
+.dd-tile span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--dd-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dd-tile strong {
+  display: block;
+  color: var(--dd-text);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1.1;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.dd-tile--emphasis {
+  border-color: color-mix(in srgb, var(--dd-accent) 34%, var(--dd-border));
+  background: linear-gradient(180deg, var(--dd-accent-soft), #fff);
+}
+
+.dd-tile--emphasis strong {
+  color: var(--dd-accent);
+  font-weight: 750;
+}
+
+.dd-body-card {
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: var(--dd-shadow);
+}
+
+.dd-tab-panel {
+  padding: 18px;
+}
+
+.dd-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
+  color: var(--dd-text-muted);
+  border: 1px dashed var(--dd-border);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface-muted);
+}
+
+:host ::ng-deep .history-card,
+:host ::ng-deep .artifact-card {
+  margin-top: 0;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: none;
+}
+
+:host ::ng-deep .artifact-buttons button {
+  border-radius: 999px;
+}
+
+@media (max-width: 920px) {
+  .dd-hero__main {
+    flex-direction: column;
+  }
+
+  .dd-actions {
+    position: static;
+    justify-content: flex-start;
+  }
+
+  .dd-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .dd-shell {
+    padding: 12px;
+  }
+
+  .dd-hero__main {
+    padding: 18px;
+  }
+
+  .dd-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+

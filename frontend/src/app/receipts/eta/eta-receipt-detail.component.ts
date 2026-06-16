@@ -13,8 +13,8 @@ import { FormsModule } from '@angular/forms';
 import { EtaReceiptService, SubmissionAttemptResponse, EtaReceipt } from './services/eta-receipt.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
-import { SubmissionHistoryComponent } from '../../documents/shared/submission-history.component';
-import { ArtifactDownloadComponent } from '../../documents/shared/artifact-download.component';
+import { DetailGridComponent, DetailGridRow } from '../../documents/shared/detail-grid.component';
+import { DocumentDetailShellComponent, DocumentDetailTile } from '../../documents/shared/document-detail-shell.component';
 import { isAllowed, receiptTransitions } from '../../invoices/shared/generated/eta-states';
 import { CancelEtaDialogComponent } from '../../shared/dialogs/cancel-eta-dialog.component';
 import { ToastNotificationService } from '../../shared/services/toast.service';
@@ -51,121 +51,118 @@ export class ReceiptNumberDialogComponent {
   standalone: true,
   imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule,
             MatCardModule, MatTableModule, HasPermissionDirective,
-            SubmissionHistoryComponent, ArtifactDownloadComponent],
+            DetailGridComponent, DocumentDetailShellComponent],
   template: `
-    <div class="detail-container" *ngIf="receipt()?.body as rec">
-      <div class="detail-header">
-        <h2>Receipt {{ rec.receiptNumber }}</h2>
-        <div>
-          <ng-container *appHasPermission="['RECEIPT', 'EDIT']">
-            <button mat-raised-button color="primary"
-                    *ngIf="isActionAllowed(rec.state, 'EDIT')"
-                    [routerLink]="['/receipts/eta', rec.id, 'edit']">Edit</button>
-          </ng-container>
-          <ng-container *appHasPermission="['RECEIPT', 'SUBMIT']">
-            <button mat-raised-button color="accent"
-                    *ngIf="isActionAllowed(rec.state, 'SUBMIT')"
-                    (click)="submit()">Submit</button>
-          </ng-container>
-          <ng-container *appHasPermission="['RECEIPT', 'CREATE']">
-            <button mat-raised-button color="warn"
-                    *ngIf="rec.state === 'REJECTED'"
-                    (click)="cloneAsDraft()">Create new draft</button>
-          </ng-container>
-          <ng-container *appHasPermission="['RECEIPT', 'REFRESH']">
-            <button mat-raised-button
-                    *ngIf="isActionAllowed(rec.state, 'CHECK_STATUS')"
-                    (click)="checkStatus()">Check Status</button>
-          </ng-container>
-          <ng-container *appHasPermission="['RECEIPT', 'CANCEL']">
-            <button mat-raised-button color="warn"
-                    *ngIf="isActionAllowed(rec.state, 'CANCEL')"
-                    (click)="cancel()">Cancel</button>
-          </ng-container>
-          <ng-container *appHasPermission="['RECEIPT', 'SUBMIT']">
-            <button mat-raised-button color="accent"
-                    *ngIf="isActionAllowed(rec.state, 'RETRY')"
-                    (click)="retry()">Retry</button>
-          </ng-container>
+    <app-document-detail-shell
+      *ngIf="receipt()?.body as rec; else loading"
+      authority="ETA"
+      eyebrow="ETA Receipt"
+      [documentNumber]="rec.receiptNumber"
+      [status]="rec.state"
+      [subline]="subline(rec)"
+      [backLink]="['/receipts/eta']"
+      backLabel="ETA receipts"
+      [tiles]="summaryTiles(rec)"
+      [lineCount]="rec.lines.length"
+      [submissions]="submissions()"
+      [artifactTypes]="artifactTypes"
+      [companyId]="rec.companyId"
+      [docId]="rec.id"
+      [getArtifactUrl]="getArtifactUrlFn()">
+      <ng-container actions>
+        <ng-container *appHasPermission="['RECEIPT', 'EDIT']">
+          <button mat-raised-button color="primary"
+                  *ngIf="isActionAllowed(rec.state, 'EDIT')"
+                  [routerLink]="['/receipts/eta', rec.id, 'edit']">Edit</button>
+        </ng-container>
+        <ng-container *appHasPermission="['RECEIPT', 'SUBMIT']">
+          <button mat-raised-button color="accent"
+                  *ngIf="isActionAllowed(rec.state, 'SUBMIT')"
+                  (click)="submit()">Submit</button>
+        </ng-container>
+        <ng-container *appHasPermission="['RECEIPT', 'CREATE']">
+          <button mat-raised-button color="warn"
+                  *ngIf="rec.state === 'REJECTED'"
+                  (click)="cloneAsDraft()">Create new draft</button>
+        </ng-container>
+        <ng-container *appHasPermission="['RECEIPT', 'REFRESH']">
+          <button mat-raised-button
+                  *ngIf="isActionAllowed(rec.state, 'CHECK_STATUS')"
+                  (click)="checkStatus()">Check Status</button>
+        </ng-container>
+        <ng-container *appHasPermission="['RECEIPT', 'CANCEL']">
+          <button mat-raised-button color="warn"
+                  *ngIf="isActionAllowed(rec.state, 'CANCEL')"
+                  (click)="cancel()">Cancel</button>
+        </ng-container>
+        <ng-container *appHasPermission="['RECEIPT', 'SUBMIT']">
+          <button mat-raised-button color="accent"
+                  *ngIf="isActionAllowed(rec.state, 'RETRY')"
+                  (click)="retry()">Retry</button>
+        </ng-container>
+      </ng-container>
+
+      <ng-container tab-overview>
+        <div class="dd-overview-layout">
+          <app-detail-grid [rows]="overviewRows(rec)"></app-detail-grid>
+          <div class="dd-side-stack">
+            <mat-card *ngIf="rec.exchangeRate || rec.previousUuid || rec.sOrderNameCode || rec.grossWeight || rec.erpReferenceId" class="dd-panel">
+              <mat-card-header><mat-card-title>v1.2 Metadata</mat-card-title></mat-card-header>
+              <mat-card-content>
+                <app-detail-grid [rows]="v12Rows(rec)"></app-detail-grid>
+              </mat-card-content>
+            </mat-card>
+            <mat-card *ngIf="rec.grossWeight || rec.netWeight" class="dd-panel">
+              <mat-card-header><mat-card-title>Logistics</mat-card-title></mat-card-header>
+              <mat-card-content>
+                <app-detail-grid [rows]="logisticsRows(rec)"></app-detail-grid>
+              </mat-card-content>
+            </mat-card>
+            <mat-card *ngIf="rec.taxTotals || rec.extraReceiptDiscountData || rec.contractorData || rec.beneficiaryData" class="dd-panel">
+              <mat-card-header><mat-card-title>Structured Data</mat-card-title></mat-card-header>
+              <mat-card-content>
+                <div *ngIf="rec.taxTotals"><strong>Tax Totals</strong><pre class="dd-json-block">{{ rec.taxTotals | json }}</pre></div>
+                <div *ngIf="rec.extraReceiptDiscountData"><strong>Extra Receipt Discount</strong><pre class="dd-json-block">{{ rec.extraReceiptDiscountData | json }}</pre></div>
+                <div *ngIf="rec.contractorData"><strong>Contractor</strong><pre class="dd-json-block">{{ rec.contractorData | json }}</pre></div>
+                <div *ngIf="rec.beneficiaryData"><strong>Beneficiary</strong><pre class="dd-json-block">{{ rec.beneficiaryData | json }}</pre></div>
+              </mat-card-content>
+            </mat-card>
+          </div>
         </div>
-      </div>
+      </ng-container>
 
-      <mat-card>
-        <mat-card-content>
-          <p><strong>State:</strong> {{ rec.state }}</p>
-          <p><strong>Type:</strong> {{ rec.documentType }}</p>
-          <p><strong>Issue Date:</strong> {{ rec.issueDatetime | date:'short' }}</p>
-          <p><strong>Currency:</strong> {{ rec.currency }}</p>
-          <p><strong>POS Serial:</strong> {{ rec.posSerial }}</p>
-          <p><strong>Payment Method:</strong> {{ rec.paymentMethod }}</p>
-          <p><strong>Total Sales:</strong> {{ rec.totalSalesAmount }}</p>
-          <p><strong>Total Commercial Discount:</strong> {{ rec.totalCommercialDiscount }}</p>
-          <p><strong>Net Amount:</strong> {{ rec.netAmount }}</p>
-          <p><strong>Total:</strong> {{ rec.totalAmount }}</p>
-          <p *ngIf="rec.originalReceiptId"><strong>Original Receipt:</strong> {{ rec.originalReceiptId }}</p>
-          <p *ngIf="rec.etaReceiptUuid"><strong>ETA UUID:</strong> {{ rec.etaReceiptUuid }}</p>
-          <p *ngIf="rec.etaSubmissionId"><strong>Submission ID:</strong> {{ rec.etaSubmissionId }}</p>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card *ngIf="rec.exchangeRate || rec.previousUuid || rec.sOrderNameCode || rec.grossWeight || rec.erpReferenceId" class="v12-card">
-        <mat-card-header><mat-card-title>v1.2 Metadata</mat-card-title></mat-card-header>
-        <mat-card-content>
-          <p *ngIf="rec.exchangeRate"><strong>Exchange Rate:</strong> {{ rec.exchangeRate }}</p>
-          <p *ngIf="rec.previousUuid"><strong>Previous UUID:</strong> {{ rec.previousUuid }}</p>
-          <p *ngIf="rec.referenceOldUuid"><strong>Reference Old UUID:</strong> {{ rec.referenceOldUuid }}</p>
-          <p *ngIf="rec.sOrderNameCode"><strong>Order Name Code:</strong> {{ rec.sOrderNameCode }}</p>
-          <p *ngIf="rec.orderDeliveryMode"><strong>Delivery Mode:</strong> {{ rec.orderDeliveryMode }}</p>
-          <p *ngIf="rec.erpReferenceId"><strong>ERP Reference:</strong> {{ rec.erpReferenceId }}</p>
-          <p *ngIf="rec.originalInvoiceNumber"><strong>Original Invoice Number:</strong> {{ rec.originalInvoiceNumber }}</p>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card *ngIf="rec.grossWeight || rec.netWeight" class="logistics-card">
-        <mat-card-header><mat-card-title>Logistics</mat-card-title></mat-card-header>
-        <mat-card-content>
-          <p *ngIf="rec.grossWeight"><strong>Gross Weight:</strong> {{ rec.grossWeight }}</p>
-          <p *ngIf="rec.netWeight"><strong>Net Weight:</strong> {{ rec.netWeight }}</p>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card *ngIf="rec.taxTotals || rec.extraReceiptDiscountData || rec.contractorData || rec.beneficiaryData" class="jsonb-card">
-        <mat-card-header><mat-card-title>Structured Data</mat-card-title></mat-card-header>
-        <mat-card-content>
-          <div *ngIf="rec.taxTotals"><strong>Tax Totals:</strong><pre>{{ rec.taxTotals | json }}</pre></div>
-          <div *ngIf="rec.extraReceiptDiscountData"><strong>Extra Receipt Discount:</strong><pre>{{ rec.extraReceiptDiscountData | json }}</pre></div>
-          <div *ngIf="rec.contractorData"><strong>Contractor:</strong><pre>{{ rec.contractorData | json }}</pre></div>
-          <div *ngIf="rec.beneficiaryData"><strong>Beneficiary:</strong><pre>{{ rec.beneficiaryData | json }}</pre></div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card *ngIf="rec.lines?.length" class="lines-card">
-        <mat-card-header><mat-card-title>Line Items</mat-card-title></mat-card-header>
-        <mat-card-content>
-          <table mat-table [dataSource]="rec.lines">
+      <ng-container tab-lines>
+        <div *ngIf="rec.lines?.length; else noLines" class="dd-table-wrap">
+          <table mat-table [dataSource]="rec.lines" class="dd-lines-table">
             <ng-container matColumnDef="code">
               <th mat-header-cell *matHeaderCellDef>Code</th>
               <td mat-cell *matCellDef="let l">{{ l.itemCode }}</td>
+              <td mat-footer-cell *matFooterCellDef></td>
             </ng-container>
             <ng-container matColumnDef="desc">
               <th mat-header-cell *matHeaderCellDef>Description</th>
               <td mat-cell *matCellDef="let l">{{ l.description }}</td>
+              <td mat-footer-cell *matFooterCellDef class="dd-total-label">Totals</td>
             </ng-container>
             <ng-container matColumnDef="qty">
               <th mat-header-cell *matHeaderCellDef>Qty</th>
-              <td mat-cell *matCellDef="let l">{{ l.quantity }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ l.quantity }}</td>
+              <td mat-footer-cell *matFooterCellDef></td>
             </ng-container>
             <ng-container matColumnDef="price">
               <th mat-header-cell *matHeaderCellDef>Unit Price</th>
-              <td mat-cell *matCellDef="let l">{{ l.unitPrice }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ l.unitPrice }}</td>
+              <td mat-footer-cell *matFooterCellDef></td>
             </ng-container>
             <ng-container matColumnDef="discount">
               <th mat-header-cell *matHeaderCellDef>Discount</th>
-              <td mat-cell *matCellDef="let l">{{ sumAmount(l.commercialDiscountData) }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ sumAmount(l.commercialDiscountData) }}</td>
+              <td mat-footer-cell *matFooterCellDef class="dd-num dd-total-cell">{{ sumLineDiscount(rec.lines) }}</td>
             </ng-container>
             <ng-container matColumnDef="total">
               <th mat-header-cell *matHeaderCellDef>Total</th>
-              <td mat-cell *matCellDef="let l">{{ l.total }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ l.total }}</td>
+              <td mat-footer-cell *matFooterCellDef class="dd-num dd-total-cell">{{ sumLineTotal(rec.lines) }}</td>
             </ng-container>
             <ng-container matColumnDef="taxes">
               <th mat-header-cell *matHeaderCellDef>Taxes</th>
@@ -174,32 +171,24 @@ export class ReceiptNumberDialogComponent {
                   {{ t.taxType }}: {{ t.taxAmount }}<span *ngIf="!last">, </span>
                 </span>
               </td>
+              <td mat-footer-cell *matFooterCellDef class="dd-num dd-total-cell">{{ sumLineTaxes(rec.lines) }}</td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="lineColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: lineColumns;"></tr>
+            <tr mat-footer-row *matFooterRowDef="lineColumns"></tr>
           </table>
-        </mat-card-content>
-      </mat-card>
+        </div>
+        <ng-template #noLines>
+          <div class="dd-empty-lines">No line items on this receipt.</div>
+        </ng-template>
+      </ng-container>
+    </app-document-detail-shell>
 
-      <app-submission-history [attempts]="submissions()"></app-submission-history>
-
-      <app-artifact-download
-        [artifactTypes]="artifactTypes"
-        [companyId]="receipt()?.body?.companyId ?? ''"
-        [docId]="receipt()?.body?.id ?? ''"
-        [getArtifactUrl]="getArtifactUrlFn()">
-      </app-artifact-download>
-    </div>
+    <ng-template #loading>
+      <div class="dd-loading">Loading receipt detail...</div>
+    </ng-template>
   `,
-  styles: [`
-    .detail-container { padding: 16px; }
-    .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .lines-card { margin-top: 16px; }
-    .v12-card { margin-top: 16px; }
-    .logistics-card { margin-top: 16px; }
-    .jsonb-card { margin-top: 16px; }
-    .jsonb-card pre { font-size: 11px; background: #f5f5f5; padding: 8px; border-radius: 4px; overflow-x: auto; }
-  `]
+  styleUrls: ['../../documents/shared/document-detail-content.scss']
 })
 export class EtaReceiptDetailComponent {
   private route = inject(ActivatedRoute);
@@ -235,9 +224,78 @@ export class EtaReceiptDetailComponent {
     return isAllowed(state, action, receiptTransitions);
   }
 
-  sumAmount(arr: Array<{ amount?: unknown }> | null | undefined): string {
+  sumAmount(arr: unknown[] | null | undefined): string {
     if (!arr?.length) return '0';
-    return arr.reduce((sum, x) => sum + Number(x?.amount ?? 0), 0).toFixed(2);
+    return arr.reduce<number>((sum, x) => sum + Number((x as { amount?: unknown })?.amount ?? 0), 0).toFixed(2);
+  }
+
+  summaryTiles(rec: EtaReceipt): DocumentDetailTile[] {
+    return [
+      { label: 'Total Sales', value: rec.totalSalesAmount },
+      { label: 'Discount', value: rec.totalCommercialDiscount },
+      { label: 'Net Amount', value: rec.netAmount },
+      { label: 'Total', value: rec.totalAmount, emphasis: true },
+    ];
+  }
+
+  subline(rec: EtaReceipt): string {
+    return [rec.issueDatetime, rec.currency, 'ETA', rec.paymentMethod].filter(Boolean).join(' - ');
+  }
+
+  overviewRows(rec: EtaReceipt): DetailGridRow[] {
+    return [
+      { label: 'State', value: rec.state },
+      { label: 'Type', value: rec.documentType },
+      { label: 'Issue Date', value: rec.issueDatetime },
+      { label: 'Currency', value: rec.currency },
+      { label: 'POS Serial', value: rec.posSerial },
+      { label: 'Payment Method', value: rec.paymentMethod },
+      { label: 'Original Receipt', value: rec.originalReceiptId, mono: true },
+      { label: 'ETA UUID', value: rec.etaReceiptUuid, mono: true },
+      { label: 'Submission ID', value: rec.etaSubmissionId, mono: true },
+      { label: 'Total Sales', value: rec.totalSalesAmount },
+      { label: 'Total Commercial Discount', value: rec.totalCommercialDiscount },
+      { label: 'Net Amount', value: rec.netAmount },
+      { label: 'Total', value: rec.totalAmount },
+    ];
+  }
+
+  v12Rows(rec: EtaReceipt): DetailGridRow[] {
+    return [
+      { label: 'Exchange Rate', value: rec.exchangeRate },
+      { label: 'Previous UUID', value: rec.previousUuid, mono: true },
+      { label: 'Reference Old UUID', value: rec.referenceOldUuid, mono: true },
+      { label: 'Order Name Code', value: rec.sOrderNameCode },
+      { label: 'Delivery Mode', value: rec.orderDeliveryMode },
+      { label: 'ERP Reference', value: rec.erpReferenceId, mono: true },
+      { label: 'Original Invoice Number', value: rec.originalInvoiceNumber },
+    ];
+  }
+
+  logisticsRows(rec: EtaReceipt): DetailGridRow[] {
+    return [
+      { label: 'Gross Weight', value: rec.grossWeight },
+      { label: 'Net Weight', value: rec.netWeight },
+    ];
+  }
+
+  sumLineDiscount(lines: EtaReceipt['lines']): string {
+    return this.formatAmount((lines ?? []).reduce((sum, line) =>
+      sum + Number(this.sumAmount(line.commercialDiscountData)), 0));
+  }
+
+  sumLineTotal(lines: EtaReceipt['lines']): string {
+    return this.formatAmount((lines ?? []).reduce((sum, line) => sum + Number(line.total ?? 0), 0));
+  }
+
+  sumLineTaxes(lines: EtaReceipt['lines']): string {
+    return this.formatAmount((lines ?? []).reduce((lineSum, line) => lineSum
+        + (line.taxes ?? []).reduce((taxSum, tax) => taxSum + Number(tax.taxAmount ?? 0), 0), 0));
+  }
+
+  private formatAmount(value: unknown): string {
+    const numeric = Number(value ?? 0);
+    return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
   }
 
   getArtifactUrlFn(): (type: string) => string {

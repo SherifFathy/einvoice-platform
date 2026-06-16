@@ -1,0 +1,60 @@
+@use './document-detail.tokens';
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.detail-grid__row {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--dd-border);
+  border-radius: 10px;
+  background: var(--dd-surface);
+}
+
+dt {
+  margin-bottom: 6px;
+  color: var(--dd-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  color: var(--dd-text);
+  font-size: 14px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.detail-grid__row--mono dd span {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.detail-grid__copy {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+}
+
+.detail-grid__copy mat-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 700px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
