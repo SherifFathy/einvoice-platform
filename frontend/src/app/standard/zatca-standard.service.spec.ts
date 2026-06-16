@@ -27,11 +27,13 @@ describe('ZatcaStandardService', () => {
 
   it('should list standard documents', () => {
     const mockResult = { items: [], page: 0, size: 50, totalElements: 0 };
-    service.list({ page: 0, size: 50 }).subscribe(result => {
+    const branchId = '00000000-0000-0000-0000-000000000010';
+    service.list({ branchId, page: 0, size: 50 }).subscribe(result => {
       expect(result).toEqual(mockResult);
     });
     const req = httpMock.expectOne(r => r.url.includes('/zatca/standard'));
     expect(req.request.method).toBe('GET');
+    expect(req.request.urlWithParams).toContain(`branchId=${branchId}`);
     req.flush(mockResult);
   });
 

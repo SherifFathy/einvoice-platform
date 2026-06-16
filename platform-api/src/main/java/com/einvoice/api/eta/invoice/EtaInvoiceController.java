@@ -46,6 +46,7 @@ public class EtaInvoiceController {
      * @param companyId the company identifier
      * @param status optional state filter
      * @param filterCompanyId optional company filter
+     * @param branchId optional branch filter
      * @param dateFrom optional start date
      * @param dateTo optional end date
      * @param page page number
@@ -59,12 +60,13 @@ public class EtaInvoiceController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "companyId", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<EtaInvoiceResponse> result = service.list(status,
-                filterCompanyId, dateFrom, dateTo, page, size);
+                filterCompanyId, branchId, dateFrom, dateTo, page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),
                 "page", result.getNumber(),

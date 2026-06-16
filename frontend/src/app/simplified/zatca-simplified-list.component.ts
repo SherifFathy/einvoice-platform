@@ -10,12 +10,16 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
-import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatCheckboxChange, MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ZatcaSimplifiedService, ZatcaSimplifiedListResult } from './services/zatca-simplified.service';
 import { SessionContextService } from '../shared/services/session-context.service';
 import { HasPermissionDirective } from '../shared/directives/has-permission.directive';
+import {
+  BranchLookupService,
+  groupBranchesByCompany,
+} from '../shared/services/branch-lookup.service';
 import { BulkStatusCheckDialogComponent } from '../documents/shared/bulk-status-check.dialog';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
@@ -53,6 +57,20 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
             <mat-option value="">All</mat-option>
             @for (c of context()?.companies ?? []; track c.companyId) {
               <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select [(ngModel)]="branchFilter"
+                      (selectionChange)="refresh$.next()">
+            <mat-option value="">All branches</mat-option>
+            @for (group of branchesByCompany(); track group.companyId) {
+              <mat-optgroup [label]="group.companyNameEn">
+                @for (branch of group.branches; track branch.id) {
+                  <mat-option [value]="branch.id">{{ branch.nameEn }}</mat-option>
+                }
+              </mat-optgroup>
             }
           </mat-select>
         </mat-form-field>
@@ -106,7 +124,14 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
         </ng-container>
         <ng-container matColumnDef="invoiceNumber">
           <th mat-header-cell *matHeaderCellDef>Document Number</th>
-          <td mat-cell *matCellDef="let row">{{ row.invoiceNumber }}</td>
+          <td mat-cell *matCellDef="let row">
+            <ng-container *appHasPermission="['SIMPLIFIED', 'VIEW']; else plainInvoiceNumber">
+              <a [routerLink]="['/simplified', row.id]" class="doc-link">
+                {{ row.invoiceNumber }}
+              </a>
+            </ng-container>
+            <ng-template #plainInvoiceNumber>{{ row.invoiceNumber }}</ng-template>
+          </td>
         </ng-container>
         <ng-container matColumnDef="company">
           <th mat-header-cell *matHeaderCellDef>Company</th>
@@ -163,6 +188,8 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
     .list-header div { display: flex; gap: 8px; align-items: center; }
     .filters { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
     .filters mat-form-field { width: 180px; }
+    .doc-link { color: #1976d2; font-weight: 500; text-decoration: none; }
+    .doc-link:hover { text-decoration: underline; }
     .state-banner { padding: 24px; text-align: center; color: #666; }
     .state-banner.error { color: #c62828; }
   `]
@@ -170,8 +197,10 @@ import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
 export class ZatcaSimplifiedListComponent {
   private service = inject(ZatcaSimplifiedService);
   private sessionCtx = inject(SessionContextService);
+  private branchLookup = inject(BranchLookupService);
   private dialog = inject(MatDialog);
   context = toSignal(this.sessionCtx.context$, { initialValue: null });
+  branches = toSignal(this.branchLookup.list(), { initialValue: [] });
   refresh$ = new BehaviorSubject<void>(undefined);
 
   loading = signal(true);
@@ -181,6 +210,7 @@ export class ZatcaSimplifiedListComponent {
   currentPage = 0;
   statusFilter = '';
   companyFilter = '';
+  branchFilter = '';
   dateFrom = '';
   dateTo = '';
   selectedIds = new Set<string>();
@@ -204,6 +234,7 @@ export class ZatcaSimplifiedListComponent {
     return this.service.list({
       status: this.statusFilter || undefined,
       company: this.companyFilter || undefined,
+      branchId: this.branchFilter || undefined,
       dateFrom: this.dateFrom || undefined,
       dateTo: this.dateTo || undefined,
       page: this.currentPage,
@@ -216,12 +247,16 @@ export class ZatcaSimplifiedListComponent {
     return companies.find(c => c.companyId === id)?.companyNameEn ?? id;
   }
 
+  branchesByCompany() {
+    return groupBranchesByCompany(this.branches());
+  }
+
   onPage(event: PageEvent): void {
     this.currentPage = event.pageIndex;
     this.refresh$.next();
   }
 
-  toggle(id: string, event: any): void {
+  toggle(id: string, event: MatCheckboxChange): void {
     if (event.checked) {
       this.selectedIds.add(id);
     } else {
@@ -229,7 +264,7 @@ export class ZatcaSimplifiedListComponent {
     }
   }
 
-  toggleAll(event: any): void {
+  toggleAll(event: MatCheckboxChange): void {
     const items = this.documents()?.items ?? [];
     if (event.checked) {
       items.forEach(i => this.selectedIds.add(i.id));

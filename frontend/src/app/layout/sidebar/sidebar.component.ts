@@ -18,6 +18,7 @@ interface SidebarItem {
 const adminManagementItems: SidebarItem[] = [
   { label: 'Companies', icon: 'business', route: '/admin/companies' },
   { label: 'Branches', icon: 'store', route: '/admin/branches' },
+  { label: 'Branding', icon: 'image', route: '/admin/branding' },
   { label: 'Users', icon: 'people', route: '/admin/users' },
   { label: 'Assignments', icon: 'assignment_ind', route: '/admin/assignments' },
 ];

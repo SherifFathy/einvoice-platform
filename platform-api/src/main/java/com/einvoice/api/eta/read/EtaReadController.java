@@ -43,6 +43,7 @@ public class EtaReadController {
      *
      * @param status optional document-state filter
      * @param filterCompanyId optional single-company narrowing
+     * @param branchId optional branch narrowing
      * @param dateFrom optional inclusive issue-date lower bound
      * @param dateTo optional inclusive issue-date upper bound
      * @param page zero-based page index
@@ -54,12 +55,13 @@ public class EtaReadController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "companyId", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<EtaInvoiceResponse> result = invoiceService.list(status,
-                filterCompanyId, dateFrom, dateTo, page, size);
+                filterCompanyId, branchId, dateFrom, dateTo, page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),
                 "page", result.getNumber(),
@@ -87,6 +89,7 @@ public class EtaReadController {
      *
      * @param status optional document-state filter
      * @param filterCompanyId optional single-company narrowing
+     * @param branchId optional branch narrowing
      * @param receiptType optional receipt-type filter
      * @param dateFrom optional inclusive issue-date lower bound
      * @param dateTo optional inclusive issue-date upper bound
@@ -99,13 +102,14 @@ public class EtaReadController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "companyId", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String receiptType,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<EtaReceiptResponse> result = receiptService.list(status,
-                filterCompanyId, receiptType, dateFrom, dateTo,
+                filterCompanyId, branchId, receiptType, dateFrom, dateTo,
                 page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),

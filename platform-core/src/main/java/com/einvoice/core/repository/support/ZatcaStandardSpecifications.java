@@ -22,6 +22,17 @@ public final class ZatcaStandardSpecifications {
                 cb.equal(root.get("companyId"), companyId);
     }
 
+    /**
+     * Filter by branch.
+     *
+     * @param branchId the branch identifier
+     * @return a specification
+     */
+    public static Specification<ZatcaStandardHeader> forBranch(UUID branchId) {
+        return (Root<ZatcaStandardHeader> root, CriteriaQuery<?> query, CriteriaBuilder cb) ->
+                cb.equal(root.get("branchId"), branchId);
+    }
+
     public static Specification<ZatcaStandardHeader> inState(DocumentState state) {
         return (Root<ZatcaStandardHeader> root, CriteriaQuery<?> query, CriteriaBuilder cb) ->
                 cb.equal(root.get("status"), state);

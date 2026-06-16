@@ -97,7 +97,7 @@ class EtaReceiptControllerContractTest {
         Page<EtaReceiptResponse> page = new PageImpl<>(
                 List.of(sampleResponse),
                 PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), any(), any(), any(),
+        when(service.list(any(), any(), any(), any(), any(), any(),
                 anyInt(), anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/eta/receipts",
@@ -315,7 +315,7 @@ class EtaReceiptControllerContractTest {
     void listWithReceiptTypeFilter() throws Exception {
         Page<EtaReceiptResponse> page = new PageImpl<>(
                 List.of(sampleResponse), PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), eq("r"), any(), any(),
+        when(service.list(any(), any(), any(), eq("r"), any(), any(),
                 anyInt(), anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/eta/receipts",

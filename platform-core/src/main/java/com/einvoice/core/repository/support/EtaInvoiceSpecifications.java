@@ -30,6 +30,17 @@ public final class EtaInvoiceSpecifications {
     }
 
     /**
+     * Filter by branch.
+     *
+     * @param branchId the branch identifier
+     * @return a specification
+     */
+    public static Specification<EtaInvoiceHeader> forBranch(UUID branchId) {
+        return (Root<EtaInvoiceHeader> root, CriteriaQuery<?> query, CriteriaBuilder cb) ->
+                cb.equal(root.get("branchId"), branchId);
+    }
+
+    /**
      * Filter by lifecycle state.
      *
      * @param state the invoice state

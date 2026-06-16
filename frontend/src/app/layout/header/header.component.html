@@ -1,5 +1,14 @@
 <mat-toolbar color="primary">
-  <span class="brand">E-Invoice Platform</span>
+  <a routerLink="/dashboard" class="brand">
+    <img
+      *ngIf="!logoFailed"
+      [src]="logoUrl"
+      alt="Platform logo"
+      class="brand-logo"
+      (error)="logoFailed = true"
+    >
+    <span *ngIf="logoFailed">E-Invoice Platform</span>
+  </a>
 
   <ng-container *ngIf="sessionCtx.context$ | async">
     <mat-chip-set>

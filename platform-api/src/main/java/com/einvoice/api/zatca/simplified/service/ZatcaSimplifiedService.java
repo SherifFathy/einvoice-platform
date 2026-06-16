@@ -72,6 +72,7 @@ public class ZatcaSimplifiedService {
      *
      * @param status optional document status filter
      * @param filterCompanyId optional company filter
+     * @param branchId optional branch filter
      * @param dateFrom optional start date filter
      * @param dateTo optional end date filter
      * @param page the page number
@@ -80,8 +81,8 @@ public class ZatcaSimplifiedService {
      */
     @Transactional(readOnly = true)
     public Page<ZatcaSimplifiedResponse> list(String status,
-            UUID filterCompanyId, String dateFrom, String dateTo,
-            int page, int size) {
+            UUID filterCompanyId, UUID branchId, String dateFrom,
+            String dateTo, int page, int size) {
         Short authEnvId = TenantContext.getAuthorityEnvironmentId();
 
         Specification<com.einvoice.core.domain.zatca.ZatcaSimplifiedHeader> spec =
@@ -91,6 +92,9 @@ public class ZatcaSimplifiedService {
         if (filterCompanyId != null) {
             spec = spec.and(ZatcaSimplifiedSpecifications.forCompany(
                     filterCompanyId));
+        }
+        if (branchId != null) {
+            spec = spec.and(ZatcaSimplifiedSpecifications.forBranch(branchId));
         }
         if (status != null && !status.isBlank()) {
             spec = spec.and(ZatcaSimplifiedSpecifications.inState(

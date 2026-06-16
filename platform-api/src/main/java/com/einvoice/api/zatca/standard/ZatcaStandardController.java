@@ -46,6 +46,7 @@ public class ZatcaStandardController {
      * @param companyId the path company (operational scope)
      * @param status optional document-state filter
      * @param filterCompanyId optional single-company narrowing
+     * @param branchId optional branch narrowing
      * @param dateFrom optional inclusive issue-date lower bound
      * @param dateTo optional inclusive issue-date upper bound
      * @param page zero-based page index
@@ -59,12 +60,13 @@ public class ZatcaStandardController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "company", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<ZatcaStandardResponse> result = service.list(status,
-                filterCompanyId, dateFrom, dateTo, page, size);
+                filterCompanyId, branchId, dateFrom, dateTo, page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),
                 "page", result.getNumber(),

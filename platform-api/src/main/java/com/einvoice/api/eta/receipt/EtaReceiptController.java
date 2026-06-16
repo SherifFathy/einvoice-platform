@@ -46,6 +46,7 @@ public class EtaReceiptController {
      * @param companyId the company identifier
      * @param status optional state filter
      * @param filterCompanyId optional company filter
+     * @param branchId optional branch filter
      * @param receiptType optional receipt type filter
      * @param dateFrom optional start date
      * @param dateTo optional end date
@@ -60,13 +61,14 @@ public class EtaReceiptController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "companyId", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String receiptType,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<EtaReceiptResponse> result = service.list(status,
-                filterCompanyId, receiptType, dateFrom, dateTo,
+                filterCompanyId, branchId, receiptType, dateFrom, dateTo,
                 page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),

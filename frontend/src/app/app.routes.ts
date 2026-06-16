@@ -44,6 +44,11 @@ export const routes: Routes = [
               import('./admin/branches/branch-list.component').then((m) => m.BranchListComponent),
           },
           {
+            path: 'branding',
+            loadComponent: () =>
+              import('./admin/branding/branding.component').then((m) => m.BrandingComponent),
+          },
+          {
             path: 'users',
             loadComponent: () =>
               import('./admin/users/user-list.component').then((m) => m.UserListComponent),

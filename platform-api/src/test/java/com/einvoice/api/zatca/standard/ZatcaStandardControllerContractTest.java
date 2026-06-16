@@ -99,7 +99,7 @@ class ZatcaStandardControllerContractTest {
         Page<ZatcaStandardResponse> page = new PageImpl<>(
                 List.of(sampleResponse),
                 PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), any(), any(), anyInt(),
+        when(service.list(any(), any(), any(), any(), any(), anyInt(),
                 anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/zatca/standard",
