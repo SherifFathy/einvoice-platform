@@ -55,6 +55,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers("/api/session/context").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/platform/branding/logo")
+                            .permitAll()
                         .requestMatchers("/api/admin/**")
                             .hasAuthority("SUPER_USER")
                         .requestMatchers("/api/health/**").permitAll()

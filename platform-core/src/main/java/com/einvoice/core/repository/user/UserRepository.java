@@ -26,4 +26,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.isSuperUser = true AND u.isActive = true")
     long countActiveSuperUsers();
+
+    /**
+     * Counts all active users platform-wide. Drives the Admin-Mode
+     * {@code totalUsers} stat. Intentionally global (not env-scoped): the
+     * {@code users} table has no environment dimension, and the dashboard
+     * contract exposes a flat {@code totalUsers} with no env qualifier.
+     *
+     * @return the number of active users across the platform
+     */
+    long countByIsActiveTrue();
 }

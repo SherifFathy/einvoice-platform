@@ -1,32 +1,195 @@
-<h2>Dashboard</h2>
-
-@if (isAdminMode) {
-  <div class="admin-banner">
-    Admin Mode — operational features require logout and re-login with a company selected.
-  </div>
-}
-
-@if (isSuperUserOperational) {
+<div class="dashboard-shell">
   <div class="dashboard-header">
-    <span></span>
-    <a mat-raised-button color="primary" routerLink="/admin/companies">
-      <mat-icon>add</mat-icon> Create Company
-    </a>
+    <div>
+      <h2 class="dashboard-title">Dashboard</h2>
+      <div class="dashboard-subtitle">Operational overview for submissions, certificates, and recent activity.</div>
+    </div>
+    @if (isSuperUserOperational) {
+      <a mat-raised-button color="primary" routerLink="/admin/companies">
+        <mat-icon>add</mat-icon> Create Company
+      </a>
+    }
   </div>
-}
 
-<div class="dashboard-grid">
-  @for (company of companies; track company.companyId) {
-    <mat-card class="company-card" [class.inactive]="!company.isActive">
-      <div class="card-header">
-        <div>
-          <div class="company-name">{{ company.companyNameEn }}</div>
-          <div class="company-name-ar">{{ company.companyNameAr }}</div>
-        </div>
-        @if (!company.isActive) {
-          <mat-chip disabled color="warn">Inactive</mat-chip>
-        }
+  @if (isAdminMode) {
+    <div class="admin-banner">
+      <mat-icon>admin_panel_settings</mat-icon>
+      <span>Admin Mode - operational features require logout and re-login with a company selected.</span>
+    </div>
+
+    <div class="dashboard-grid">
+      @for (company of companies; track company.companyId) {
+        <mat-card class="company-card" [class.inactive]="!company.isActive">
+          <div class="company-card-content">
+            <div class="card-header">
+              <div class="company-identity">
+                <div class="company-name">{{ company.companyNameEn }}</div>
+                <div class="company-name-ar">{{ company.companyNameAr }}</div>
+              </div>
+              @if (!company.isActive) {
+                <mat-chip disabled color="warn">Inactive</mat-chip>
+              }
+            </div>
+          </div>
+        </mat-card>
+      }
+    </div>
+  } @else {
+    @if (loading) {
+      <div class="state-banner">
+        <mat-spinner diameter="34"></mat-spinner>
+        <div class="state-title">Loading dashboard</div>
+        <p class="state-text">Fetching the latest operational totals and submission activity.</p>
       </div>
-    </mat-card>
+    } @else if (error) {
+      <div class="state-banner error">
+        <mat-icon>error</mat-icon>
+        <div class="state-title">Could not load the dashboard</div>
+        <p class="state-text">Please try again.</p>
+        <button mat-raised-button color="primary" (click)="reload()">Retry</button>
+      </div>
+    } @else {
+      @if (cards.length === 0) {
+        <div class="state-banner">
+          <mat-icon>domain_disabled</mat-icon>
+          <div class="state-title">No companies yet</div>
+          <p class="state-text">No companies are registered in this environment yet.</p>
+        </div>
+      } @else {
+        <section aria-labelledby="company-overview-title">
+          <div class="section-header">
+            <h3 id="company-overview-title">Company Overview</h3>
+          </div>
+
+          <div class="dashboard-grid">
+            @for (card of cards; track card.companyId) {
+              <mat-card class="company-card" [class.inactive]="!card.active">
+                <div class="company-card-content">
+                  <div class="card-header">
+                    <div class="company-identity">
+                      <div class="company-name">{{ card.nameEn }}</div>
+                      <div class="company-name-ar">{{ card.nameAr }}</div>
+                      @if (card.taxNumber) {
+                        <div class="company-tax-number">Tax No. {{ card.taxNumber }}</div>
+                      }
+                    </div>
+                    @if (!card.active) {
+                      <mat-chip disabled color="warn">Inactive</mat-chip>
+                    }
+                  </div>
+
+                  <div class="card-stats" aria-label="Submission counts">
+                    <div class="stat-tile">
+                      <div class="stat-value">{{ card.pendingCount }}</div>
+                      <div class="stat-label">Pending</div>
+                    </div>
+                    <div class="stat-tile failed" [class.has-failures]="card.failedCount > 0">
+                      <div class="stat-value failed">{{ card.failedCount }}</div>
+                      <div class="stat-label">Failed</div>
+                    </div>
+                  </div>
+
+                  @if (card.certificate) {
+                    @if (card.certificate.expired) {
+                      <div class="cert-line expired">
+                        <mat-icon inline>error</mat-icon>
+                        <span>Certificate expired {{ -card.certificate.daysRemaining }} day(s) ago</span>
+                      </div>
+                    } @else if (card.certificate.expiringSoon) {
+                      <div class="cert-line warn">
+                        <mat-icon inline>warning</mat-icon>
+                        <span>Certificate expires in {{ card.certificate.daysRemaining }} day(s)</span>
+                      </div>
+                    } @else {
+                      <div class="cert-line">
+                        <mat-icon inline>verified</mat-icon>
+                        <span>Certificate valid ({{ card.certificate.daysRemaining }} days remaining)</span>
+                      </div>
+                    }
+                  }
+                </div>
+              </mat-card>
+            }
+          </div>
+        </section>
+      }
+
+      @if (kpi) {
+        <section aria-labelledby="kpi-title">
+          <div class="section-header">
+            <h3 id="kpi-title">Activity</h3>
+          </div>
+
+          <div class="kpi-panel">
+            <div class="kpi-block">
+              <div class="kpi-title-row">
+                <span class="kpi-title">Today</span>
+                <span class="kpi-zone">(UTC)</span>
+              </div>
+
+              <div class="kpi-status-grid">
+                @for (status of statusOrder; track status) {
+                  <div class="kpi-row" [class.is-zero]="(kpi.today.byStatus[status] || 0) === 0">
+                    <app-status-badge [status]="status"></app-status-badge>
+                    <span class="kpi-count">{{ kpi.today.byStatus[status] || 0 }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="kpi-total">
+                <span>Total</span>
+                <span class="kpi-total-value">{{ kpi.today.total }}</span>
+              </div>
+            </div>
+
+            <div class="kpi-block">
+              <div class="kpi-title-row">
+                <span class="kpi-title">This Month</span>
+                <span class="kpi-zone">(UTC)</span>
+              </div>
+
+              <div class="kpi-status-grid">
+                @for (status of statusOrder; track status) {
+                  <div class="kpi-row" [class.is-zero]="(kpi.thisMonth.byStatus[status] || 0) === 0">
+                    <app-status-badge [status]="status"></app-status-badge>
+                    <span class="kpi-count">{{ kpi.thisMonth.byStatus[status] || 0 }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="kpi-total">
+                <span>Total</span>
+                <span class="kpi-total-value">{{ kpi.thisMonth.total }}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      }
+
+      <section aria-labelledby="recent-activity-title">
+        <div class="section-header">
+          <h3 id="recent-activity-title">Recent Activity</h3>
+        </div>
+
+        @if (activity.length === 0) {
+          <div class="state-banner">
+            <mat-icon>history</mat-icon>
+            <div class="state-title">No recent activity</div>
+            <p class="state-text">No recent submission activity.</p>
+          </div>
+        } @else {
+          <div class="activity-list">
+            @for (entry of activity; track entry.attemptId) {
+              <div class="activity-row">
+                <div class="activity-company">{{ entry.companyName }}</div>
+                <div class="activity-type">{{ entry.transactionType }}</div>
+                <div><app-status-badge [status]="entry.outcome"></app-status-badge></div>
+                <time class="activity-time" [attr.datetime]="entry.submittedAt">{{ entry.submittedAt | date: 'short' }}</time>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
   }
 </div>

@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy } from '@angular/core';
+import { Component, effect, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Title } from '@angular/platform-browser';
@@ -9,6 +9,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../shared/services/auth.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
+import { PlatformBrandingService } from '../../shared/services/platform-branding.service';
 
 @Component({
   selector: 'app-header',
@@ -27,11 +28,18 @@ import { SessionContextService } from '../../shared/services/session-context.ser
 export class HeaderComponent implements OnDestroy {
   protected authService = inject(AuthService);
   protected sessionCtx = inject(SessionContextService);
+  private branding = inject(PlatformBrandingService);
   private router = inject(Router);
   private titleService = inject(Title);
   private readonly titleSub!: Subscription;
+  logoFailed = false;
 
   constructor() {
+    effect(() => {
+      this.branding.logoVersion();
+      this.logoFailed = false;
+    });
+
     this.titleSub = this.sessionCtx.context$.subscribe((ctx) => {
       if (ctx?.loginContext?.authority === 'ETA') {
         this.titleService.setTitle('ETA Platform');
@@ -62,11 +70,15 @@ export class HeaderComponent implements OnDestroy {
     const companies = ctx.companies ?? [];
     if (companies.length === 1) return companies[0].companyNameEn;
     if (companies.length >= 2) return `${companies.length} companies`;
-    return '';
+    return ctx.mode === 'AUTHORITY_SCOPED' ? 'Authority-scoped' : '';
   }
 
   get isSuperUser(): boolean {
     return this.sessionCtx.currentContext?.isSuperUser ?? false;
+  }
+
+  get logoUrl(): string {
+    return this.branding.logoUrl();
   }
 
   logout(): void {

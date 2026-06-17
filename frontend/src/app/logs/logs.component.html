@@ -1,0 +1,113 @@
+<div class="toolbar">
+  <mat-form-field appearance="outline" class="filter-select">
+    <mat-label>Entity Type</mat-label>
+    <mat-select [(ngModel)]="entityTypeFilter" (selectionChange)="onFilterChange()">
+      <mat-option value="">All</mat-option>
+      <mat-option value="Company">Company</mat-option>
+      <mat-option value="Branch">Branch</mat-option>
+      <mat-option value="AuthorityConfig">Authority Config</mat-option>
+      <mat-option value="User">User</mat-option>
+      <mat-option value="UserCompanyRole">User Role</mat-option>
+      <mat-option value="UserEnvironmentPermission">Environment Permission</mat-option>
+      <mat-option value="Customer">Customer</mat-option>
+      <mat-option value="Item">Item</mat-option>
+      <mat-option value="Invoice">Invoice</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="filter-input">
+    <mat-label>Entity ID</mat-label>
+    <input matInput [(ngModel)]="entityIdFilter" (ngModelChange)="onDebouncedFilter()" placeholder="ID...">
+  </mat-form-field>
+  @if (showCompanyColumn) {
+    <mat-form-field appearance="outline" class="filter-select">
+      <mat-label>Company</mat-label>
+      <mat-select [(ngModel)]="companyFilter" (selectionChange)="onFilterChange()">
+        <mat-option value="">All</mat-option>
+        @for (c of companies; track c.companyId) {
+          <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  }
+  <mat-form-field appearance="outline" class="date-field">
+    <mat-label>From</mat-label>
+    <input matInput [matDatepicker]="fromPicker" [(ngModel)]="dateFrom" (dateChange)="onFilterChange()">
+    <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+    <mat-datepicker #fromPicker></mat-datepicker>
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="date-field">
+    <mat-label>To</mat-label>
+    <input matInput [matDatepicker]="toPicker" [(ngModel)]="dateTo" (dateChange)="onFilterChange()">
+    <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+    <mat-datepicker #toPicker></mat-datepicker>
+  </mat-form-field>
+  <span class="spacer"></span>
+  <button mat-stroked-button (click)="entityTypeFilter = ''; entityIdFilter = ''; companyFilter = ''; dateFrom = null; dateTo = null; onFilterChange()">
+    <mat-icon>filter_list_off</mat-icon> Clear Filters
+  </button>
+</div>
+
+<table mat-table [dataSource]="logs">
+  @if (showCompanyColumn) {
+    <ng-container matColumnDef="company">
+      <th mat-header-cell *matHeaderCellDef>Company</th>
+      <td mat-cell *matCellDef="let log">{{ log.companyName || '-' }}</td>
+    </ng-container>
+  }
+  <ng-container matColumnDef="action">
+    <th mat-header-cell *matHeaderCellDef>Action</th>
+    <td mat-cell *matCellDef="let log">
+      <span class="badge" [ngClass]="getActionBadgeClass(log.action)">{{ log.action }}</span>
+    </td>
+  </ng-container>
+  <ng-container matColumnDef="userId">
+    <th mat-header-cell *matHeaderCellDef>User</th>
+    <td mat-cell *matCellDef="let log" class="mono">{{ log.userId }}</td>
+  </ng-container>
+  <ng-container matColumnDef="entityType">
+    <th mat-header-cell *matHeaderCellDef>Entity Type</th>
+    <td mat-cell *matCellDef="let log">{{ log.entityType }}</td>
+  </ng-container>
+  <ng-container matColumnDef="entityId">
+    <th mat-header-cell *matHeaderCellDef>Entity ID</th>
+    <td mat-cell *matCellDef="let log" class="mono">{{ log.entityId }}</td>
+  </ng-container>
+  <ng-container matColumnDef="ipAddress">
+    <th mat-header-cell *matHeaderCellDef>IP</th>
+    <td mat-cell *matCellDef="let log" class="mono">{{ log.ipAddress || '-' }}</td>
+  </ng-container>
+  <ng-container matColumnDef="timestamp">
+    <th mat-header-cell *matHeaderCellDef>Timestamp</th>
+    <td mat-cell *matCellDef="let log">{{ formatTimestamp(log.timestamp) }}</td>
+  </ng-container>
+  <ng-container matColumnDef="details">
+    <th mat-header-cell *matHeaderCellDef></th>
+    <td mat-cell *matCellDef="let log">
+      <button mat-icon-button (click)="toggleDetails(log)" [attr.aria-label]="'Toggle details'">
+        <mat-icon>{{ expandedLogId === log.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+      </button>
+    </td>
+  </ng-container>
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>
+
+@if (expandedLogId !== null) {
+  @for (log of logs; track log.id) {
+    @if (log.id === expandedLogId && (log.payloadBefore || log.payloadAfter)) {
+      <div class="diff-container" style="margin-top: 8px; padding: 16px; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 4px;">
+        <div class="diff-panel">
+          <h4>Before</h4>
+          <pre>{{ formatJson(log.payloadBefore) || '(no before state)' }}</pre>
+        </div>
+        <div class="diff-panel">
+          <h4>After</h4>
+          <pre>{{ formatJson(log.payloadAfter) || '(no after state)' }}</pre>
+        </div>
+      </div>
+    }
+  }
+}
+
+<mat-paginator [length]="totalElements" [pageSize]="pageSize" [pageIndex]="pageIndex"
+    (page)="onPageChange($event)"></mat-paginator>

@@ -1,13 +1,19 @@
-# E-Invoice Platform — Sprint 1 Handoff
+# E-Invoice Platform — Wave 9 Handoff
 
 Everything the client team needs to stand up the platform, integrate their ERP
-against the ingestion gateway, query the database, and (optionally) browse the
-admin frontend.
+against the ingestion gateway, query the database, and browse the admin
+frontend (now including the operator dashboard and unified submission log).
 
-**Release:** Sprint 1 — ERP Ingestion Gateway (feature `011-erp-ingestion-gateway`).
-**Scope of this bundle:** four POST endpoints under `/api/integration/v1/`,
-plus the full operational backend that persists, audits, and archives every
-inbound document.
+**Release:** Wave 9 — Dashboard, Logs & Hardening (feature
+`012-wave9-dashboard-logs-hardening`). Schema at **V64**. Supersedes the
+Sprint 1 bundle (`0.1.0-sprint1`).
+**Scope of this bundle:**
+- the four ERP-ingestion POST endpoints under `/api/integration/v1/`
+  (Sprint 1, unchanged);
+- the operator **dashboard** and unified **submission-log** read APIs added in
+  Wave 9 (`/api/dashboard/*`, `/api/submission-log`);
+- the full operational backend that persists, audits, and archives every
+  inbound document, plus the admin frontend that surfaces all of the above.
 
 ---
 
@@ -23,7 +29,8 @@ inbound document.
 | `postman/sprint-1-ingestion-gateway.postman_collection.json` | Importable Postman v2.1 collection. |
 
 If you received an image tarball alongside this folder
-(`einvoice-platform-api-0.1.0.tar.gz`), keep it nearby — step 2 references it.
+(`einvoice-platform-api-0.2.0-wave9.tar.gz`), keep it nearby — step 2 references
+it.
 
 ---
 
@@ -51,26 +58,43 @@ Pick the path that matches how the image was delivered.
 
 ```bash
 docker login <registry-host>
-docker pull <registry-host>/einvoice/platform-api:0.1.0-sprint1
+docker pull <registry-host>/einvoice/platform-api:0.2.0-wave9
 ```
 
 Then in your `.env`:
 
 ```dotenv
-EINVOICE_IMAGE=<registry-host>/einvoice/platform-api:0.1.0-sprint1
+EINVOICE_IMAGE=<registry-host>/einvoice/platform-api:0.2.0-wave9
 ```
 
 ### Option B — Load from a tarball
 
 ```bash
-gunzip -c einvoice-platform-api-0.1.0.tar.gz | docker load
-# → "Loaded image: einvoice-platform-api:0.1.0-sprint1"
+gunzip -c einvoice-platform-api-0.2.0-wave9.tar.gz | docker load
+# → "Loaded image: einvoice-platform-api:0.2.0-wave9"
 ```
 
 The default `EINVOICE_IMAGE` in the template already matches this tag, so no
 `.env` change is needed.
 
-Verify either way:
+### Option C — Build it yourself from the repo (how this tarball was produced)
+
+From the repo root (the multi-stage `Dockerfile` builds all backend modules and
+runs Flyway on boot — no local JDK/Maven needed, only Docker):
+
+```bash
+docker build -t einvoice-platform-api:0.2.0-wave9 .
+
+# (optional) export a portable tarball to hand to another machine:
+docker save einvoice-platform-api:0.2.0-wave9 \
+  | gzip > einvoice-platform-api-0.2.0-wave9.tar.gz
+```
+
+First build takes several minutes (Maven downloads dependencies). Then set
+`EINVOICE_IMAGE=einvoice-platform-api:0.2.0-wave9` in `.env` (already the
+default).
+
+Verify any of the three paths:
 
 ```bash
 docker images einvoice-platform-api
@@ -246,6 +270,34 @@ the security caveat.
 
 ---
 
+## 8b. Operator dashboard & submission log (Wave 9 read APIs)
+
+Wave 9 adds three **authenticated read endpoints** that power the operator
+dashboard and the unified submission log. Unlike the ingestion gateway (§8,
+`permitAll`), **these require a logged-in session** — they are scoped by
+authority environment under the `AUTHORITY_SCOPED` / `OPERATIONAL_MODE` model.
+The admin frontend (§11) calls them for you; the table below is for direct API
+use.
+
+| Method | Path | Returns |
+|---|---|---|
+| `GET` | `/api/dashboard/summary` | Per-company cards (pending / failed counts + certificate status) and a UTC today / this-month KPI panel for the active authority environment. |
+| `GET` | `/api/dashboard/recent-activity` | The 10 newest submission attempts in the active environment, newest-first. |
+| `GET` | `/api/submission-log` | Paged, filtered submission log across all four document classes (ETA invoice/receipt, ZATCA standard/simplified). Envelope: `{items, page, size, totalElements}`; default sort `submittedAt DESC`. |
+
+Notes:
+
+- **Auth:** obtain a JWT via `POST /api/auth/login` (the bootstrap super-user
+  from `.env`, or a user you created), then send `Authorization: Bearer <jwt>`.
+  The active authority environment comes from the session context — see
+  `Docs/configuration-reference.md`.
+- `ADMIN_MODE` is rejected for these operational endpoints by the tenant filter.
+- These are **read-only** — they add no tables and no migrations. All data is
+  derived from `submission_attempts`, the four header tables, `zatca_configs`,
+  and `audit_logs` (schema unchanged at V64).
+
+---
+
 ## 9. Where data lands (per endpoint)
 
 | Endpoint | Header table | Children |
@@ -292,8 +344,9 @@ name), port `5432`.
 
 The frontend is an Angular 19 SPA. It is **not** required for ERP
 integration — your ERP talks directly to the gateway endpoints. The admin UI
-is for browsing ingested documents, managing companies, and (Sprint 2+)
-managing API keys.
+is for the **operator dashboard** and **unified submission log** (Wave 9),
+browsing ingested documents, managing companies / users / master data and
+authority configuration, and (Sprint 2+) managing API keys.
 
 For Sprint 1 we deliver the frontend as **source** rather than a container;
 run it natively with the standard Angular dev server. If you want it
@@ -350,7 +403,7 @@ When a new image tag is published:
 
 ```bash
 # 1. Update the tag in .env
-sed -i 's/0\.1\.0-sprint1/0\.2\.0-sprint2/' .env
+sed -i 's/0\.2\.0-wave9/0\.3\.0-sprint2/' .env
 
 # 2. Pull or load the new image
 docker compose -f docker-compose.handoff.yml --env-file .env pull app
@@ -381,7 +434,7 @@ log for `Successfully applied N migrations` — new migrations run automatically
 
 ---
 
-## 14. Known Sprint 1 limits
+## 14. Known limits (current release)
 
 - **ZATCA accepts SAR only.** Multi-currency / FX is deferred to Sprint 2.
 - **No arithmetic validation on invoice totals.** Mismatched sums get

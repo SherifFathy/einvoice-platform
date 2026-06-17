@@ -218,7 +218,7 @@ class EtaReceiptLifecycleIntegrationTest {
                         .header("Authorization",
                                 "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.state").value("VALID"));
+                .andExpect(jsonPath("$.state").value("ACCEPTED"));
 
         int artifactCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM invoice_artifacts "
@@ -243,6 +243,6 @@ class EtaReceiptLifecycleIntegrationTest {
                 "SELECT state FROM eta_receipt_headers "
                         + "WHERE id = ?::uuid",
                 String.class, docId);
-        assertEquals("VALID", state);
+        assertEquals("ACCEPTED", state);
     }
 }

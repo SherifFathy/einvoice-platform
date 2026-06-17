@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -35,7 +35,6 @@ import { BranchFormComponent, BranchFormDialogData } from './branch-form.compone
     .toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
     .company-selector { min-width: 280px; }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BranchListComponent implements OnInit {
   companies: CompanyResponse[] = [];

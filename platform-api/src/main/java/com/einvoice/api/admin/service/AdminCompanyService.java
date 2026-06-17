@@ -3,6 +3,7 @@ package com.einvoice.api.admin.service;
 import com.einvoice.api.admin.dto.CompanyCreateRequest;
 import com.einvoice.api.admin.dto.CompanyResponse;
 import com.einvoice.api.admin.dto.CompanyUpdateRequest;
+import com.einvoice.api.session.SessionContextCache;
 import com.einvoice.core.domain.company.Company;
 import com.einvoice.core.repository.company.CompanyRepository;
 import java.util.List;
@@ -16,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminCompanyService {
 
     private final CompanyRepository companyRepository;
+    private final SessionContextCache sessionContextCache;
 
-    public AdminCompanyService(CompanyRepository companyRepository) {
+    public AdminCompanyService(CompanyRepository companyRepository,
+            SessionContextCache sessionContextCache) {
         this.companyRepository = companyRepository;
+        this.sessionContextCache = sessionContextCache;
     }
 
     /**
@@ -36,6 +40,7 @@ public class AdminCompanyService {
                 .isActive(true)
                 .build();
         Company saved = companyRepository.save(company);
+        sessionContextCache.invalidateAll();
         return toResponse(saved);
     }
 
@@ -54,6 +59,7 @@ public class AdminCompanyService {
         company.setTaxNumber(request.taxNumber());
         company.setCrNumber(request.crNumber());
         Company saved = companyRepository.save(company);
+        sessionContextCache.invalidateAll();
         return toResponse(saved);
     }
 
@@ -67,6 +73,7 @@ public class AdminCompanyService {
                 .orElseThrow(() -> new IllegalArgumentException("Company not found"));
         company.setIsActive(false);
         companyRepository.save(company);
+        sessionContextCache.invalidateAll();
     }
 
     /**

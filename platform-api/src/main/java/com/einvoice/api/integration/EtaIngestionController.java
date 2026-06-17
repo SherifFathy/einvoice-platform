@@ -20,6 +20,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * ERP ingestion gateway for externally-submitted ETA documents (Wave 8).
+ * Accepts SDK-shaped ETA invoice and receipt payloads for the PREPROD
+ * environment and persists them via {@link EtaIngestionService}.
+ */
 @RestController
 @RequestMapping("/api/integration/v1/eta")
 @Tag(name = "integration-gateway")
@@ -27,10 +32,21 @@ public class EtaIngestionController {
 
     private final EtaIngestionService etaIngestionService;
 
+    /**
+     * Constructs the controller with the ETA ingestion service.
+     *
+     * @param etaIngestionService the ETA ingestion service
+     */
     public EtaIngestionController(EtaIngestionService etaIngestionService) {
         this.etaIngestionService = etaIngestionService;
     }
 
+    /**
+     * Ingests an externally-submitted ETA receipt.
+     *
+     * @param req the SDK-shaped receipt ingestion request
+     * @return the persisted-document ingestion response
+     */
     @PostMapping("/receipts")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -67,6 +83,12 @@ public class EtaIngestionController {
         return etaIngestionService.ingestReceipt(req);
     }
 
+    /**
+     * Ingests an externally-submitted ETA invoice.
+     *
+     * @param req the SDK-shaped invoice ingestion request
+     * @return the persisted-document ingestion response
+     */
     @PostMapping("/invoices")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(

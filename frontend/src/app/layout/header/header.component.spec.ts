@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
 import { SessionContext, AuthService } from '../../shared/services/auth.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
+import { PlatformBrandingService } from '../../shared/services/platform-branding.service';
 import { HeaderComponent } from './header.component';
 
 function makePermissions() {
@@ -56,6 +58,7 @@ describe('HeaderComponent', () => {
   let contextSubject: BehaviorSubject<SessionContext | null>;
   let mockSessionCtx: jasmine.SpyObj<SessionContextService>;
   let mockAuth: jasmine.SpyObj<AuthService>;
+  let mockBranding: jasmine.SpyObj<PlatformBrandingService>;
   let titleService: Title;
 
   beforeEach(() => {
@@ -71,6 +74,10 @@ describe('HeaderComponent', () => {
 
     mockAuth = jasmine.createSpyObj('AuthService', ['logout', 'getToken', 'clearAuth', 'listEnvironments', 'listCompanies', 'login']);
     mockAuth.logout.and.returnValue(of(undefined));
+    mockBranding = jasmine.createSpyObj('PlatformBrandingService',
+      ['logoUrl'],
+      { logoVersion: signal(Date.now()) });
+    mockBranding.logoUrl.and.returnValue('/api/platform/branding/logo?v=1');
 
     TestBed.configureTestingModule({
       imports: [HeaderComponent],
@@ -78,6 +85,7 @@ describe('HeaderComponent', () => {
         provideRouter([]),
         { provide: AuthService, useValue: mockAuth },
         { provide: SessionContextService, useValue: mockSessionCtx },
+        { provide: PlatformBrandingService, useValue: mockBranding },
       ],
     });
 

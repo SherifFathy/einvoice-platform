@@ -56,6 +56,21 @@ public class ZatcaSubmissionOrchestrator {
     private final TransactionTemplate txTemplate;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Constructs the ZATCA submission orchestrator.
+     *
+     * @param engine ZATCA authority engine
+     * @param chainService ZATCA chain service
+     * @param statusService ZATCA status service
+     * @param attemptRepository submission attempt repository
+     * @param artifactRepository invoice artifact repository
+     * @param auditService audit-trail service
+     * @param standardHeaderRepository ZATCA standard header repository
+     * @param simplifiedHeaderRepository ZATCA simplified header repository
+     * @param configRepository ZATCA config repository
+     * @param txTemplate programmatic transaction template
+     * @param objectMapper JSON object mapper
+     */
     public ZatcaSubmissionOrchestrator(ZatcaAuthorityEngine engine,
             ZatcaChainService chainService,
             ZatcaStatusService statusService,
@@ -228,6 +243,13 @@ public class ZatcaSubmissionOrchestrator {
                 chainCounterHolder[0], previousHashHolder[0]);
     }
 
+    /**
+     * Cancel a cleared Standard document with ZATCA.
+     *
+     * @param header the standard header to cancel
+     * @param reason the cancellation reason
+     * @return the submission outcome
+     */
     public SubmissionOutcome<ZatcaStandardHeader> cancelStandard(
             ZatcaStandardHeader header, String reason) {
         if (header.getZatcaUuid() == null
@@ -298,6 +320,13 @@ public class ZatcaSubmissionOrchestrator {
         });
     }
 
+    /**
+     * Cancel a reported Simplified document with ZATCA.
+     *
+     * @param header the simplified header to cancel
+     * @param reason the cancellation reason
+     * @return the submission outcome
+     */
     public SubmissionOutcome<ZatcaSimplifiedHeader> cancelSimplified(
             ZatcaSimplifiedHeader header, String reason) {
         if (header.getZatcaUuid() == null
@@ -368,6 +397,12 @@ public class ZatcaSubmissionOrchestrator {
         });
     }
 
+    /**
+     * Retry a failed Standard submission.
+     *
+     * @param header the standard header to retry
+     * @return the submission outcome
+     */
     public SubmissionOutcome<ZatcaStandardHeader> retryStandard(
             ZatcaStandardHeader header) {
         if (header.getStatus() != DocumentState.IN_REVIEW) {
@@ -428,6 +463,12 @@ public class ZatcaSubmissionOrchestrator {
                 resultHolder[0], response, attemptNumberHolder[0]);
     }
 
+    /**
+     * Retry a failed Simplified submission.
+     *
+     * @param header the simplified header to retry
+     * @return the submission outcome
+     */
     public SubmissionOutcome<ZatcaSimplifiedHeader> retrySimplified(
             ZatcaSimplifiedHeader header) {
         if (header.getStatus() != DocumentState.IN_REVIEW) {
@@ -488,6 +529,12 @@ public class ZatcaSubmissionOrchestrator {
                 resultHolder[0], response, attemptNumberHolder[0]);
     }
 
+    /**
+     * Refresh the clearance status of a Standard document with ZATCA.
+     *
+     * @param header the standard header to refresh
+     * @return the submission outcome
+     */
     public SubmissionOutcome<ZatcaStandardHeader> checkStandardStatus(
             ZatcaStandardHeader header) {
         if (!LifecycleTransitions.allowed(header.getStatus(),
@@ -556,6 +603,12 @@ public class ZatcaSubmissionOrchestrator {
         });
     }
 
+    /**
+     * Refresh the reporting status of a Simplified document with ZATCA.
+     *
+     * @param header the simplified header to refresh
+     * @return the submission outcome
+     */
     public SubmissionOutcome<ZatcaSimplifiedHeader>
             checkSimplifiedStatus(ZatcaSimplifiedHeader header) {
         if (!LifecycleTransitions.allowed(header.getStatus(),
@@ -982,11 +1035,11 @@ public class ZatcaSubmissionOrchestrator {
 
     private LifecycleAction mapOutcomeToAction(DocumentState state) {
         return switch (state) {
-            case ACCEPTED -> LifecycleAction.MARK_ACCEPTED;
-            case REJECTED -> LifecycleAction.MARK_REJECTED;
-            case IN_REVIEW -> LifecycleAction.MARK_IN_REVIEW;
-            case CANCELLED -> LifecycleAction.CANCEL;
-            default -> LifecycleAction.CHECK_STATUS;
+          case ACCEPTED -> LifecycleAction.MARK_ACCEPTED;
+          case REJECTED -> LifecycleAction.MARK_REJECTED;
+          case IN_REVIEW -> LifecycleAction.MARK_IN_REVIEW;
+          case CANCELLED -> LifecycleAction.CANCEL;
+          default -> LifecycleAction.CHECK_STATUS;
         };
     }
 

@@ -107,9 +107,10 @@ export class ZatcaSimplifiedService {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
 
-  list(companyId: string, params: {
+  list(params: {
     status?: string;
     company?: string;
+    branchId?: string;
     dateFrom?: string;
     dateTo?: string;
     page?: number;
@@ -118,17 +119,18 @@ export class ZatcaSimplifiedService {
     const query: string[] = [];
     if (params.status) query.push(`status=${params.status}`);
     if (params.company) query.push(`company=${params.company}`);
+    if (params.branchId) query.push(`branchId=${params.branchId}`);
     if (params.dateFrom) query.push(`dateFrom=${params.dateFrom}`);
     if (params.dateTo) query.push(`dateTo=${params.dateTo}`);
     query.push(`page=${params.page ?? 0}`);
     query.push(`size=${params.size ?? 50}`);
     return this.http.get<ZatcaSimplifiedListResult>(
-        `/api/companies/${companyId}/zatca/simplified?${query.join('&')}`);
+        `/api/zatca/simplified?${query.join('&')}`);
   }
 
-  getById(companyId: string, id: string): Observable<HttpResponse<ZatcaSimplifiedDocument>> {
+  getById(id: string): Observable<HttpResponse<ZatcaSimplifiedDocument>> {
     return this.http.get<ZatcaSimplifiedDocument>(
-        `/api/companies/${companyId}/zatca/simplified/${id}`,
+        `/api/zatca/simplified/${id}`,
         { observe: 'response' });
   }
 

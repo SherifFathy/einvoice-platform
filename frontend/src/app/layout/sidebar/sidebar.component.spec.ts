@@ -100,12 +100,12 @@ describe('SidebarComponent', () => {
 
     it('should show all ETA module labels when all modules are visible', () => {
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).toEqual(['Dashboard', 'Invoices', 'Receipts', 'Customers', 'Items', 'Configuration', 'Logs']);
+      expect(labels).toEqual(['Dashboard', 'Invoices', 'Receipts', 'Submission Log', 'Customers', 'Items', 'Configuration', 'Logs']);
     });
 
     it('should show correct routes for ETA items', () => {
       const routes = (component.items() as TestSidebarItem[]).map((i) => i.route);
-      expect(routes).toContain('/invoices');
+      expect(routes).toContain('/invoices/eta');
       expect(routes).toContain('/receipts/eta');
     });
   });
@@ -118,7 +118,7 @@ describe('SidebarComponent', () => {
 
     it('should show all ZATCA module labels when all modules are visible', () => {
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).toEqual(['Dashboard', 'Standard', 'Simplified', 'Customers', 'Items', 'Configuration', 'Logs']);
+      expect(labels).toEqual(['Dashboard', 'Standard', 'Simplified', 'Submission Log', 'Customers', 'Items', 'Configuration', 'Logs']);
     });
 
     it('should show correct routes for ZATCA items', () => {
@@ -196,20 +196,32 @@ describe('SidebarComponent', () => {
   });
 
   describe('Super User Admin entry (FR-044)', () => {
-    it('should show Admin entry for Super User in Operational Mode', () => {
+    it('should show admin management entries for Super User in Operational Mode', () => {
       contextSubject.next(makeEtaContext({ isSuperUser: true }));
       fixture.detectChanges();
 
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).toContain('Admin');
+      expect(labels).toContain('Companies');
+      expect(labels).toContain('Branches');
+      expect(labels).toContain('Users');
+      expect(labels).toContain('Assignments');
     });
 
-    it('should not show Admin entry for regular user', () => {
+    it('should link the Companies entry to the admin company list', () => {
+      contextSubject.next(makeEtaContext({ isSuperUser: true }));
+      fixture.detectChanges();
+
+      const companies = (component.items() as TestSidebarItem[]).find((i) => i.label === 'Companies');
+      expect(companies?.route).toBe('/admin/companies');
+    });
+
+    it('should not show admin management entries for regular user', () => {
       contextSubject.next(makeEtaContext({ isSuperUser: false }));
       fixture.detectChanges();
 
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).not.toContain('Admin');
+      expect(labels).not.toContain('Companies');
+      expect(labels).not.toContain('Assignments');
     });
   });
 
@@ -225,7 +237,7 @@ describe('SidebarComponent', () => {
 
     it('should show admin sidebar items in Admin Mode', () => {
       const labels = (component.items() as TestSidebarItem[]).map((i) => i.label);
-      expect(labels).toEqual(['Dashboard', 'Companies', 'Branches', 'Users', 'Assignments', 'Logs']);
+      expect(labels).toEqual(['Dashboard', 'Companies', 'Branches', 'Branding', 'Users', 'Assignments', 'Logs']);
     });
 
     it('should not show operational module items in Admin Mode', () => {

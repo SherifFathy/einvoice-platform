@@ -13,7 +13,7 @@ import { SessionContextService } from '../../shared/services/session-context.ser
 import { LineItemsEditorComponent } from '../../documents/shared/line-items-editor.component';
 import { ConflictResolutionDialogComponent } from '../../documents/shared/conflict-resolution.dialog';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { map, take, switchMap, filter } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
 
 const RECEIPT_DOC_TYPES: { value: string; label: string }[] = [
   { value: 'r', label: 'Standard Receipt (r)' },
@@ -76,6 +76,14 @@ function parseJsonField(v: unknown): Record<string, unknown> | null {
     <div class="form-container">
       <h2>{{ isEdit() ? 'Edit Receipt' : 'New Receipt' }}</h2>
       <form [formGroup]="form" (ngSubmit)="onSubmit()">
+        <mat-form-field *ngIf="!isEdit()">
+          <mat-label>Company</mat-label>
+          <mat-select formControlName="owningCompanyId" required>
+            @for (c of companies(); track c.companyId) {
+              <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
         <mat-card>
           <mat-card-content>
             <mat-form-field><mat-label>Receipt Number</mat-label>
@@ -182,6 +190,7 @@ export class EtaReceiptFormComponent {
   private sessionCtx = inject(SessionContextService);
   private dialog = inject(MatDialog);
   private context = toSignal(this.sessionCtx.context$);
+  companies = toSignal(this.sessionCtx.companies$, { initialValue: [] });
 
   docTypes = RECEIPT_DOC_TYPES;
 
@@ -192,6 +201,7 @@ export class EtaReceiptFormComponent {
 
   linesValid = false;
   currentVersion: number | null = null;
+  private editCompanyId = '';
 
   form: FormGroup = this.fb.group({
     receiptNumber: ['', Validators.required],
@@ -210,55 +220,56 @@ export class EtaReceiptFormComponent {
     totalItemsDiscountAmount: [0],
     netAmount: [0, Validators.required],
     totalAmount: [0, Validators.required],
+    owningCompanyId: ['', Validators.required],
     lines: this.fb.array([]),
   });
 
   constructor() {
-    this.sessionCtx.context$.pipe(take(1)).subscribe(ctx => {
-      if (!ctx) return;
-      const active = ctx.companies?.find(c =>
-          c.companyId === ctx.activeCompanyId);
-      if (active) {
-        this.form.patchValue({
-          sellerData: {
-            type: 'B',
-            name: active.companyNameEn,
-            nameAr: active.companyNameAr,
-          }
-        });
-      }
-    });
-
-    this.route.paramMap.pipe(
-      map(p => p.get('id')),
-      filter(id => !!id),
-      take(1),
-      switchMap(id => {
-        const companyId = this.context()?.activeCompanyId ?? '';
-        return this.service.getById(companyId, id!);
-      })
-    ).subscribe(resp => {
-      const rec = resp.body;
-      if (!rec) return;
-      this.currentVersion = rec.version;
-      this.form.patchValue({
-        receiptNumber: rec.receiptNumber,
-        documentType: rec.documentType,
-        documentTypeVersion: rec.documentTypeVersion,
-        issueDatetime: rec.issueDatetime,
-        currency: rec.currency,
-        posSerial: rec.posSerial,
-        paymentMethod: rec.paymentMethod,
-        originalReceiptId: rec.originalReceiptId,
-        sellerData: rec.sellerData,
-        buyerData: rec.buyerData,
-        totalSalesAmount: rec.totalSalesAmount,
-        totalCommercialDiscount: rec.totalCommercialDiscount,
-        extraDiscountAmount: rec.extraDiscountAmount,
-        totalItemsDiscountAmount: rec.totalItemsDiscountAmount,
-        netAmount: rec.netAmount,
-        totalAmount: rec.totalAmount,
+    const editId = this.route.snapshot.paramMap.get('id');
+    if (editId) {
+      this.loadForEdit(editId);
+    } else {
+      this.sessionCtx.companies$.pipe(take(1)).subscribe(companies => {
+        if (companies.length > 0) {
+          this.form.patchValue({
+            owningCompanyId: companies[0].companyId,
+            sellerData: {
+              type: 'B',
+              name: companies[0].companyNameEn,
+              nameAr: companies[0].companyNameAr,
+            }
+          });
+        }
       });
+    }
+  }
+
+  private loadForEdit(id: string): void {
+    this.service.getById(id).pipe(take(1)).subscribe({
+      next: resp => {
+        const rec = resp.body;
+        if (!rec) return;
+        this.editCompanyId = rec.companyId;
+        this.currentVersion = rec.version;
+        this.form.patchValue({
+          receiptNumber: rec.receiptNumber,
+          documentType: rec.documentType,
+          documentTypeVersion: rec.documentTypeVersion,
+          issueDatetime: rec.issueDatetime,
+          currency: rec.currency,
+          posSerial: rec.posSerial,
+          paymentMethod: rec.paymentMethod,
+          originalReceiptId: rec.originalReceiptId,
+          sellerData: rec.sellerData,
+          buyerData: rec.buyerData,
+          totalSalesAmount: rec.totalSalesAmount,
+          totalCommercialDiscount: rec.totalCommercialDiscount,
+          extraDiscountAmount: rec.extraDiscountAmount,
+          totalItemsDiscountAmount: rec.totalItemsDiscountAmount,
+          netAmount: rec.netAmount,
+          totalAmount: rec.totalAmount,
+        });
+      },
     });
   }
 
@@ -276,15 +287,16 @@ export class EtaReceiptFormComponent {
 
   onSubmit(): void {
     if (this.form.invalid || !this.linesValid) return;
-    const companyId = this.context()?.activeCompanyId ?? '';
     const raw = this.form.value;
     const payload = {
       ...raw,
       sellerData: parseJsonField(raw.sellerData),
       buyerData: parseJsonField(raw.buyerData),
     };
+    delete (payload as Record<string, unknown>)['owningCompanyId'];
     if (this.isEdit()) {
       const id = this.route.snapshot.paramMap.get('id')!;
+      const companyId = this.editCompanyId;
       this.service.update(companyId, id, payload,
           String(this.currentVersion ?? 0))
         .subscribe({
@@ -292,6 +304,7 @@ export class EtaReceiptFormComponent {
           error: (err: ConflictBody) => this.handleConflict(err, companyId, id),
         });
     } else {
+      const companyId = raw.owningCompanyId;
       this.service.create(companyId, payload).subscribe({
         next: resp => this.router.navigate(['/receipts/eta', resp.body?.id]),
       });

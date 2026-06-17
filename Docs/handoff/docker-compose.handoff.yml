@@ -24,7 +24,7 @@ services:
   # Pulls the pre-built image instead of building from source.
   # Tag is pinned per release; set EINVOICE_IMAGE in your .env to override.
   app:
-    image: ${EINVOICE_IMAGE:-einvoice-platform-api:0.1.0-sprint1}
+    image: ${EINVOICE_IMAGE:-einvoice-platform-api:0.2.0-wave9}
     container_name: einvoice-app
     ports:
       - "${APP_PORT:-8080}:8080"

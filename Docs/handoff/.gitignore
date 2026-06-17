@@ -1,0 +1,5 @@
+# Binary artifacts produced by the release pipeline — these are built fresh per
+# release and shipped to the client out-of-band. Keep them out of git.
+*.tar
+*.tar.gz
+*.zip

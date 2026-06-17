@@ -25,9 +25,9 @@ A Super Admin logs into the platform and registers a new company (e.g., "Saudi T
 
 ---
 
-### User Story 2 - User Authentication and Multi-Company Switching (Priority: P1)
+### User Story 2 - User Authentication and Authority/Environment Selection (Priority: P1)
 
-A user with credentials in the system logs in with their email and password. The system issues a secure session. If the user belongs to multiple companies, they can switch between companies using a dropdown in the header without logging out. After switching, they see only the selected company's data and their role adjusts accordingly.
+A user with credentials logs in with their email and password and chooses an **authority and environment** (no company selection). The system issues a secure session scoped to that authority+environment. The user can then view all documents that exist in that authority+environment across every company. When creating a document, the user selects the owning company from the companies they are permitted to write to.
 
 **Why this priority**: Authentication is required before any user-facing functionality can be used. Multi-company switching is core to the multi-tenant model.
 
@@ -35,8 +35,8 @@ A user with credentials in the system logs in with their email and password. The
 
 **Acceptance Scenarios**:
 
-1. **Given** a user with valid credentials, **When** they submit email and password, **Then** they are authenticated and see their default company's dashboard
-2. **Given** an authenticated user belonging to two companies, **When** they select the second company from the header dropdown, **Then** the interface refreshes to show only the second company's data, and their role reflects their assignment in that company
+1. **Given** a user with valid credentials, **When** they submit email, password, authority, and environment, **Then** they are authenticated and see the dashboard for that authority+environment spanning all companies
+2. **Given** an authenticated user, **When** they open any document list, **Then** they see documents from every company in the active authority+environment (no per-company filtering required), with an optional company filter available
 3. **Given** a user with an expired session, **When** they perform any action, **Then** the session is silently refreshed if a valid refresh token exists, or they are redirected to login
 4. **Given** an invalid email or password, **When** a login attempt is made, **Then** the system shows a generic error without revealing which field was wrong
 
@@ -44,7 +44,7 @@ A user with credentials in the system logs in with their email and password. The
 
 ### User Story 3 - Environment Selection and Access Control (Priority: P1)
 
-After logging in (and optionally switching companies), the user selects an active environment (e.g., ZATCA Sandbox, ETA Pre-Production). The environment selector appears as a picker after login or after company switch, and a persistent badge in the header shows which environment is active. All subsequent operations are scoped to the selected environment. Users can only select environments they have been granted permission for within their current company role.
+The user selects an authority and environment (e.g., ZATCA Sandbox, ETA Pre-Production) as part of login; there is no company selection step. A persistent badge in the header shows the active authority+environment. All subsequent operations are scoped to that authority+environment. Read access spans all companies; write operations target a company the user is permitted to write to.
 
 **Why this priority**: Environment scoping is critical for separating sandbox/simulation/production operations, preventing accidental production submissions during testing.
 
@@ -165,11 +165,11 @@ Every administrative action (company CRUD, branch CRUD, authority config changes
 
 ### Functional Requirements
 
-- **FR-001**: System MUST support multi-tenant data isolation — each company's data is completely separated, and users can only access data for companies they are assigned to
+- **FR-001**: System MUST preserve per-company data **ownership** — every document, customer, item, and config record belongs to exactly one company. **Write** operations (create/edit/submit/cancel/retry/delete) and master-data management MUST be restricted to companies the user is assigned to with the relevant permission. **Read** access to operational documents (lists, detail, dashboard, logs) is NOT restricted per-company: any authenticated user MAY view all documents within their active authority+environment (see 012 FR-010). Administrative configuration data remains per-company isolated.
 - **FR-002**: System MUST authenticate users via email and password, issuing secure tokens for session management
 - **FR-003**: System MUST support role-based access control with four roles: Super Admin, Company Admin, Accountant, and Viewer, where role assignment is per-company
 - **FR-004**: System MUST allow a single user to hold different roles in different companies and switch between companies without logging out
-- **FR-005**: System MUST support environment selection (ZATCA Sandbox, ZATCA Simulation, ZATCA Production, ETA Pre-Production, ETA Production) scoped per user per company role
+- **FR-005**: System MUST support authority+environment selection at login (ZATCA Sandbox/Simulation/Production, ETA Pre-Production/Production). The session is scoped to the selected authority+environment. Write permissions remain defined per user per company; environment access is no longer gated per-company for read access.
 - **FR-006**: System MUST encrypt all authority credentials, certificates, and private keys at rest using industry-standard encryption (AES-256 or equivalent) with a master key stored outside the application configuration
 - **FR-007**: System MUST support company, branch, and authority configuration management with full CRUD operations
 - **FR-008**: System MUST support customer management with CRUD, search/filter, Excel bulk import with row-level validation, and soft delete. Soft delete MUST be blocked if the customer is referenced by any invoice; the system displays an error listing the linked invoices
@@ -180,7 +180,7 @@ Every administrative action (company CRUD, branch CRUD, authority config changes
 - **FR-013**: System MUST validate ZATCA subtype flag combinations (e.g., reject self_billed + export)
 - **FR-014**: System MUST maintain append-only audit logs for all administrative and master data changes, capturing user, action, entity, before/after state, IP address, and timestamp
 - **FR-015**: System MUST prevent any modification or deletion of audit log entries
-- **FR-016**: System MUST provide screens for: login, company switching, environment selection, Super Admin dashboard, company/branch configuration, user management, customer management, item management, and draft invoice creation. UI is English-only for MVP; Arabic name fields are stored but not rendered in a localized layout
+- **FR-016**: System MUST provide screens for: login (with authority+environment selection), Super Admin dashboard, company/branch configuration, user management, customer management, item management, and draft invoice creation (with owning-company selection). The header no longer provides a company switcher for read scope. UI is English-only for MVP; Arabic name fields are stored but not rendered in a localized layout
 - **FR-017**: System MUST support Excel template download for customers and items, with headers, data types, and example rows
 - **FR-018**: System MUST support token refresh and session invalidation on logout
 - **FR-019**: System MUST log failed login attempts in the audit trail. Account lockout and brute-force protection are deferred to post-MVP

@@ -82,7 +82,7 @@ export class ZatcaCustomerListComponent implements OnInit, OnDestroy {
   }
 
   loadCustomers(): void {
-    const pathCompanyId = this.sessionCtx.currentContext?.activeCompanyId ?? '';
+    const pathCompanyId = this.selectedCompanyId || this.companies[0]?.companyId || '';
     if (!pathCompanyId) return;
     const filterId = this.selectedCompanyId || undefined;
     this.customerService.list(

@@ -125,15 +125,20 @@ class RegularUserLoginIT {
     }
 
     @Test
-    void acceptance3_missingCompanyId_companyContextRequired() throws Exception {
+    void acceptance3_missingCompanyId_succeedsWithAuthorityScoped() throws Exception {
         LoginRequest request = new LoginRequest(
                 "user@login-it.com", "Password1",
                 "ETA", "PREPROD", null);
 
-        mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertThat(body.get("accessToken").asText()).isNotBlank();
+        assertThat(body.get("mode").asText()).isEqualTo("AUTHORITY_SCOPED");
     }
 
     @Test

@@ -1,0 +1,339 @@
+@use './document-detail.tokens';
+
+@keyframes dd-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dd-shell {
+  --dd-accent: var(--dd-accent-eta);
+  --dd-accent-soft: var(--dd-accent-eta-soft);
+  display: block;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+  font-family: var(--dd-sans);
+  color: var(--dd-text);
+  background:
+    radial-gradient(130% 60% at 50% -20%, #ffffff 0%, rgba(255, 255, 255, 0) 62%),
+    var(--dd-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.dd-shell--zatca {
+  --dd-accent: var(--dd-accent-zatca);
+  --dd-accent-soft: var(--dd-accent-zatca-soft);
+}
+
+.dd-back-link {
+  margin: 0 0 14px -8px;
+  color: var(--dd-text-muted);
+  font-family: var(--dd-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .01em;
+}
+
+.dd-back-link mat-icon {
+  margin-right: 2px;
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────── */
+.dd-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface);
+  box-shadow: var(--dd-shadow);
+  animation: dd-rise .5s cubic-bezier(.22, .61, .36, 1) both;
+}
+
+.dd-hero__accent {
+  height: 2px;
+  background: var(--dd-accent);
+  opacity: .85;
+}
+
+.dd-hero__main {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 30px 22px;
+}
+
+.dd-hero__copy {
+  min-width: 0;
+}
+
+.dd-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--dd-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.dd-eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dd-accent);
+}
+
+.dd-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--dd-serif);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -.01em;
+  line-height: 1.1;
+  color: var(--dd-text);
+  overflow-wrap: anywhere;
+}
+
+.dd-subline {
+  margin-top: 12px;
+  color: var(--dd-text-muted);
+  font-size: 13.5px;
+  letter-spacing: .01em;
+}
+
+.dd-secondary-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 9px;
+  border: 1px solid var(--dd-border);
+  border-radius: 999px;
+  background: var(--dd-surface);
+  color: var(--dd-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.dd-actions {
+  position: sticky;
+  top: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dd-status-rule {
+  height: 1px;
+  opacity: .35;
+}
+
+/* Refine the shared status badge inside the detail context */
+:host ::ng-deep .status-badge {
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+/* ── Summary ledger band ────────────────────────────────────────────── */
+.dd-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 16px 0 0;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface);
+  box-shadow: var(--dd-shadow);
+  overflow: hidden;
+  animation: dd-rise .5s cubic-bezier(.22, .61, .36, 1) both;
+  animation-delay: .06s;
+}
+
+.dd-tile {
+  min-width: 0;
+  padding: 18px 20px;
+  border-left: 1px solid var(--dd-border);
+}
+
+.dd-tile:first-child {
+  border-left: 0;
+}
+
+.dd-tile span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--dd-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.dd-tile strong {
+  display: block;
+  color: var(--dd-text);
+  font-size: 23px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.dd-tile--emphasis {
+  background: var(--dd-accent-soft);
+}
+
+.dd-tile--emphasis span {
+  color: color-mix(in srgb, var(--dd-accent) 55%, var(--dd-text-muted));
+}
+
+.dd-tile--emphasis strong {
+  font-family: var(--dd-serif);
+  font-weight: 500;
+  color: var(--dd-accent);
+}
+
+/* ── Body ───────────────────────────────────────────────────────────── */
+.dd-body-card {
+  margin-top: 16px;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface);
+  box-shadow: var(--dd-shadow);
+  animation: dd-rise .5s cubic-bezier(.22, .61, .36, 1) both;
+  animation-delay: .12s;
+}
+
+.dd-tab-panel {
+  padding: 24px;
+}
+
+.dd-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 140px;
+  color: var(--dd-text-muted);
+  border: 1px dashed var(--dd-border-strong);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface-muted);
+}
+
+/* Material tab refinement — quiet labels, accent ink-bar */
+:host ::ng-deep .mat-mdc-tab-group {
+  font-family: var(--dd-sans);
+}
+
+:host ::ng-deep .mat-mdc-tab .mdc-tab__text-label {
+  color: var(--dd-text-muted);
+  font-family: var(--dd-sans);
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+:host ::ng-deep .mat-mdc-tab.mdc-tab--active .mdc-tab__text-label {
+  color: var(--dd-text);
+}
+
+:host ::ng-deep .mat-mdc-tab:hover .mdc-tab__text-label {
+  color: var(--dd-text);
+}
+
+:host ::ng-deep .mdc-tab-indicator__content--underline {
+  border-color: var(--dd-accent) !important;
+  border-top-width: 2px;
+}
+
+:host ::ng-deep .mat-mdc-tab-header {
+  border-bottom: 1px solid var(--dd-border);
+}
+
+:host ::ng-deep .history-card,
+:host ::ng-deep .artifact-card {
+  margin-top: 0;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: none;
+}
+
+:host ::ng-deep .artifact-buttons button {
+  border-radius: 999px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 920px) {
+  .dd-hero__main {
+    flex-direction: column;
+  }
+
+  .dd-actions {
+    position: static;
+    justify-content: flex-start;
+  }
+
+  .dd-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dd-tile:nth-child(2n+1) {
+    border-left: 0;
+  }
+
+  .dd-tile:nth-child(n+3) {
+    border-top: 1px solid var(--dd-border);
+  }
+}
+
+@media (max-width: 560px) {
+  .dd-shell {
+    padding: 16px 14px 36px;
+  }
+
+  .dd-hero__main {
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .dd-tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .dd-tile {
+    border-left: 0;
+    border-top: 1px solid var(--dd-border);
+  }
+
+  .dd-tile:first-child {
+    border-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-hero,
+  .dd-tiles,
+  .dd-body-card {
+    animation: none;
+  }
+}

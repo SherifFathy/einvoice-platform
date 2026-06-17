@@ -1,0 +1,160 @@
+@use './document-detail.tokens';
+
+.dd-loading,
+.dd-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 220px;
+  margin: 20px;
+  color: var(--dd-text-muted);
+  font-family: var(--dd-sans);
+  border: 1px dashed var(--dd-border-strong);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface-muted);
+}
+
+.dd-overview-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 350px);
+  gap: 28px;
+  align-items: start;
+}
+
+.dd-side-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.dd-panel {
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+  box-shadow: none;
+  background: var(--dd-surface);
+}
+
+.dd-panel mat-card-title {
+  font-family: var(--dd-serif);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -.005em;
+  color: var(--dd-text);
+}
+
+.dd-panel code,
+.dd-mono-block,
+.dd-json-block {
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.dd-json-block {
+  max-height: 260px;
+  margin: 8px 0 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
+  background: var(--dd-surface-muted);
+  color: var(--dd-text);
+}
+
+.dd-qr {
+  display: block;
+  width: 188px;
+  height: 188px;
+  margin: 4px auto 0;
+  padding: 10px;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius-sm);
+  background: #fff;
+  image-rendering: pixelated;
+}
+
+/* ── Line-items table — airy hairline ledger ────────────────────────── */
+.dd-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius);
+}
+
+.dd-lines-table {
+  width: 100%;
+  min-width: 760px;
+  background: var(--dd-surface);
+}
+
+.dd-lines-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  background: var(--dd-surface-muted);
+  color: var(--dd-text-muted);
+  font-family: var(--dd-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dd-lines-table td {
+  font-family: var(--dd-sans);
+  font-size: 13.5px;
+  color: var(--dd-text);
+}
+
+.dd-lines-table td,
+.dd-lines-table th {
+  border-bottom-color: var(--dd-border);
+}
+
+.dd-lines-table tr:hover td {
+  background: var(--dd-surface-muted);
+}
+
+.dd-lines-table .dd-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dd-lines-table .mat-mdc-footer-cell {
+  border-top: 1px solid var(--dd-border-strong);
+  background: var(--dd-surface);
+}
+
+.dd-lines-table .dd-total-label {
+  color: var(--dd-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.dd-lines-table .dd-total-cell {
+  color: var(--dd-accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dd-empty-lines {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  color: var(--dd-text-muted);
+  border: 1px dashed var(--dd-border-strong);
+  border-radius: var(--dd-radius);
+  background: var(--dd-surface-muted);
+}
+
+@media (max-width: 900px) {
+  .dd-overview-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}

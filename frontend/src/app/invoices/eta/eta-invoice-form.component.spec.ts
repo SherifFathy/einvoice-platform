@@ -31,7 +31,8 @@ describe('EtaInvoiceFormComponent', () => {
               isSuperUser: false,
               mode: 'OPERATIONAL_MODE',
               companies: []
-            })
+            }),
+            companies$: of([])
           }
         },
         { provide: MAT_DIALOG_DATA, useValue: {} },
@@ -61,6 +62,7 @@ describe('EtaInvoiceFormComponent', () => {
       currency: 'EGP',
       sellerData: {},
       buyerData: {},
+      owningCompanyId: 'company-1',
     });
     component.linesValid = true;
     expect(component.form.valid).toBeTrue();
@@ -114,6 +116,7 @@ describe('EtaInvoiceFormComponent', () => {
       currency: 'EGP',
       sellerData: {},
       buyerData: {},
+      owningCompanyId: 'company-1',
     });
     component.linesValid = true;
     component.currentVersion = 0;

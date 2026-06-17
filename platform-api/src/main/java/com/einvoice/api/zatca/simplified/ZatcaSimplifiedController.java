@@ -3,10 +3,8 @@ package com.einvoice.api.zatca.simplified;
 import com.einvoice.api.zatca.simplified.service.ZatcaSimplifiedFormMapper.ZatcaSimplifiedResponse;
 import com.einvoice.api.zatca.simplified.service.ZatcaSimplifiedFormMapper.ZatcaSimplifiedWriteForm;
 import com.einvoice.api.zatca.simplified.service.ZatcaSimplifiedService;
-import com.einvoice.core.error.UnauthorizedContextException;
 import com.einvoice.core.security.RequiresPermission;
 import com.einvoice.security.operational.RequireOperationalMode;
-import com.einvoice.security.tenant.TenantContext;
 import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +46,7 @@ public class ZatcaSimplifiedController {
      * @param companyId tenant company id
      * @param status optional status filter
      * @param filterCompanyId optional explicit company filter
+     * @param branchId optional branch filter
      * @param dateFrom inclusive ISO date lower bound
      * @param dateTo inclusive ISO date upper bound
      * @param page zero-based page index
@@ -61,13 +60,13 @@ public class ZatcaSimplifiedController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "company", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        verifyContext(companyId);
         Page<ZatcaSimplifiedResponse> result = service.list(status,
-                filterCompanyId, dateFrom, dateTo, page, size);
+                filterCompanyId, branchId, dateFrom, dateTo, page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),
                 "page", result.getNumber(),
@@ -87,7 +86,6 @@ public class ZatcaSimplifiedController {
     public ResponseEntity<ZatcaSimplifiedResponse> get(
             @PathVariable UUID companyId,
             @PathVariable UUID docId) {
-        verifyContext(companyId);
         ZatcaSimplifiedResponse response = service.findById(docId);
         return ResponseEntity.ok()
                 .eTag("\"" + response.version() + "\"")
@@ -106,8 +104,7 @@ public class ZatcaSimplifiedController {
     public ResponseEntity<ZatcaSimplifiedResponse> create(
             @PathVariable UUID companyId,
             @Valid @RequestBody ZatcaSimplifiedWriteForm request) {
-        verifyContext(companyId);
-        ZatcaSimplifiedResponse response = service.create(request);
+        ZatcaSimplifiedResponse response = service.create(companyId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .eTag("\"" + response.version() + "\"")
                 .body(response);
@@ -129,7 +126,6 @@ public class ZatcaSimplifiedController {
             @PathVariable UUID docId,
             @RequestHeader("If-Match") String ifMatch,
             @Valid @RequestBody ZatcaSimplifiedWriteForm request) {
-        verifyContext(companyId);
         Long version = parseIfMatch(ifMatch);
         ZatcaSimplifiedResponse response = service.update(docId, request,
                 version);
@@ -150,7 +146,6 @@ public class ZatcaSimplifiedController {
     public ResponseEntity<Void> delete(
             @PathVariable UUID companyId,
             @PathVariable UUID docId) {
-        verifyContext(companyId);
         service.delete(docId);
         return ResponseEntity.noContent().build();
     }
@@ -169,22 +164,11 @@ public class ZatcaSimplifiedController {
             @PathVariable UUID companyId,
             @PathVariable UUID docId,
             @RequestBody Map<String, String> body) {
-        verifyContext(companyId);
         ZatcaSimplifiedResponse response = service.cloneAsDraft(docId,
                 body.get("newInvoiceNumber"));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .eTag("\"" + response.version() + "\"")
                 .body(response);
-    }
-
-    private void verifyContext(UUID pathCompanyId) {
-        UUID jwtCompanyId = TenantContext.getCompanyId();
-        if (jwtCompanyId == null
-                || !jwtCompanyId.equals(pathCompanyId)) {
-            throw new UnauthorizedContextException(
-                    "Path companyId does not match authenticated"
-                            + " company context");
-        }
     }
 
     private Long parseIfMatch(String ifMatch) {

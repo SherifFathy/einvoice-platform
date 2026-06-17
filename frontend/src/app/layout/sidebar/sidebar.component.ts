@@ -15,6 +15,14 @@ interface SidebarItem {
   permission?: [string, string];
 }
 
+const adminManagementItems: SidebarItem[] = [
+  { label: 'Companies', icon: 'business', route: '/admin/companies' },
+  { label: 'Branches', icon: 'store', route: '/admin/branches' },
+  { label: 'Branding', icon: 'image', route: '/admin/branding' },
+  { label: 'Users', icon: 'people', route: '/admin/users' },
+  { label: 'Assignments', icon: 'assignment_ind', route: '/admin/assignments' },
+];
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
@@ -28,8 +36,9 @@ export class SidebarComponent {
 
   private readonly etaItems: SidebarItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Invoices', icon: 'receipt', route: '/invoices', permission: ['INVOICE', 'VIEW'] },
+    { label: 'Invoices', icon: 'receipt', route: '/invoices/eta', permission: ['INVOICE', 'VIEW'] },
     { label: 'Receipts', icon: 'receipt_long', route: '/receipts/eta', permission: ['RECEIPT', 'VIEW'] },
+    { label: 'Submission Log', icon: 'fact_check', route: '/submission-log' },
     { label: 'Customers', icon: 'people', route: '/customers', permission: ['customers', 'VIEW'] },
     { label: 'Items', icon: 'inventory', route: '/items', permission: ['items', 'VIEW'] },
     { label: 'Configuration', icon: 'settings', route: '/config', permission: ['configuration', 'VIEW'] },
@@ -40,6 +49,7 @@ export class SidebarComponent {
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
     { label: 'Standard', icon: 'article', route: '/standard', permission: ['STANDARD', 'VIEW'] },
     { label: 'Simplified', icon: 'note', route: '/simplified', permission: ['SIMPLIFIED', 'VIEW'] },
+    { label: 'Submission Log', icon: 'fact_check', route: '/submission-log' },
     { label: 'Customers', icon: 'people', route: '/customers', permission: ['customers', 'VIEW'] },
     { label: 'Items', icon: 'inventory', route: '/items', permission: ['items', 'VIEW'] },
     { label: 'Configuration', icon: 'settings', route: '/config', permission: ['configuration', 'VIEW'] },
@@ -48,10 +58,7 @@ export class SidebarComponent {
 
   private readonly adminItems: SidebarItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Companies', icon: 'business', route: '/admin/companies' },
-    { label: 'Branches', icon: 'store', route: '/admin/branches' },
-    { label: 'Users', icon: 'people', route: '/admin/users' },
-    { label: 'Assignments', icon: 'assignment_ind', route: '/admin/assignments' },
+    ...adminManagementItems,
     { label: 'Logs', icon: 'history', route: '/logs' },
   ];
 
@@ -73,7 +80,7 @@ export class SidebarComponent {
     });
 
     if (ctx.isSuperUser) {
-      return [...visibleItems, { label: 'Admin', icon: 'admin_panel_settings', route: '/admin' }];
+      return [...visibleItems, ...adminManagementItems];
     }
 
     return visibleItems;

@@ -82,7 +82,7 @@ export class EtaItemListComponent implements OnInit, OnDestroy {
   }
 
   loadItems(): void {
-    const pathCompanyId = this.sessionCtx.currentContext?.activeCompanyId ?? '';
+    const pathCompanyId = this.selectedCompanyId || this.companies[0]?.companyId || '';
     if (!pathCompanyId) return;
     const filterId = this.selectedCompanyId || undefined;
     this.itemService.list(

@@ -85,6 +85,14 @@ public class SessionContextAssembler {
         List<String> moduleKeys = "ETA".equals(authority) ? ETA_MODULES : ZATCA_MODULES;
         Map<String, String> txTypeMap = "ETA".equals(authority) ? ETA_TX_TYPE_MAP : ZATCA_TX_TYPE_MAP;
 
+        if (holder.mode() == TenantContext.Mode.AUTHORITY_SCOPED) {
+            List<CompanyContext> companies = buildAuthorityScopedCompanies(
+                    holder, moduleKeys, txTypeMap);
+            return new SessionContextResponse(
+                    holder.userId(), holder.isSuperUser(),
+                    holder.mode().name(), null, loginContext, companies);
+        }
+
         List<CompanyContext> companies = buildCompanies(holder, moduleKeys, txTypeMap);
 
         return new SessionContextResponse(
@@ -102,15 +110,21 @@ public class SessionContextAssembler {
         return buildRegularUserCompanies(holder, moduleKeys, txTypeMap);
     }
 
+    private List<CompanyContext> buildAuthorityScopedCompanies(
+            TenantContext.Holder holder,
+            List<String> moduleKeys, Map<String, String> txTypeMap) {
+        if (holder.isSuperUser()) {
+            return buildSuperUserCompanies(holder, moduleKeys);
+        }
+        return buildRegularUserCompanies(holder, moduleKeys, txTypeMap);
+    }
+
     private List<CompanyContext> buildSuperUserCompanies(TenantContext.Holder holder,
             List<String> moduleKeys) {
-        List<UUID> companyIds = uctrRepo
-                .findDistinctCompanyIdsByAuthorityEnvironmentIdAndIsActiveTrue(
-                        holder.authorityEnvironmentId());
-
-        List<Company> companies = companyRepository.findAllById(companyIds).stream()
-                .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
-                .toList();
+        // A super user operates across every active company in the system
+        // (mirrors AuthService.listCompanies), independent of role assignments,
+        // so newly created companies are immediately visible and configurable.
+        List<Company> companies = companyRepository.findByIsActiveTrue();
 
         List<CompanyContext> result = new ArrayList<>();
         for (Company company : companies) {
@@ -163,10 +177,10 @@ public class SessionContextAssembler {
     }
 
     private ModulePermissions buildModule(String moduleKey, Set<String> perms) {
-        boolean visible = perms.contains("VIEW");
         boolean isDocModule = DOC_MODULES.contains(moduleKey);
+        boolean visible = isDocModule || perms.contains("VIEW");
         return new ModulePermissions(visible, new Permissions(
-                perms.contains("VIEW"),
+                isDocModule || perms.contains("VIEW"),
                 perms.contains("CREATE"),
                 perms.contains("EDIT"),
                 perms.contains("DELETE"),

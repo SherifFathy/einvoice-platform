@@ -19,9 +19,20 @@ export const routes: Routes = [
           import('./dashboard/dashboard.component').then((m) => m.DashboardComponent),
       },
       {
+        path: 'submission-log',
+        canActivate: [operationalModeGuard],
+        loadComponent: () =>
+          import('./submission-log/submission-log.component').then((m) => m.SubmissionLogComponent),
+      },
+      {
         path: 'admin',
         canActivate: [adminGuard],
         children: [
+          {
+            path: '',
+            redirectTo: 'companies',
+            pathMatch: 'full',
+          },
           {
             path: 'companies',
             loadComponent: () =>
@@ -33,6 +44,11 @@ export const routes: Routes = [
               import('./admin/branches/branch-list.component').then((m) => m.BranchListComponent),
           },
           {
+            path: 'branding',
+            loadComponent: () =>
+              import('./admin/branding/branding.component').then((m) => m.BrandingComponent),
+          },
+          {
             path: 'users',
             loadComponent: () =>
               import('./admin/users/user-list.component').then((m) => m.UserListComponent),
@@ -41,6 +57,27 @@ export const routes: Routes = [
             path: 'assignments',
             loadComponent: () =>
               import('./admin/assignments/assignment-list.component').then((m) => m.AssignmentListComponent),
+          },
+        ],
+      },
+      {
+        path: 'invoices/eta',
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./invoices/eta/eta-invoice-list.component').then(m => m.EtaInvoiceListComponent),
+          },
+          {
+            path: 'new',
+            loadComponent: () => import('./invoices/eta/eta-invoice-form.component').then(m => m.EtaInvoiceFormComponent),
+          },
+          {
+            path: ':id',
+            loadComponent: () => import('./invoices/eta/eta-invoice-detail.component').then(m => m.EtaInvoiceDetailComponent),
+          },
+          {
+            path: ':id/edit',
+            loadComponent: () => import('./invoices/eta/eta-invoice-form.component').then(m => m.EtaInvoiceFormComponent),
           },
         ],
       },
@@ -66,27 +103,6 @@ export const routes: Routes = [
             path: ':id/edit',
             loadComponent: () =>
               import('./invoices/invoice-form/invoice-form-page.component').then((m) => m.InvoiceFormPageComponent),
-          },
-        ],
-      },
-      {
-        path: 'invoices/eta',
-        children: [
-          {
-            path: '',
-            loadComponent: () => import('./invoices/eta/eta-invoice-list.component').then(m => m.EtaInvoiceListComponent),
-          },
-          {
-            path: 'new',
-            loadComponent: () => import('./invoices/eta/eta-invoice-form.component').then(m => m.EtaInvoiceFormComponent),
-          },
-          {
-            path: ':id',
-            loadComponent: () => import('./invoices/eta/eta-invoice-detail.component').then(m => m.EtaInvoiceDetailComponent),
-          },
-          {
-            path: ':id/edit',
-            loadComponent: () => import('./invoices/eta/eta-invoice-form.component').then(m => m.EtaInvoiceFormComponent),
           },
         ],
       },

@@ -123,7 +123,7 @@ class AuthLoginContractTest {
     }
 
     @Test
-    void login_superUserWithoutCompany_returns200WithAdminMode() throws Exception {
+    void login_superUserWithoutCompany_returns200WithAuthorityScopedMode() throws Exception {
         LoginRequest request = new LoginRequest(
                 "super@login-test.com", "Password1",
                 "ETA", "PREPROD", null);
@@ -132,7 +132,7 @@ class AuthLoginContractTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.mode").value("ADMIN_MODE"));
+                .andExpect(jsonPath("$.mode").value("AUTHORITY_SCOPED"));
     }
 
     @Test
@@ -162,7 +162,7 @@ class AuthLoginContractTest {
     }
 
     @Test
-    void login_regularUserMissingCompany_returns401CompanyContextRequired() throws Exception {
+    void login_regularUserMissingCompany_returns200AuthorityScoped() throws Exception {
         LoginRequest request = new LoginRequest(
                 "regular@login-test.com", "Password1",
                 "ETA", "PREPROD", null);
@@ -170,8 +170,8 @@ class AuthLoginContractTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("COMPANY_CONTEXT_REQUIRED"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("AUTHORITY_SCOPED"));
     }
 
     @Test

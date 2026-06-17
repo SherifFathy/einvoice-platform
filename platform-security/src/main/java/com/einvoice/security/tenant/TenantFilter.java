@@ -16,6 +16,7 @@ public class TenantFilter extends OncePerRequestFilter {
 
     private static final String AUTH_PATH_PREFIX = "/api/auth";
     private static final String SESSION_CONTEXT_PATH = "/api/session/context";
+    private static final String HEALTH_PATH_PREFIX = "/api/health";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -25,7 +26,8 @@ public class TenantFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         if (path.startsWith(AUTH_PATH_PREFIX)
-                || path.equals(SESSION_CONTEXT_PATH)) {
+                || path.equals(SESSION_CONTEXT_PATH)
+                || path.startsWith(HEALTH_PATH_PREFIX)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -49,6 +51,11 @@ public class TenantFilter extends OncePerRequestFilter {
             return;
         }
 
+        // AUTHORITY_SCOPED and OPERATIONAL_MODE sessions pass this coarse filter.
+        // Fine-grained authorization is enforced downstream: cross-company reads
+        // are intentionally open, while writes are gated by PermissionAspect (which
+        // resolves and stamps the path company) and by the per-company constraint in
+        // each service's loadWithinTenant. ADMIN_MODE is the only mode restricted here.
         filterChain.doFilter(request, response);
     }
 }

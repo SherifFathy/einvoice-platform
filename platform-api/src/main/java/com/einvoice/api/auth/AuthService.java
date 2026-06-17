@@ -149,7 +149,7 @@ public class AuthService {
 
         if (user.getIsSuperUser()) {
             if (companyId == null) {
-                mode = TenantContext.Mode.ADMIN_MODE;
+                mode = TenantContext.Mode.AUTHORITY_SCOPED;
             } else {
                 mode = TenantContext.Mode.OPERATIONAL_MODE;
                 Company company = companyRepository.findById(companyId)
@@ -161,25 +161,24 @@ public class AuthService {
             }
         } else {
             if (companyId == null) {
-                throw new CompanyContextRequiredException(
-                        "A company selection is required for non-administrator users");
-            }
+                mode = TenantContext.Mode.AUTHORITY_SCOPED;
+            } else {
+                Company company = companyRepository.findById(companyId)
+                        .orElseThrow(() -> new InactiveCompanyException(
+                                "Selected company is not active"));
+                if (!Boolean.TRUE.equals(company.getIsActive())) {
+                    throw new InactiveCompanyException("Selected company is not active");
+                }
 
-            Company company = companyRepository.findById(companyId)
-                    .orElseThrow(() -> new InactiveCompanyException(
-                            "Selected company is not active"));
-            if (!Boolean.TRUE.equals(company.getIsActive())) {
-                throw new InactiveCompanyException("Selected company is not active");
+                List<UserCompanyTransactionRole> assignments = uctrRepo
+                        .findByUserIdAndCompanyIdAndAuthorityEnvironmentIdAndIsActiveTrue(
+                                user.getId(), companyId, authEnv.getId());
+                if (assignments.isEmpty()) {
+                    throw new UnauthorizedContextException(
+                            "You have no active assignments for the selected authority and environment");
+                }
+                mode = TenantContext.Mode.OPERATIONAL_MODE;
             }
-
-            List<UserCompanyTransactionRole> assignments = uctrRepo
-                    .findByUserIdAndCompanyIdAndAuthorityEnvironmentIdAndIsActiveTrue(
-                            user.getId(), companyId, authEnv.getId());
-            if (assignments.isEmpty()) {
-                throw new UnauthorizedContextException(
-                        "You have no active assignments for the selected authority and environment");
-            }
-            mode = TenantContext.Mode.OPERATIONAL_MODE;
         }
 
         String token = jwtTokenProvider.createToken(

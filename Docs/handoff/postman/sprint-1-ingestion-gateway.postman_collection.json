@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Sprint 1 — Ingestion Gateway (einvoice-platform)",
-    "description": "ERP-facing ingestion endpoints for ETA Receipts/Invoices and ZATCA Standard/Simplified invoices.\n\n**Base URL variable:** `{{baseUrl}}` (default `http://localhost:8080`).\n\nAll requests are unauthenticated in Sprint 1 (`permitAll()` on `/api/integration/v1/**`). API-key auth lands in Sprint 2.\n\nEach folder contains a happy-path example plus relevant conditional variants (credit notes, anonymous buyer, etc.). Request descriptions document which fields are optional vs. conditionally required.",
+    "description": "ERP-facing ingestion endpoints for ETA Receipts/Invoices and ZATCA Standard/Simplified invoices.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "f1e2d3c4-b5a6-4789-90ab-cdef01234567"
   },

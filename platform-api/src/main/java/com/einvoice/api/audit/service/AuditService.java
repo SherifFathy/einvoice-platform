@@ -36,8 +36,27 @@ public class AuditService {
     public void record(String action, String entityType, String entityId,
             Map<String, Object> payloadBefore,
             Map<String, Object> payloadAfter) {
+        record(null, action, entityType, entityId, payloadBefore, payloadAfter);
+    }
+
+    /**
+     * Records an audit log entry with an explicit company ID.
+     *
+     * @param companyId the explicit company ID (may be null for cross-company reads)
+     * @param action the action being performed
+     * @param entityType the type of entity
+     * @param entityId the entity identifier
+     * @param payloadBefore the entity state before the action
+     * @param payloadAfter the entity state after the action
+     */
+    public void record(UUID companyId, String action, String entityType,
+            String entityId,
+            Map<String, Object> payloadBefore,
+            Map<String, Object> payloadAfter) {
+        UUID resolvedCompanyId = companyId != null
+                ? companyId : TenantContext.getCompanyId();
         AuditLog log = AuditLog.builder()
-                .companyId(TenantContext.getCompanyId())
+                .companyId(resolvedCompanyId)
                 .authorityEnvironmentId(
                         TenantContext.getAuthorityEnvironmentId())
                 .userId(TenantContext.getUserId())

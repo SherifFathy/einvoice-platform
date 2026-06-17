@@ -3,10 +3,8 @@ package com.einvoice.api.eta.receipt;
 import com.einvoice.api.eta.receipt.service.EtaReceiptFormMapper.EtaReceiptResponse;
 import com.einvoice.api.eta.receipt.service.EtaReceiptFormMapper.EtaReceiptWriteForm;
 import com.einvoice.api.eta.receipt.service.EtaReceiptService;
-import com.einvoice.core.error.UnauthorizedContextException;
 import com.einvoice.core.security.RequiresPermission;
 import com.einvoice.security.operational.RequireOperationalMode;
-import com.einvoice.security.tenant.TenantContext;
 import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +46,7 @@ public class EtaReceiptController {
      * @param companyId the company identifier
      * @param status optional state filter
      * @param filterCompanyId optional company filter
+     * @param branchId optional branch filter
      * @param receiptType optional receipt type filter
      * @param dateFrom optional start date
      * @param dateTo optional end date
@@ -62,14 +61,14 @@ public class EtaReceiptController {
             @RequestParam(required = false) String status,
             @RequestParam(name = "companyId", required = false)
                     UUID filterCompanyId,
+            @RequestParam(required = false) UUID branchId,
             @RequestParam(required = false) String receiptType,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        verifyContext(companyId);
         Page<EtaReceiptResponse> result = service.list(status,
-                filterCompanyId, receiptType, dateFrom, dateTo,
+                filterCompanyId, branchId, receiptType, dateFrom, dateTo,
                 page, size);
         return ResponseEntity.ok(Map.of(
                 "items", result.getContent(),
@@ -90,7 +89,6 @@ public class EtaReceiptController {
     public ResponseEntity<EtaReceiptResponse> get(
             @PathVariable UUID companyId,
             @PathVariable UUID docId) {
-        verifyContext(companyId);
         EtaReceiptResponse response = service.findById(docId);
         return ResponseEntity.ok()
                 .eTag("\"" + response.version() + "\"")
@@ -109,8 +107,7 @@ public class EtaReceiptController {
     public ResponseEntity<EtaReceiptResponse> create(
             @PathVariable UUID companyId,
             @Valid @RequestBody EtaReceiptWriteForm request) {
-        verifyContext(companyId);
-        EtaReceiptResponse response = service.create(request);
+        EtaReceiptResponse response = service.create(companyId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .eTag("\"" + response.version() + "\"")
                 .body(response);
@@ -132,7 +129,6 @@ public class EtaReceiptController {
             @PathVariable UUID docId,
             @RequestHeader("If-Match") String ifMatch,
             @Valid @RequestBody EtaReceiptWriteForm request) {
-        verifyContext(companyId);
         Integer version = parseIfMatch(ifMatch);
         EtaReceiptResponse response = service.update(docId, request,
                 version);
@@ -153,7 +149,6 @@ public class EtaReceiptController {
     public ResponseEntity<Void> delete(
             @PathVariable UUID companyId,
             @PathVariable UUID docId) {
-        verifyContext(companyId);
         service.delete(docId);
         return ResponseEntity.noContent().build();
     }
@@ -172,22 +167,11 @@ public class EtaReceiptController {
             @PathVariable UUID companyId,
             @PathVariable UUID docId,
             @RequestBody Map<String, String> body) {
-        verifyContext(companyId);
         EtaReceiptResponse response = service.cloneAsDraft(docId,
                 body.get("receiptNumber"));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .eTag("\"" + response.version() + "\"")
                 .body(response);
-    }
-
-    private void verifyContext(UUID pathCompanyId) {
-        UUID jwtCompanyId = TenantContext.getCompanyId();
-        if (jwtCompanyId == null
-                || !jwtCompanyId.equals(pathCompanyId)) {
-            throw new UnauthorizedContextException(
-                    "Path companyId does not match authenticated"
-                            + " company context");
-        }
     }
 
     private Integer parseIfMatch(String ifMatch) {

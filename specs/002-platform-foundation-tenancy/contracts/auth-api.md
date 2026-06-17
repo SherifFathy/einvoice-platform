@@ -8,7 +8,9 @@ Authenticate user with email and password.
 ```json
 {
   "email": "user@example.com",
-  "password": "string"
+  "password": "string",
+  "authority": "ZATCA",
+  "environment": "SANDBOX"
 }
 ```
 
@@ -23,10 +25,10 @@ Authenticate user with email and password.
     "id": 1,
     "name": "John Doe",
     "email": "user@example.com",
-    "activeCompanyId": 1,
-    "role": "COMPANY_ADMIN",
-    "permittedEnvironments": ["ZATCA_SANDBOX", "ZATCA_SIMULATION"],
-    "availableCompanies": [
+    "activeAuthority": "ZATCA",
+    "activeEnvironment": "SANDBOX",
+    "activeCompanyId": null,
+    "writableCompanies": [
       { "id": 1, "name": "Saudi Trading Co." },
       { "id": 2, "name": "Egypt Services LLC" }
     ]
@@ -40,20 +42,12 @@ Authenticate user with email and password.
 
 ---
 
-## POST /api/auth/switch-company
+## POST /api/auth/switch-company  — DEPRECATED
 
-Switch active company context. Returns new JWT.
-
-**Request**:
-```json
-{
-  "companyId": 2
-}
-```
-
-**Response 200**: Same shape as login response with updated company context.
-
-**Response 403**: User has no role in the target company.
+Removed by the company-less login redesign (012 / FR-010). Read scope is no longer
+per-company, so there is no active company to switch. Document creation selects the
+owning company in the create form instead. This endpoint SHOULD return 410 Gone (or be
+removed) once the frontend no longer calls it.
 
 ---
 
@@ -76,6 +70,10 @@ Set active environment for the current session.
 ```
 
 **Response 403**: User does not have permission for this environment in their active company.
+
+> Note (012 redesign): environment is selected as part of `POST /api/auth/login`.
+> A standalone post-login environment switch, if retained, re-issues the session token
+> for the new authority+environment and does not involve a company.
 
 ---
 

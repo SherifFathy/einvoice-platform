@@ -91,16 +91,26 @@ class ArtifactDownloadContractTest {
         jdbcTemplate.update(
                 "INSERT INTO user_company_transaction_roles "
                         + "(user_id, company_id, authority_environment_id, "
-                        + "transaction_type, role_name) "
+                        + "transaction_type, role_code) "
                         + "VALUES (?, ?, 5, 'STANDARD', 'COMPANY_ADMIN')",
                 user.getId(), companyId);
 
         jdbcTemplate.update(
                 "INSERT INTO zatca_chain_state "
                         + "(company_id, authority_environment_id, "
-                        + "invoice_counter, updated_at) "
+                        + "invoice_counter, last_updated_at) "
                         + "VALUES (?, ?, 0, NOW())",
                 companyId, (short) 5);
+
+        jdbcTemplate.update(
+                "INSERT INTO zatca_configs "
+                        + "(id, company_id, authority_environment_id, "
+                        + "private_key, device_uuid, csr, "
+                        + "compliance_certificate, compliance_api_secret) "
+                        + "VALUES (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID().toString(), companyId.toString(), (short) 5,
+                "test-private-key", "test-device-uuid",
+                "test-csr", "test-compliance-cert", "test-compliance-secret");
 
         token = jwtTokenProvider.createToken(user.getId(),
                 user.getEmail(), true,
@@ -130,6 +140,9 @@ class ArtifactDownloadContractTest {
                             + "WHERE company_id = ?", companyId);
             jdbcTemplate.update(
                     "DELETE FROM zatca_chain_state WHERE "
+                            + "company_id = ?", companyId);
+            jdbcTemplate.update(
+                    "DELETE FROM zatca_configs WHERE "
                             + "company_id = ?", companyId);
             jdbcTemplate.update(
                     "DELETE FROM users WHERE email = "

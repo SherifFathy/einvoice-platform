@@ -87,10 +87,9 @@ export class AuthService {
     return this.http.post<CompaniesResponse>(`${this.apiUrl}/companies`, { authority, environment, email });
   }
 
-  login(email: string, password: string, authority: string, environment: string,
-         companyId: string | null): Observable<LoginResponse> {
+  login(email: string, password: string, authority: string, environment: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, {
-      email, password, authority, environment, companyId: companyId ?? undefined,
+      email, password, authority, environment,
     }).pipe(
       tap((res) => {
         localStorage.setItem(this.tokenKey, res.accessToken);

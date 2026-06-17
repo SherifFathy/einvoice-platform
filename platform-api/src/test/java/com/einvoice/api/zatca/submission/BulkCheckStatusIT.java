@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -41,7 +42,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -320,9 +320,9 @@ class BulkCheckStatusIT {
                     "Each line must have outcome");
             String outcome = json.get("outcome").asText();
             switch (outcome) {
-                case "CANCELLED_NO_OP" -> cancelledCount++;
-                case "UPDATED", "UNCHANGED" -> processedCount++;
-                default -> fail("Unexpected outcome: " + outcome);
+              case "CANCELLED_NO_OP" -> cancelledCount++;
+              case "UPDATED", "UNCHANGED" -> processedCount++;
+              default -> fail("Unexpected outcome: " + outcome);
             }
         }
         assertTrue(cancelledCount >= 1,
@@ -364,7 +364,7 @@ class BulkCheckStatusIT {
                         + "VALUES (?, ?, 5, 'STANDARD', 'COMPANY_ADMIN')",
                 otherUser.getId(), otherCompany.getId());
 
-        String otherToken = jwtTokenProvider.createToken(otherUser.getId(),
+        final String otherToken = jwtTokenProvider.createToken(otherUser.getId(),
                 otherUser.getEmail(), true,
                 "ZATCA", "SANDBOX", (short) 5,
                 otherCompany.getId(),

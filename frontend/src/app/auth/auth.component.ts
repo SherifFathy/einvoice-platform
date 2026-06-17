@@ -8,9 +8,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, takeUntil, of } from 'rxjs';
-import { AuthService, EnvironmentEntry, CompanyEntry } from '../shared/services/auth.service';
+import { Subject, switchMap, takeUntil, of } from 'rxjs';
+import { AuthService, EnvironmentEntry } from '../shared/services/auth.service';
 import { SessionContextService } from '../shared/services/session-context.service';
+import { PlatformBrandingService } from '../shared/services/platform-branding.service';
 
 @Component({
   selector: 'app-auth',
@@ -34,7 +35,7 @@ export class AuthComponent implements OnDestroy {
   submitting = false;
   errorMessage = '';
   loadingEnvironments = false;
-  loadingCompanies = false;
+  logoFailed = false;
 
   readonly authorityOptions = [
     { value: 'ETA', label: 'ETA' },
@@ -42,15 +43,13 @@ export class AuthComponent implements OnDestroy {
   ];
 
   environmentOptions: EnvironmentEntry[] = [];
-  companyOptions: CompanyEntry[] = [];
-  isSuperUser = false;
 
   private destroy$ = new Subject<void>();
-  private companyLoad$ = new Subject<{ authority: string; environment: string; email: string }>();
 
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private sessionCtx = inject(SessionContextService);
+  private branding = inject(PlatformBrandingService);
   private router = inject(Router);
 
   constructor() {
@@ -59,36 +58,13 @@ export class AuthComponent implements OnDestroy {
       password: ['', [Validators.required]],
       authority: [null as string | null, [Validators.required]],
       environment: [null as string | null, [Validators.required]],
-      companyId: [null as string | null],
-    });
-
-    this.companyLoad$.pipe(
-      takeUntil(this.destroy$),
-      switchMap((args) => {
-        this.loadingCompanies = true;
-        return this.authService.listCompanies(args.authority, args.environment, args.email);
-      }),
-    ).subscribe({
-      next: (res) => {
-        this.companyOptions = res.companies;
-        this.isSuperUser = res.isSuperUser;
-        this.loadingCompanies = false;
-      },
-      error: () => {
-        this.companyOptions = [];
-        this.isSuperUser = false;
-        this.loadingCompanies = false;
-      },
     });
 
     this.form.get('authority')!.valueChanges.pipe(
       takeUntil(this.destroy$),
       switchMap((authority: string | null) => {
         this.form.get('environment')!.setValue(null);
-        this.form.get('companyId')!.setValue(null);
         this.environmentOptions = [];
-        this.companyOptions = [];
-        this.isSuperUser = false;
         if (!authority) {
           return of(null);
         }
@@ -107,21 +83,6 @@ export class AuthComponent implements OnDestroy {
         this.loadingEnvironments = false;
       },
     });
-
-    this.form.get('environment')!.valueChanges.pipe(
-      takeUntil(this.destroy$),
-    ).subscribe(() => {
-      this.form.get('companyId')!.setValue(null);
-      this.companyOptions = [];
-      this.isSuperUser = false;
-      this.tryLoadCompanies();
-    });
-
-    this.form.get('email')!.valueChanges.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
-      takeUntil(this.destroy$),
-    ).subscribe(() => this.tryLoadCompanies());
   }
 
   ngOnDestroy(): void {
@@ -130,8 +91,11 @@ export class AuthComponent implements OnDestroy {
   }
 
   get loginDisabled(): boolean {
-    return this.form.invalid || this.submitting
-      || (!this.form.get('companyId')!.value && !this.isSuperUser);
+    return this.form.invalid || this.submitting;
+  }
+
+  get logoUrl(): string {
+    return this.branding.logoUrl();
   }
 
   onSubmit(): void {
@@ -139,8 +103,8 @@ export class AuthComponent implements OnDestroy {
     this.submitting = true;
     this.errorMessage = '';
 
-    const { email, password, authority, environment, companyId } = this.form.value;
-    this.authService.login(email, password, authority, environment, companyId).subscribe({
+    const { email, password, authority, environment } = this.form.value;
+    this.authService.login(email, password, authority, environment).subscribe({
       next: () => {
         this.sessionCtx.loadContext().subscribe({
           next: () => this.router.navigate(['/dashboard']),
@@ -155,12 +119,8 @@ export class AuthComponent implements OnDestroy {
         const code = err.error?.code;
         if (code === 'BAD_CREDENTIALS') {
           this.errorMessage = 'Invalid email or password';
-        } else if (code === 'COMPANY_CONTEXT_REQUIRED') {
-          this.errorMessage = 'A company selection is required for non-administrator users';
-        } else if (code === 'UNAUTHORIZED_CONTEXT') {
-          this.errorMessage = 'You have no active assignments for the selected authority and environment';
-        } else if (code === 'INACTIVE_COMPANY') {
-          this.errorMessage = 'Selected company is not active';
+        } else if (code === 'INVALID_AUTHORITY_ENVIRONMENT') {
+          this.errorMessage = 'Invalid authority and environment combination';
         } else if (code === 'VALIDATION_ERROR') {
           this.errorMessage = 'Please check your input and try again';
         } else {
@@ -169,15 +129,5 @@ export class AuthComponent implements OnDestroy {
         this.submitting = false;
       },
     });
-  }
-
-  private tryLoadCompanies(): void {
-    const authority = this.form.get('authority')!.value;
-    const environment = this.form.get('environment')!.value;
-    const email = this.form.get('email')!.value;
-    if (authority && environment && email && this.form.get('email')!.valid) {
-      this.form.get('companyId')!.setValue(null);
-      this.companyLoad$.next({ authority, environment, email });
-    }
   }
 }

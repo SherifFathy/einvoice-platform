@@ -9,7 +9,7 @@ export const operationalModeGuard: CanActivateFn = () => {
   const toast = inject(ToastNotificationService);
 
   const ctx = sessionCtx.currentContext;
-  if (ctx && ctx.mode === 'OPERATIONAL_MODE') {
+  if (ctx && (ctx.mode === 'OPERATIONAL_MODE' || ctx.mode === 'AUTHORITY_SCOPED')) {
     return true;
   }
 

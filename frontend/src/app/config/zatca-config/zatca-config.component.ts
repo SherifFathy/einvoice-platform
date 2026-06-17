@@ -7,11 +7,18 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatSelectModule } from '@angular/material/select';
 import { Subject, takeUntil } from 'rxjs';
 import { ZatcaConfigService, ZatcaConfigWriteRequest } from '../services/zatca-config.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+
+/** A company the user may configure within the active authority+environment. */
+interface CompanyOption {
+  companyId: string;
+  companyNameEn: string;
+}
 
 @Component({
   selector: 'app-zatca-config',
@@ -19,7 +26,7 @@ import { HasPermissionDirective } from '../../shared/directives/has-permission.d
   imports: [
     CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule,
     MatInputModule, MatButtonModule, MatDatepickerModule, MatNativeDateModule,
-    HasPermissionDirective,
+    MatSelectModule, HasPermissionDirective,
   ],
   templateUrl: './zatca-config.component.html',
   styleUrls: ['./zatca-config.component.scss'],
@@ -37,6 +44,7 @@ export class ZatcaConfigComponent implements OnInit, OnDestroy {
   saved = false;
   chainStateInitialized = false;
   selectedCompanyId = '';
+  companies: CompanyOption[] = [];
 
   constructor() {
     this.form = this.fb.group({
@@ -52,12 +60,36 @@ export class ZatcaConfigComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Map the form to the active authority+environment scope. The company is
+    // chosen from a switcher (the companies the user may access in this scope);
+    // the JWT company (activeCompanyId), when present, is the default selection.
     this.sessionCtx.context$.pipe(takeUntil(this.destroy$)).subscribe((ctx) => {
-      if (ctx && ctx.companies.length > 0 && !this.selectedCompanyId) {
-        this.selectedCompanyId = ctx.companies[0].companyId;
+      if (!ctx) return;
+      this.companies = (ctx.companies ?? []).map((c) => ({
+        companyId: c.companyId,
+        companyNameEn: c.companyNameEn,
+      }));
+
+      // Keep the current selection if still valid; otherwise default to the JWT
+      // company, then the first accessible company.
+      const stillValid = this.companies.some((c) => c.companyId === this.selectedCompanyId);
+      if (stillValid) return;
+      const companyId = ctx.activeCompanyId ?? this.companies[0]?.companyId ?? '';
+      if (companyId) {
+        this.selectedCompanyId = companyId;
         this.loadConfig();
       }
     });
+  }
+
+  /** Switches the configuration to a different company and reloads its values. */
+  onCompanyChange(companyId: string): void {
+    if (!companyId || companyId === this.selectedCompanyId) return;
+    this.selectedCompanyId = companyId;
+    this.saved = false;
+    this.chainStateInitialized = false;
+    this.form.reset();
+    this.loadConfig();
   }
 
   ngOnDestroy(): void {

@@ -30,6 +30,17 @@ public final class EtaReceiptSpecifications {
     }
 
     /**
+     * Filter by branch.
+     *
+     * @param branchId the branch identifier
+     * @return a specification
+     */
+    public static Specification<EtaReceiptHeader> forBranch(UUID branchId) {
+        return (Root<EtaReceiptHeader> root, CriteriaQuery<?> query, CriteriaBuilder cb) ->
+                cb.equal(root.get("branchId"), branchId);
+    }
+
+    /**
      * Filter by lifecycle state.
      *
      * @param state the receipt state

@@ -65,6 +65,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Centralized exception handler for all REST API errors. */
 @RestControllerAdvice
@@ -629,6 +630,12 @@ public class GlobalExceptionHandler {
                         ? ex.getCause().getClass().getSimpleName() : "unknown")));
     }
 
+    /**
+     * Handle missing buyer identity (400).
+     *
+     * @param ex the exception
+     * @return the error response
+     */
     @ExceptionHandler(BuyerIdentityRequiredException.class)
     public ResponseEntity<ErrorResponse> handleBuyerIdentityRequired(BuyerIdentityRequiredException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
@@ -636,6 +643,12 @@ public class GlobalExceptionHandler {
                 Map.of("buyerType", ex.getBuyerType(), "reason", ex.getReason())));
     }
 
+    /**
+     * Handle unparseable request bodies (400).
+     *
+     * @param ex the exception
+     * @return the error response
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
         String cause = ex.getMostSpecificCause().getMessage();
@@ -645,6 +658,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(
                 "VALIDATION_ERROR", "Request body could not be parsed",
                 Map.of("cause", cause != null ? cause : "unparseable body")));
+    }
+
+    /**
+     * Honors the status carried by a {@link ResponseStatusException} (e.g. the
+     * {@code 400} thrown by the Wave 9 read controllers for unparseable filter
+     * parameters). Without this handler the catch-all below would swallow the
+     * embedded status and report {@code 500}.
+     *
+     * @param ex the response-status exception
+     * @return the error response with the embedded status
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String reason = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+        if (status.is5xxServerError()) {
+            log.error("Response status exception", ex);
+        }
+        String code = status.is4xxClientError() ? "VALIDATION_ERROR" : "INTERNAL_ERROR";
+        return build(status, code, reason);
     }
 
     /**

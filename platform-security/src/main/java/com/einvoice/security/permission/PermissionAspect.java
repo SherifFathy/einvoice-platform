@@ -3,12 +3,14 @@ package com.einvoice.security.permission;
 import com.einvoice.core.error.CompanyContextRequiredException;
 import com.einvoice.core.security.RequiresPermission;
 import com.einvoice.security.tenant.TenantContext;
+import java.lang.reflect.Parameter;
 import java.util.UUID;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.PathVariable;
 
 /** Javadoc. */
 @Aspect
@@ -33,7 +35,20 @@ public class PermissionAspect {
             throw new CompanyContextRequiredException("No tenant context");
         }
 
-        if (ctx.isSuperUser() && ctx.mode() == TenantContext.Mode.OPERATIONAL_MODE) {
+        // In a company-less (AUTHORITY_SCOPED) session, the operative company for a
+        // write is supplied in the request path. Resolve it once and stamp it into
+        // the tenant context so downstream loads enforce that the targeted document
+        // actually belongs to this company (prevents cross-company writes).
+        if (ctx.mode() == TenantContext.Mode.AUTHORITY_SCOPED && ctx.companyId() == null) {
+            UUID pathCompanyId = extractPathCompanyId(joinPoint);
+            if (pathCompanyId != null) {
+                ctx = withCompany(ctx, pathCompanyId);
+                TenantContext.set(ctx);
+            }
+        }
+
+        if (ctx.isSuperUser() && (ctx.mode() == TenantContext.Mode.OPERATIONAL_MODE
+                || ctx.mode() == TenantContext.Mode.AUTHORITY_SCOPED)) {
             return joinPoint.proceed();
         }
 
@@ -64,5 +79,38 @@ public class PermissionAspect {
         }
 
         return joinPoint.proceed();
+    }
+
+    private TenantContext.Holder withCompany(TenantContext.Holder ctx, UUID companyId) {
+        return new TenantContext.Holder(
+                ctx.userId(), companyId, ctx.authorityEnvironmentId(),
+                ctx.authority(), ctx.environment(), ctx.mode(),
+                ctx.isSuperUser(), ctx.issuedAt(), ctx.jti());
+    }
+
+    private UUID extractPathCompanyId(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Parameter[] params = signature.getMethod().getParameters();
+        Object[] args = joinPoint.getArgs();
+
+        // Prefer the path variable explicitly named "companyId".
+        for (int i = 0; i < params.length && i < args.length; i++) {
+            PathVariable pv = params[i].getAnnotation(PathVariable.class);
+            if (pv != null && args[i] instanceof UUID uuid) {
+                String name = !pv.value().isEmpty() ? pv.value()
+                        : (!pv.name().isEmpty() ? pv.name() : params[i].getName());
+                if ("companyId".equals(name)) {
+                    return uuid;
+                }
+            }
+        }
+        // Fallback: first UUID argument (companyId is the leading path variable on
+        // every operational controller, so this matches even without -parameters).
+        for (Object arg : args) {
+            if (arg instanceof UUID uuid) {
+                return uuid;
+            }
+        }
+        return null;
     }
 }

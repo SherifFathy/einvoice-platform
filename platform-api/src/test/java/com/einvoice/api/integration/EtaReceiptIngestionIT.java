@@ -173,12 +173,14 @@ class EtaReceiptIngestionIT {
                     "uuid": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
                   },
                   "documentType": {"receiptType": "r", "typeVersion": "1.2"},
-                  "seller": {"rin": "100200300", "tradeName": "Test", "deviceSerialNumber": "POS-1", "activityCode": "4610"},
+                  "seller": {"rin": "100200300", "tradeName": "Test",
+                  "deviceSerialNumber": "POS-1", "activityCode": "4610"},
                   "paymentMethod": "C",
                   "totalSales": 100,
                   "netAmount": 100,
                   "totalAmount": 114,
-                  "itemData": [{"itemCode": "IC-1", "itemType": "EGS", "description": "Item", "unitType": "EA", "quantity": 1, "unitPrice": 100}]
+                  "itemData": [{"itemCode": "IC-1", "itemType": "EGS", "description": "Item",
+                  "unitType": "EA", "quantity": 1, "unitPrice": 100}]
                 }""";
 
         mockMvc.perform(post(ENDPOINT)
@@ -232,13 +234,15 @@ class EtaReceiptIngestionIT {
                     "uuid": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
                   },
                   "documentType": {"receiptType": "r", "typeVersion": "1.2"},
-                  "seller": {"rin": "100200300", "tradeName": "Test", "deviceSerialNumber": "POS-1", "activityCode": "4610"},
+                  "seller": {"rin": "100200300", "tradeName": "Test",
+                  "deviceSerialNumber": "POS-1", "activityCode": "4610"},
                   "buyer": {"type": "P"},
                   "paymentMethod": "C",
                   "totalSales": 100,
                   "netAmount": 100,
                   "totalAmount": 114,
-                  "itemData": [{"itemCode": "IC-1", "itemType": "EGS", "description": "Item", "unitType": "EA", "quantity": 1, "unitPrice": 100}]
+                  "itemData": [{"itemCode": "IC-1", "itemType": "EGS", "description": "Item",
+                  "unitType": "EA", "quantity": 1, "unitPrice": 100}]
                 }""";
 
         mockMvc.perform(post(ENDPOINT)

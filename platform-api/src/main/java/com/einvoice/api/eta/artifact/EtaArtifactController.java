@@ -7,7 +7,6 @@ import com.einvoice.core.domain.shared.TransactionType;
 import com.einvoice.core.error.UnauthorizedContextException;
 import com.einvoice.core.repository.shared.InvoiceArtifactRepository;
 import com.einvoice.core.repository.shared.SubmissionAttemptRepository;
-import com.einvoice.core.security.RequiresPermission;
 import com.einvoice.security.operational.RequireOperationalMode;
 import com.einvoice.security.tenant.TenantContext;
 import java.util.List;
@@ -45,7 +44,6 @@ public class EtaArtifactController {
      * @return list of submission attempt summaries
      */
     @GetMapping("/invoices/{docId}/submissions")
-    @RequiresPermission(transactionType = "INVOICE", action = "VIEW")
     public ResponseEntity<List<Map<String, Object>>> listInvoiceSubmissions(
             @PathVariable UUID companyId,
             @PathVariable UUID docId) {
@@ -67,7 +65,6 @@ public class EtaArtifactController {
      * @return list of submission attempt summaries
      */
     @GetMapping("/receipts/{docId}/submissions")
-    @RequiresPermission(transactionType = "RECEIPT", action = "VIEW")
     public ResponseEntity<List<Map<String, Object>>> listReceiptSubmissions(
             @PathVariable UUID companyId,
             @PathVariable UUID docId) {
@@ -91,7 +88,6 @@ public class EtaArtifactController {
      * @return the artifact bytes
      */
     @GetMapping("/invoices/{docId}/artifacts/{type}")
-    @RequiresPermission(transactionType = "INVOICE", action = "VIEW")
     public ResponseEntity<byte[]> downloadInvoiceArtifact(
             @PathVariable UUID companyId,
             @PathVariable UUID docId,
@@ -112,7 +108,6 @@ public class EtaArtifactController {
      * @return the artifact bytes
      */
     @GetMapping("/receipts/{docId}/artifacts/{type}")
-    @RequiresPermission(transactionType = "RECEIPT", action = "VIEW")
     public ResponseEntity<byte[]> downloadReceiptArtifact(
             @PathVariable UUID companyId,
             @PathVariable UUID docId,
@@ -208,6 +203,12 @@ public class EtaArtifactController {
     }
 
     private void verifyContext(UUID pathCompanyId) {
+        // Cross-company document detail (submission history + artifacts) is an open
+        // read in an authority-scoped session, so the path company need not match a
+        // (null) token company. These endpoints carry no @RequiresPermission.
+        if (TenantContext.getMode() == TenantContext.Mode.AUTHORITY_SCOPED) {
+            return;
+        }
         UUID jwtCompanyId = TenantContext.getCompanyId();
         if (jwtCompanyId == null
                 || !jwtCompanyId.equals(pathCompanyId)) {

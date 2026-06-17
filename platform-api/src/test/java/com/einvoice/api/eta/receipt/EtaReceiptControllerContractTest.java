@@ -97,7 +97,7 @@ class EtaReceiptControllerContractTest {
         Page<EtaReceiptResponse> page = new PageImpl<>(
                 List.of(sampleResponse),
                 PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), any(), any(), any(),
+        when(service.list(any(), any(), any(), any(), any(), any(),
                 anyInt(), anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/eta/receipts",
@@ -110,7 +110,7 @@ class EtaReceiptControllerContractTest {
 
     @Test
     void createReturns201WithETag() throws Exception {
-        when(service.create(any())).thenReturn(sampleResponse);
+        when(service.create(any(), any())).thenReturn(sampleResponse);
 
         mvc.perform(post("/api/companies/{companyId}/eta/receipts",
                 companyId)
@@ -249,7 +249,7 @@ class EtaReceiptControllerContractTest {
 
     @Test
     void createCancellationWithoutOriginalReturns400() throws Exception {
-        when(service.create(any()))
+        when(service.create(any(), any()))
                 .thenThrow(new MissingOriginalDocumentException(
                         "cr requires original", null, "cr"));
 
@@ -282,7 +282,7 @@ class EtaReceiptControllerContractTest {
 
     @Test
     void createWithMissingUnitValueKeyReturns400() throws Exception {
-        when(service.create(any()))
+        when(service.create(any(), any()))
                 .thenThrow(new InvalidUnitValueException(
                         "Missing key", "unitValue",
                         List.of("amountEGP")));
@@ -315,7 +315,7 @@ class EtaReceiptControllerContractTest {
     void listWithReceiptTypeFilter() throws Exception {
         Page<EtaReceiptResponse> page = new PageImpl<>(
                 List.of(sampleResponse), PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), eq("r"), any(), any(),
+        when(service.list(any(), any(), any(), eq("r"), any(), any(),
                 anyInt(), anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/eta/receipts",

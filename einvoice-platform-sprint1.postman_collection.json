@@ -1,0 +1,552 @@
+{
+  "info": {
+    "_postman_id": "e4f2a8b1-3c7d-4e9f-a0b2-c5d8e1f3a6b9",
+    "name": "E-Invoice Platform — ERP Integration Contract (Sprint 1)",
+    "description": "Production-ready API contract for the ERP Ingestion Gateway.\n\nCOVERS:\n  - ETA B2B Invoice   → POST /api/integration/v1/eta/invoices      (environment: PREPROD)\n  - ETA B2C Receipt   → POST /api/integration/v1/eta/receipts      (environment: PREPROD)\n  - ZATCA Standard    → POST /api/integration/v1/zatca/standard    (environment: SANDBOX)\n  - ZATCA Simplified  → POST /api/integration/v1/zatca/simplified  (environment: SANDBOX)\n\nSETUP:\n  1. Run: docker compose -f docker-compose.client.yml up -d\n  2. Fill in the COLLECTION VARIABLES (gear icon → Edit → Variables):\n       - superuser_email / superuser_password  (from your .env)\n       - eta_company_id / zatca_company_id     (UUIDs from the platform DB)\n  3. Run 'Login — ETA (PREPROD)' → token auto-saved to eta_jwt_token\n  4. Run 'Login — ZATCA (SANDBOX)' → token auto-saved to zatca_jwt_token\n  5. All ingestion requests are ready to fire.\n\nFIELD NAMING: All JSON keys are camelCase. snake_case variants will fail validation.\nSWAGGER UI:   http://localhost:8080/swagger-ui/index.html",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "Base URL of the running platform. Change port if APP_PORT differs in .env."
+    },
+    {
+      "key": "superuser_email",
+      "value": "admin@einvoice.local",
+      "type": "string",
+      "description": "BOOTSTRAP_SUPERUSER_EMAIL value from your .env file."
+    },
+    {
+      "key": "superuser_password",
+      "value": "Admin@1234",
+      "type": "string",
+      "description": "Plain-text password matching BOOTSTRAP_SUPERUSER_PASSWORD_HASH in .env."
+    },
+    {
+      "key": "eta_company_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID of the ETA-registered company in the platform DB. Ask your platform admin or query: SELECT id FROM companies WHERE registration_number = '204567890';"
+    },
+    {
+      "key": "zatca_company_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID of the ZATCA-registered company in the platform DB. Ask your platform admin or query: SELECT id FROM companies WHERE registration_number = '1010345678';"
+    },
+    {
+      "key": "eta_jwt_token",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated by the 'Login — ETA (PREPROD)' request. Do not edit manually."
+    },
+    {
+      "key": "zatca_jwt_token",
+      "value": "",
+      "type": "string",
+      "description": "Auto-populated by the 'Login — ZATCA (SANDBOX)' request. Do not edit manually."
+    }
+  ],
+
+  "item": [
+
+    {
+      "name": "01 — Authentication",
+      "description": "Obtain authority-scoped JWTs. ETA and ZATCA require separate tokens because each token is bound to a specific authority + environment combination.\n\nRun BOTH login requests before firing any ingestion requests.",
+      "item": [
+
+        {
+          "name": "Login — ETA (PREPROD)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.test(\"accessToken present\", function () {",
+                  "        pm.expect(json.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "    });",
+                  "    pm.collectionVariables.set(\"eta_jwt_token\", json.accessToken);",
+                  "    console.log(\"ETA JWT saved. Expires in:\", json.expiresInSeconds, \"seconds. Mode:\", json.mode);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{superuser_email}}\",\n  \"password\": \"{{superuser_password}}\",\n  \"authority\": \"ETA\",\n  \"environment\": \"PREPROD\",\n  \"companyId\": \"{{eta_company_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticates against the ETA PREPROD scope. The returned accessToken is automatically saved to the 'eta_jwt_token' collection variable and used by all ETA ingestion requests.\n\nNOTE: companyId (UUID) may be optional if your account is linked to a single company. Leave blank or set the UUID from your platform admin."
+          },
+          "response": [
+            {
+              "name": "200 OK — Token issued",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbkBlaW52b2ljZS5sb2NhbCIsImF1dGhvcml0eSI6IkVUQSIsImVudiI6IlBSRVBST0QiLCJpYXQiOjE3NDg3MDAwMDAsImV4cCI6MTc0ODcyODgwMH0.example\",\n  \"tokenType\": \"Bearer\",\n  \"expiresInSeconds\": 28800,\n  \"mode\": \"PREPROD\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@einvoice.local\",\n  \"password\": \"Admin@1234\",\n  \"authority\": \"ETA\",\n  \"environment\": \"PREPROD\",\n  \"companyId\": null\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/auth/login" }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Login — ZATCA (SANDBOX)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.test(\"accessToken present\", function () {",
+                  "        pm.expect(json.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "    });",
+                  "    pm.collectionVariables.set(\"zatca_jwt_token\", json.accessToken);",
+                  "    console.log(\"ZATCA JWT saved. Expires in:\", json.expiresInSeconds, \"seconds. Mode:\", json.mode);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{superuser_email}}\",\n  \"password\": \"{{superuser_password}}\",\n  \"authority\": \"ZATCA\",\n  \"environment\": \"SANDBOX\",\n  \"companyId\": \"{{zatca_company_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticates against the ZATCA SANDBOX scope. The returned accessToken is automatically saved to the 'zatca_jwt_token' collection variable and used by all ZATCA ingestion requests."
+          },
+          "response": [
+            {
+              "name": "200 OK — Token issued",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbkBlaW52b2ljZS5sb2NhbCIsImF1dGhvcml0eSI6IlpBVENBIiwiZW52IjoiU0FOREJPWCIsImlhdCI6MTc0ODcwMDAwMCwiZXhwIjoxNzQ4NzI4ODAwfQ.example\",\n  \"tokenType\": \"Bearer\",\n  \"expiresInSeconds\": 28800,\n  \"mode\": \"SANDBOX\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@einvoice.local\",\n  \"password\": \"Admin@1234\",\n  \"authority\": \"ZATCA\",\n  \"environment\": \"SANDBOX\",\n  \"companyId\": null\n}"
+                },
+                "url": { "raw": "{{base_url}}/api/auth/login" }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "02 — ETA (Egyptian Tax Authority) · PREPROD",
+      "description": "ERP Ingestion Gateway endpoints for the Egyptian Tax Authority.\n\nRequired environment value: \"PREPROD\" — passing \"SANDBOX\" returns HTTP 404 AUTHORITY_ENVIRONMENT_NOT_FOUND.\n\nPREREQUISITE: Run '01 — Authentication > Login — ETA (PREPROD)' first.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{eta_jwt_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+
+        {
+          "name": "Ingest ETA B2B Invoice",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"eta_jwt_token\")) {",
+                  "    throw new Error(\"eta_jwt_token is empty. Run 'Login — ETA (PREPROD)' first.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is valid\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"id\");",
+                  "    pm.expect(json).to.have.property(\"documentNumber\");",
+                  "    pm.expect(json).to.have.property(\"internalStatus\");",
+                  "    console.log(\"Ingested document ID    :\", json.id);",
+                  "    console.log(\"Document number         :\", json.documentNumber);",
+                  "    console.log(\"Internal status         :\", json.internalStatus);",
+                  "    console.log(\"Message                 :\", json.message);",
+                  "});",
+                  "",
+                  "pm.test(\"No 400 validation error\", function () {",
+                  "    if (pm.response.code === 400) {",
+                  "        console.error(\"Validation failed:\", pm.response.text());",
+                  "    }",
+                  "    pm.expect(pm.response.code).to.not.equal(400);",
+                  "});",
+                  "",
+                  "pm.test(\"No 404 environment routing error\", function () {",
+                  "    if (pm.response.code === 404) {",
+                  "        console.error(\"Routing error — check environment field is 'PREPROD' for ETA:\", pm.response.text());",
+                  "    }",
+                  "    pm.expect(pm.response.code).to.not.equal(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"204567890\",\n  \"environment\": \"PREPROD\",\n  \"status\": \"DRAFT\",\n  \"erpReferenceId\": \"ERP-SAP-INV-2025-00342\",\n\n  \"invoiceNumber\": \"INV-2025-000342\",\n  \"documentType\": \"I\",\n  \"documentTypeVersion\": \"1.0\",\n  \"dateTimeIssued\": \"2025-06-01T10:30:00+02:00\",\n  \"serviceDeliveryDate\": \"2025-05-31\",\n\n  \"taxpayerActivityCode\": \"6201\",\n  \"purchaseOrderReference\": \"PO-2025-00189\",\n  \"salesOrderReference\": \"SO-2025-00342\",\n  \"proformaInvoiceNumber\": null,\n  \"originalInvoiceNumber\": null,\n  \"etaUuid\": null,\n  \"etaLongId\": null,\n  \"etaSubmissionId\": null,\n\n  \"seller\": {\n    \"type\": \"B\",\n    \"id\": \"204567890\",\n    \"name\": \"Al-Nour Technology Solutions S.A.E.\",\n    \"address\": {\n      \"country\": \"EG\",\n      \"governate\": \"Cairo\",\n      \"regionCity\": \"Nasr City\",\n      \"street\": \"Abbas El-Akkad Street\",\n      \"buildingNumber\": \"24\",\n      \"postalCode\": \"11765\",\n      \"floor\": \"5\",\n      \"room\": \"502\",\n      \"landmark\": \"Landmark Tower\",\n      \"additionalInformation\": \"Near City Stars Mall\"\n    }\n  },\n\n  \"buyer\": {\n    \"type\": \"B\",\n    \"id\": \"315678901\",\n    \"name\": \"Misr Digital Commerce S.A.E.\",\n    \"address\": {\n      \"country\": \"EG\",\n      \"governate\": \"Giza\",\n      \"regionCity\": \"Sheikh Zayed City\",\n      \"street\": \"26th of July Corridor\",\n      \"buildingNumber\": \"12\",\n      \"postalCode\": \"12588\",\n      \"floor\": \"1\",\n      \"room\": \"101\",\n      \"landmark\": null,\n      \"additionalInformation\": null\n    }\n  },\n\n  \"currency\": \"EGP\",\n  \"totalSalesAmount\": 90000.00,\n  \"totalDiscountAmount\": 2000.00,\n  \"extraDiscountAmount\": 0.00,\n  \"totalItemsDiscountAmount\": 0.00,\n  \"netAmount\": 88000.00,\n  \"totalAmount\": 102220.00,\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"internalCode\": \"SKU-SW-CLOUD-ERP-001\",\n      \"itemType\": \"EGS\",\n      \"itemCode\": \"EG-617049-00000001\",\n      \"description\": \"Cloud ERP Platform - Annual Subscription License\",\n      \"unitType\": \"EA\",\n      \"quantity\": 1.00,\n      \"unitValue\": {\n        \"currencySold\": \"EGP\",\n        \"amountEGP\": 50000.00,\n        \"amountSold\": 50000.00,\n        \"currencyExchangeRate\": null\n      },\n      \"salesTotal\": 50000.00,\n      \"discountRate\": 0.00,\n      \"discountAmount\": 0.00,\n      \"itemsDiscount\": 0.00,\n      \"valueDifference\": 0.00,\n      \"totalTaxableFees\": 0.00,\n      \"netTotal\": 50000.00,\n      \"taxAmount\": 7000.00,\n      \"total\": 57000.00,\n      \"taxableItems\": [\n        {\n          \"taxType\": \"T1\",\n          \"subType\": \"V009\",\n          \"rate\": 14.00,\n          \"amount\": 7000.00\n        }\n      ]\n    },\n    {\n      \"lineNumber\": 2,\n      \"internalCode\": \"SKU-SVC-CONSULTING-002\",\n      \"itemType\": \"EGS\",\n      \"itemCode\": \"EG-617049-00000002\",\n      \"description\": \"ERP Implementation & Technical Consulting - Professional Services (per diem)\",\n      \"unitType\": \"DAY\",\n      \"quantity\": 8.00,\n      \"unitValue\": {\n        \"currencySold\": \"EGP\",\n        \"amountEGP\": 5000.00,\n        \"amountSold\": 5000.00,\n        \"currencyExchangeRate\": null\n      },\n      \"salesTotal\": 40000.00,\n      \"discountRate\": 5.00,\n      \"discountAmount\": 2000.00,\n      \"itemsDiscount\": 0.00,\n      \"valueDifference\": 0.00,\n      \"totalTaxableFees\": 0.00,\n      \"netTotal\": 38000.00,\n      \"taxAmount\": 7220.00,\n      \"total\": 45220.00,\n      \"taxableItems\": [\n        {\n          \"taxType\": \"T1\",\n          \"subType\": \"V009\",\n          \"rate\": 14.00,\n          \"amount\": 5320.00\n        },\n        {\n          \"taxType\": \"T4\",\n          \"subType\": \"W004\",\n          \"rate\": 5.00,\n          \"amount\": 1900.00\n        }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/integration/v1/eta/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "integration", "v1", "eta", "invoices"]
+            },
+            "description": "Ingests an ETA B2B invoice (SDK v1.0 shape) that was submitted externally by the ERP.\n\nKEY RULES:\n- environment must be \"PREPROD\" (not SANDBOX)\n- documentType \"C\" or \"D\" (credit/debit note) requires originalInvoiceNumber\n- taxType T1 = VAT (subType V009 = 14%), T4 = WHT (subType W004 = 5%)\n- WHT amounts are declared positive; cash deduction is handled at accounting level\n- Math: totalAmount = netAmount + sum(all taxableItems.amount across all lines)"
+          },
+          "response": [
+            {
+              "name": "201 Created — Document ingested",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"documentNumber\": \"INV-2025-000342\",\n  \"erpReferenceId\": \"ERP-SAP-INV-2025-00342\",\n  \"internalStatus\": \"INGESTED\",\n  \"message\": \"ETA invoice ingested successfully\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/api/integration/v1/eta/invoices" }
+              }
+            },
+            {
+              "name": "400 Bad Request — Validation failure",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": 400,\n  \"error\": \"VALIDATION_FAILED\",\n  \"message\": \"companyRegistrationNumber: must not be blank\",\n  \"timestamp\": \"2025-06-01T10:30:00Z\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/api/integration/v1/eta/invoices" }
+              }
+            },
+            {
+              "name": "404 Not Found — Wrong environment for authority",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": 404,\n  \"error\": \"AUTHORITY_ENVIRONMENT_NOT_FOUND\",\n  \"message\": \"No handler registered for authority ETA + environment SANDBOX\",\n  \"timestamp\": \"2025-06-01T10:30:00Z\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/api/integration/v1/eta/invoices" }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Ingest ETA B2C Receipt (POS)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"eta_jwt_token\")) {",
+                  "    throw new Error(\"eta_jwt_token is empty. Run 'Login — ETA (PREPROD)' first.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is valid\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"id\");",
+                  "    pm.expect(json).to.have.property(\"documentNumber\");",
+                  "    pm.expect(json).to.have.property(\"internalStatus\");",
+                  "    console.log(\"Ingested document ID    :\", json.id);",
+                  "    console.log(\"Document number         :\", json.documentNumber);",
+                  "    console.log(\"Internal status         :\", json.internalStatus);",
+                  "});",
+                  "",
+                  "pm.test(\"No 400 validation error\", function () {",
+                  "    if (pm.response.code === 400) {",
+                  "        console.error(\"Validation failed:\", pm.response.text());",
+                  "    }",
+                  "    pm.expect(pm.response.code).to.not.equal(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"715234567\",\n  \"environment\": \"PREPROD\",\n  \"status\": \"DRAFT\",\n  \"erpReferenceId\": \"POS-TERM-A01-TXN-2025-089234\",\n\n  \"header\": {\n    \"dateTimeIssued\": \"2025-06-01T14:22:45+02:00\",\n    \"receiptNumber\": \"RCPT-2025-089234\",\n    \"uuid\": \"3fa85f64b41e4d1d9a2c7b3f58e21a90c7d4b8e2f1a3c6d9e8b7f2a4c1d5e0f8\",\n    \"previousUUID\": null,\n    \"currency\": \"EGP\",\n    \"exchangeRate\": null,\n    \"referenceOldUUID\": null,\n    \"sOrderNameCode\": null,\n    \"orderDeliveryMode\": null,\n    \"grossWeight\": null,\n    \"netWeight\": null\n  },\n\n  \"documentType\": {\n    \"receiptType\": \"r\",\n    \"typeVersion\": \"1.2\"\n  },\n\n  \"seller\": {\n    \"rin\": \"715234567\",\n    \"tradeName\": \"Al-Seha Pharmacy & Health - Nasr City Branch\",\n    \"branchCode\": \"NSR-001\",\n    \"deviceSerialNumber\": \"POS-TERM-A01-SN-20240815\",\n    \"activityCode\": \"4772\",\n    \"syndicateLicenseNumber\": \"PHR-2024-00891\",\n    \"branchAddress\": {\n      \"country\": \"EG\",\n      \"governate\": \"Cairo\",\n      \"regionCity\": \"Nasr City\",\n      \"street\": \"Mostafa El-Nahas Street\",\n      \"building\": \"7\",\n      \"postalCode\": \"11762\",\n      \"floor\": \"G\",\n      \"room\": null,\n      \"landmark\": \"Next to Carrefour Market\"\n    }\n  },\n\n  \"buyer\": {\n    \"type\": \"P\",\n    \"id\": null,\n    \"name\": null\n  },\n\n  \"paymentMethod\": \"K\",\n\n  \"totalSales\": 955.00,\n  \"totalCommercialDiscount\": 0.00,\n  \"extraReceiptDiscountData\": [],\n  \"totalItemsDiscount\": 0.00,\n  \"netAmount\": 955.00,\n  \"totalAmount\": 1088.70,\n\n  \"taxTotals\": [\n    { \"taxType\": \"T1\", \"amount\": 133.70 }\n  ],\n\n  \"contractor\": null,\n  \"beneficiary\": null,\n\n  \"itemData\": [\n    {\n      \"internalCode\": \"SKU-VITC-500-001\",\n      \"itemCode\": \"6281026403040\",\n      \"itemType\": \"GS1\",\n      \"description\": \"Vitamin C 500mg Effervescent Tablets - 20 Tabs\",\n      \"unitType\": \"EA\",\n      \"quantity\": 2.00,\n      \"unitPrice\": 85.00,\n      \"salesTotal\": 170.00,\n      \"commercialDiscountData\": [],\n      \"itemDiscountData\": [],\n      \"valueDifference\": 0.00,\n      \"totalTaxableFees\": 0.00,\n      \"netTotal\": 170.00,\n      \"taxAmount\": 23.80,\n      \"total\": 193.80,\n      \"taxableItems\": [\n        { \"taxType\": \"T1\", \"subType\": \"V009\", \"rate\": 14.00, \"amount\": 23.80 }\n      ]\n    },\n    {\n      \"internalCode\": \"SKU-BPM-DIG-002\",\n      \"itemCode\": \"6223008150014\",\n      \"itemType\": \"GS1\",\n      \"description\": \"Digital Blood Pressure Monitor - Automatic Upper Arm\",\n      \"unitType\": \"EA\",\n      \"quantity\": 1.00,\n      \"unitPrice\": 650.00,\n      \"salesTotal\": 650.00,\n      \"commercialDiscountData\": [],\n      \"itemDiscountData\": [],\n      \"valueDifference\": 0.00,\n      \"totalTaxableFees\": 0.00,\n      \"netTotal\": 650.00,\n      \"taxAmount\": 91.00,\n      \"total\": 741.00,\n      \"taxableItems\": [\n        { \"taxType\": \"T1\", \"subType\": \"V009\", \"rate\": 14.00, \"amount\": 91.00 }\n      ]\n    },\n    {\n      \"internalCode\": \"SKU-HSTZ-500-003\",\n      \"itemCode\": \"6281023400128\",\n      \"itemType\": \"GS1\",\n      \"description\": \"Hand Sanitizer Gel 500ml - 75% Alcohol\",\n      \"unitType\": \"EA\",\n      \"quantity\": 3.00,\n      \"unitPrice\": 45.00,\n      \"salesTotal\": 135.00,\n      \"commercialDiscountData\": [],\n      \"itemDiscountData\": [],\n      \"valueDifference\": 0.00,\n      \"totalTaxableFees\": 0.00,\n      \"netTotal\": 135.00,\n      \"taxAmount\": 18.90,\n      \"total\": 153.90,\n      \"taxableItems\": [\n        { \"taxType\": \"T1\", \"subType\": \"V009\", \"rate\": 14.00, \"amount\": 18.90 }\n      ]\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/integration/v1/eta/receipts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "integration", "v1", "eta", "receipts"]
+            },
+            "description": "Ingests an ETA B2C POS receipt (SDK v1.2 shape).\n\nKEY RULES:\n- header.uuid must be exactly 64 lowercase hex characters\n- Anonymous buyer: send {\"type\": \"P\", \"id\": null, \"name\": null} — do NOT send null for the whole buyer object\n- seller.deviceSerialNumber = POS terminal serial (printed on the physical device)\n- paymentMethod: \"K\" = Card, \"C\" = Cash\n- receiptType: \"r\" = standard receipt, \"rr\" = return, \"cr\" = credit receipt"
+          },
+          "response": [
+            {
+              "name": "201 Created — Receipt ingested",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": \"661f9511-f3ac-52e5-b827-557766551112\",\n  \"documentNumber\": \"RCPT-2025-089234\",\n  \"erpReferenceId\": \"POS-TERM-A01-TXN-2025-089234\",\n  \"internalStatus\": \"INGESTED\",\n  \"message\": \"ETA receipt ingested successfully\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/api/integration/v1/eta/receipts" }
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "03 — ZATCA (Saudi Tax Authority) · SANDBOX",
+      "description": "ERP Ingestion Gateway endpoints for the Saudi Zakat, Tax and Customs Authority.\n\nRequired environment value: \"SANDBOX\" — passing \"PREPROD\" returns HTTP 404 AUTHORITY_ENVIRONMENT_NOT_FOUND.\n\nPREREQUISITE: Run '01 — Authentication > Login — ZATCA (SANDBOX)' first.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{zatca_jwt_token}}", "type": "string" }
+        ]
+      },
+      "item": [
+
+        {
+          "name": "Ingest ZATCA Standard Invoice (B2B)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"zatca_jwt_token\")) {",
+                  "    throw new Error(\"zatca_jwt_token is empty. Run 'Login — ZATCA (SANDBOX)' first.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is valid\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"id\");",
+                  "    pm.expect(json).to.have.property(\"documentNumber\");",
+                  "    pm.expect(json).to.have.property(\"internalStatus\");",
+                  "    console.log(\"Ingested document ID    :\", json.id);",
+                  "    console.log(\"Document number         :\", json.documentNumber);",
+                  "    console.log(\"Internal status         :\", json.internalStatus);",
+                  "});",
+                  "",
+                  "pm.test(\"No 400 validation error\", function () {",
+                  "    if (pm.response.code === 400) {",
+                  "        console.error(\"Validation failed:\", pm.response.text());",
+                  "    }",
+                  "    pm.expect(pm.response.code).to.not.equal(400);",
+                  "});",
+                  "",
+                  "pm.test(\"No 404 environment routing error\", function () {",
+                  "    if (pm.response.code === 404) {",
+                  "        console.error(\"Routing error — check environment field is 'SANDBOX' for ZATCA:\", pm.response.text());",
+                  "    }",
+                  "    pm.expect(pm.response.code).to.not.equal(404);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"1010345678\",\n  \"environment\": \"SANDBOX\",\n  \"status\": \"DRAFT\",\n  \"erpReferenceId\": \"ERP-ORACLE-ZATCA-STD-2025-00891\",\n\n  \"invoiceNumber\": \"ZATCA-STD-2025-000891\",\n  \"invoiceTypeCode\": \"388\",\n  \"transactionTypeCode\": \"10000000\",\n  \"issueDate\": \"2025-06-01\",\n  \"issueTime\": \"10:15:00\",\n  \"currency\": \"SAR\",\n\n  \"seller\": {\n    \"partyId\": \"CRN-1010345678\",\n    \"partyIdScheme\": \"CRN\",\n    \"vatNumber\": \"300345678900003\",\n    \"groupVatNumber\": null,\n    \"buildingNumber\": \"7482\",\n    \"additionalNumber\": \"3216\",\n    \"postalCode\": \"11533\",\n    \"street\": \"King Fahd Road\",\n    \"additionalStreetName\": \"Al-Olaya District\",\n    \"plotIdentification\": null,\n    \"city\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n\n  \"buyer\": {\n    \"partyId\": \"CRN-2050123456\",\n    \"partyIdScheme\": \"CRN\",\n    \"vatNumber\": \"310123456700001\",\n    \"groupVatNumber\": null,\n    \"buildingNumber\": \"2341\",\n    \"additionalNumber\": \"1005\",\n    \"postalCode\": \"23456\",\n    \"street\": \"Tahlia Street\",\n    \"additionalStreetName\": \"Al-Andalus District\",\n    \"plotIdentification\": null,\n    \"city\": \"Jeddah\",\n    \"countryCode\": \"SA\"\n  },\n\n  \"lineExtensionAmount\": 115000.00,\n  \"allowanceTotalAmount\": 0.00,\n  \"taxExclusiveAmount\": 109000.00,\n  \"taxAmount\": 15600.00,\n  \"taxInclusiveAmount\": 124600.00,\n  \"prepaidAmount\": null,\n  \"payableAmount\": 124600.00,\n\n  \"paymentMeansCode\": \"30\",\n  \"paymentMeansText\": \"Credit Transfer - 30-day net terms\",\n\n  \"invoiceCounterValue\": 891,\n  \"previousInvoiceHash\": \"NWZlY2ViNjZmZmM4NmYzOGQ5NTI3ODZjNmQ2OTZjNzljMmRiYzIzOWRkNGU5MWI4NTQ5ZjU0ZGY1OWQ5OA==\",\n  \"invoiceHash\": \"YzhlYzI0NjlkMDk4ZjU0N2M5YTNiZTQ0MmZhNjFkNWFiYmQ4NzhhODliYzIzMzRmODkxYWVhZjU3MmZhNA==\",\n  \"qrCodeBase64\": \"ARlBbC1Ob3VyIFRlY2hub2xvZ3kgU29sdXRpb25zAgwzMDAzNDU2Nzg5MDAwMDMDDjIwMjUtMDYtMDFUMTA6MTU6MDBaBAcxMjQ2MDAFBzE1NjAw\",\n  \"clearanceStatus\": null,\n  \"originalInvoiceNumber\": null,\n  \"allowances\": [],\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"itemCode\": \"SAP-S4H-LIC-ANN-001\",\n      \"description\": \"SAP S/4HANA Cloud - Annual Subscription License (Professional Users)\",\n      \"unitType\": \"EA\",\n      \"quantity\": 1.00,\n      \"unitPrice\": 50000.00,\n      \"itemGrossPrice\": 50000.00,\n      \"itemPriceDiscount\": 0.00,\n      \"itemPriceBaseQuantity\": null,\n      \"itemPriceBaseQuantityUnit\": null,\n      \"lineExtensionAmount\": 50000.00,\n      \"netAmount\": 50000.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15.00,\n      \"vatAmount\": 7500.00,\n      \"exemptionReasonCode\": null,\n      \"exemptionReasonText\": null,\n      \"allowances\": []\n    },\n    {\n      \"lineNumber\": 2,\n      \"itemCode\": \"SAP-IMPL-SVC-002\",\n      \"description\": \"SAP Implementation & Rollout Services - On-site Consulting\",\n      \"unitType\": \"DAY\",\n      \"quantity\": 20.00,\n      \"unitPrice\": 3000.00,\n      \"itemGrossPrice\": 3000.00,\n      \"itemPriceDiscount\": 0.00,\n      \"itemPriceBaseQuantity\": null,\n      \"itemPriceBaseQuantityUnit\": null,\n      \"lineExtensionAmount\": 60000.00,\n      \"netAmount\": 54000.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15.00,\n      \"vatAmount\": 8100.00,\n      \"exemptionReasonCode\": null,\n      \"exemptionReasonText\": null,\n      \"allowances\": [\n        {\n          \"sequence\": 1,\n          \"amount\": 6000.00,\n          \"baseAmount\": 60000.00,\n          \"percentage\": 10.00,\n          \"reason\": \"Early Project Commitment Discount\"\n        }\n      ]\n    },\n    {\n      \"lineNumber\": 3,\n      \"itemCode\": \"SAP-TRAIN-EXPORT-003\",\n      \"description\": \"SAP Technical Training - Remote Delivery (Exported Service)\",\n      \"unitType\": \"EA\",\n      \"quantity\": 1.00,\n      \"unitPrice\": 5000.00,\n      \"itemGrossPrice\": 5000.00,\n      \"itemPriceDiscount\": 0.00,\n      \"itemPriceBaseQuantity\": null,\n      \"itemPriceBaseQuantityUnit\": null,\n      \"lineExtensionAmount\": 5000.00,\n      \"netAmount\": 5000.00,\n      \"vatCategoryCode\": \"Z\",\n      \"vatRate\": 0.00,\n      \"vatAmount\": 0.00,\n      \"exemptionReasonCode\": null,\n      \"exemptionReasonText\": null,\n      \"allowances\": []\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/integration/v1/zatca/standard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "integration", "v1", "zatca", "standard"]
+            },
+            "description": "Ingests a ZATCA Standard (B2B) invoice cleared by ZATCA — UBL Fatoora v2.0.3 shape.\n\nKEY RULES:\n- environment must be \"SANDBOX\" (not PREPROD)\n- buyer is REQUIRED for Standard invoices (UBL BR-KSA-EN16931-04)\n- vatNumber: exactly 15 digits starting with 3 (regex: 3[0-9]{14})\n- transactionTypeCode bit-1 = 1 enforces Standard. Basic B2B = \"10000000\"\n- vatCategoryCode \"E\" or \"O\" requires exemptionReasonCode + exemptionReasonText\n- Sprint 1: currency must be \"SAR\" only\n- clearanceStatus: populate with ZATCA API response string after clearance; null for DRAFT"
+          },
+          "response": [
+            {
+              "name": "201 Created — Standard invoice ingested",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": \"772e8400-e29b-41d4-a716-557766552223\",\n  \"documentNumber\": \"ZATCA-STD-2025-000891\",\n  \"erpReferenceId\": \"ERP-ORACLE-ZATCA-STD-2025-00891\",\n  \"internalStatus\": \"INGESTED\",\n  \"message\": \"ZATCA Standard invoice ingested successfully\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/api/integration/v1/zatca/standard" }
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Ingest ZATCA Simplified Invoice (B2C)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get(\"zatca_jwt_token\")) {",
+                  "    throw new Error(\"zatca_jwt_token is empty. Run 'Login — ZATCA (SANDBOX)' first.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is valid\", function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"id\");",
+                  "    pm.expect(json).to.have.property(\"documentNumber\");",
+                  "    pm.expect(json).to.have.property(\"internalStatus\");",
+                  "    console.log(\"Ingested document ID    :\", json.id);",
+                  "    console.log(\"Document number         :\", json.documentNumber);",
+                  "    console.log(\"Internal status         :\", json.internalStatus);",
+                  "});",
+                  "",
+                  "pm.test(\"No 400 validation error\", function () {",
+                  "    if (pm.response.code === 400) {",
+                  "        console.error(\"Validation failed:\", pm.response.text());",
+                  "    }",
+                  "    pm.expect(pm.response.code).to.not.equal(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyRegistrationNumber\": \"1010345678\",\n  \"environment\": \"SANDBOX\",\n  \"status\": \"DRAFT\",\n  \"erpReferenceId\": \"POS-KIOSK-02-TXN-2025-047712\",\n\n  \"invoiceNumber\": \"ZATCA-SIM-2025-047712\",\n  \"invoiceTypeCode\": \"388\",\n  \"transactionTypeCode\": \"00000000\",\n  \"issueDate\": \"2025-06-01\",\n  \"issueTime\": \"17:44:30\",\n  \"currency\": \"SAR\",\n\n  \"seller\": {\n    \"partyId\": \"CRN-1010345678\",\n    \"partyIdScheme\": \"CRN\",\n    \"vatNumber\": \"300345678900003\",\n    \"groupVatNumber\": null,\n    \"buildingNumber\": \"3312\",\n    \"additionalNumber\": \"2201\",\n    \"postalCode\": \"12271\",\n    \"street\": \"King Abdulaziz Road\",\n    \"additionalStreetName\": \"Al-Rawdah District\",\n    \"plotIdentification\": null,\n    \"city\": \"Riyadh\",\n    \"countryCode\": \"SA\"\n  },\n\n  \"buyer\": null,\n\n  \"lineExtensionAmount\": 425.00,\n  \"allowanceTotalAmount\": 0.00,\n  \"taxExclusiveAmount\": 405.00,\n  \"taxAmount\": 60.75,\n  \"taxInclusiveAmount\": 465.75,\n  \"prepaidAmount\": null,\n  \"payableAmount\": 465.75,\n\n  \"paymentMeansCode\": \"48\",\n  \"paymentMeansText\": \"Bank Card\",\n\n  \"invoiceCounterValue\": 47712,\n  \"previousInvoiceHash\": \"YTNmNzUyYjFlOWMwNDg1NmYyYTFiM2M3ZDhlOWYwMTJhM2I0YzVkNmU3ZjgwOTFhMmIzYzRkNWU2Zjc3OA==\",\n  \"invoiceHash\": \"ZjRlNTY3YjJkM2E4YzFmOWU3YjJkNGM1ZTZmN2E4YjNkNGU1ZjZhN2I4YzlkMGUxZjJhM2I0YzVkNmU3ZA==\",\n  \"qrCodeBase64\": \"ARlBbC1Ob3VyIFRlY2hub2xvZ3kgU29sdXRpb25zAgwzMDAzNDU2Nzg5MDAwMDMDDjIwMjUtMDYtMDFUMTc6NDQ6MzBaBAc0NjUuNzUFBjYwLjc1\",\n  \"reportingStatus\": \"REPORTED\",\n  \"originalInvoiceNumber\": null,\n  \"allowances\": [],\n\n  \"lines\": [\n    {\n      \"lineNumber\": 1,\n      \"itemCode\": \"CBF-ARB-1KG-001\",\n      \"description\": \"Premium Arabica Coffee Beans - 1KG Specialty Roast\",\n      \"unitType\": \"KGM\",\n      \"quantity\": 2.00,\n      \"unitPrice\": 85.00,\n      \"itemGrossPrice\": 85.00,\n      \"itemPriceDiscount\": 0.00,\n      \"itemPriceBaseQuantity\": null,\n      \"itemPriceBaseQuantityUnit\": null,\n      \"lineExtensionAmount\": 170.00,\n      \"netAmount\": 170.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15.00,\n      \"vatAmount\": 25.50,\n      \"exemptionReasonCode\": null,\n      \"exemptionReasonText\": null,\n      \"allowances\": []\n    },\n    {\n      \"lineNumber\": 2,\n      \"itemCode\": \"MUG-CRM-2PC-002\",\n      \"description\": \"Specialty Ceramic Mug Set - 2-Piece Hand-Crafted\",\n      \"unitType\": \"EA\",\n      \"quantity\": 1.00,\n      \"unitPrice\": 120.00,\n      \"itemGrossPrice\": 120.00,\n      \"itemPriceDiscount\": 20.00,\n      \"itemPriceBaseQuantity\": null,\n      \"itemPriceBaseQuantityUnit\": null,\n      \"lineExtensionAmount\": 120.00,\n      \"netAmount\": 100.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15.00,\n      \"vatAmount\": 15.00,\n      \"exemptionReasonCode\": null,\n      \"exemptionReasonText\": null,\n      \"allowances\": [\n        {\n          \"sequence\": 1,\n          \"amount\": 20.00,\n          \"baseAmount\": 120.00,\n          \"percentage\": 16.67,\n          \"reason\": \"In-Store Promotional Discount\"\n        }\n      ]\n    },\n    {\n      \"lineNumber\": 3,\n      \"itemCode\": \"CAP-AST-30-003\",\n      \"description\": \"Coffee Capsule Assortment Box - 30 Capsules Mixed Roast\",\n      \"unitType\": \"EA\",\n      \"quantity\": 3.00,\n      \"unitPrice\": 45.00,\n      \"itemGrossPrice\": 45.00,\n      \"itemPriceDiscount\": 0.00,\n      \"itemPriceBaseQuantity\": null,\n      \"itemPriceBaseQuantityUnit\": null,\n      \"lineExtensionAmount\": 135.00,\n      \"netAmount\": 135.00,\n      \"vatCategoryCode\": \"S\",\n      \"vatRate\": 15.00,\n      \"vatAmount\": 20.25,\n      \"exemptionReasonCode\": null,\n      \"exemptionReasonText\": null,\n      \"allowances\": []\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/integration/v1/zatca/simplified",
+              "host": ["{{base_url}}"],
+              "path": ["api", "integration", "v1", "zatca", "simplified"]
+            },
+            "description": "Ingests a ZATCA Simplified (B2C) invoice reported to ZATCA — anonymous retail scenario.\n\nKEY RULES:\n- environment must be \"SANDBOX\" (not PREPROD)\n- buyer: null is correct for anonymous B2C — do NOT send {} (empty object fails validation)\n- transactionTypeCode bit-1 = 0 enforces Simplified. Basic B2C = \"00000000\"\n- reportingStatus: raw ZATCA API response string (separate from top-level status enum)\n- invoiceCounterValue: sequential integer per device — ERP must maintain and increment this\n- paymentMeansCode: \"10\" = Cash, \"48\" = Bank Card, \"42\" = Bank Transfer\n- Sprint 1: currency must be \"SAR\" only"
+          },
+          "response": [
+            {
+              "name": "201 Created — Simplified invoice ingested",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": \"883f9622-g4bd-63e5-c938-668877663334\",\n  \"documentNumber\": \"ZATCA-SIM-2025-047712\",\n  \"erpReferenceId\": \"POS-KIOSK-02-TXN-2025-047712\",\n  \"internalStatus\": \"INGESTED\",\n  \"message\": \"ZATCA Simplified invoice ingested successfully\"\n}",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{base_url}}/api/integration/v1/zatca/simplified" }
+              }
+            }
+          ]
+        }
+
+      ]
+    }
+
+  ]
+}

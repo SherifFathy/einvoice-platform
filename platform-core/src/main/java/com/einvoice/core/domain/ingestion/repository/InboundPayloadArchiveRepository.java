@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Repository for inbound payload archive rows with patch-via-query support. */
 @Repository
@@ -24,7 +25,8 @@ public interface InboundPayloadArchiveRepository extends JpaRepository<InboundPa
      * @param documentId the persisted header UUID (nullable — null for rejections)
      * @param documentType one of ETA_INVOICE / ETA_RECEIPT / ZATCA_STANDARD / ZATCA_SIMPLIFIED (nullable)
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
+    @Transactional
     @Query("UPDATE InboundPayloadArchive a SET a.outcome = :httpStatus,"
             + " a.companyId = COALESCE(a.companyId, :companyId),"
             + " a.authorityEnvironmentId = COALESCE(a.authorityEnvironmentId, :authorityEnvironmentId),"

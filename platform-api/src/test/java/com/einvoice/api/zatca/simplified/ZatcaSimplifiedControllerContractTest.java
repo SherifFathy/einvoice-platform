@@ -107,7 +107,7 @@ class ZatcaSimplifiedControllerContractTest {
         Page<ZatcaSimplifiedResponse> page = new PageImpl<>(
                 List.of(sampleResponse),
                 PageRequest.of(0, 50), 1);
-        when(service.list(any(), any(), any(), any(), anyInt(),
+        when(service.list(any(), any(), any(), any(), any(), anyInt(),
                 anyInt())).thenReturn(page);
 
         mvc.perform(get("/api/companies/{companyId}/zatca/simplified",
@@ -134,7 +134,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void createReturns201WithETag_noBuyer() throws Exception {
-        when(service.create(any())).thenReturn(sampleResponse);
+        when(service.create(any(), any())).thenReturn(sampleResponse);
 
         mvc.perform(post(
                         "/api/companies/{companyId}/zatca/simplified",
@@ -159,7 +159,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void createWithEmptyBuyerSucceeds() throws Exception {
-        when(service.create(any())).thenReturn(sampleResponse);
+        when(service.create(any(), any())).thenReturn(sampleResponse);
 
         mvc.perform(post(
                         "/api/companies/{companyId}/zatca/simplified",
@@ -291,7 +291,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void non02PrefixTransactionTypeReturns400() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new InvalidSimplifiedTransactionTypeException(
                         "Simplified transaction type code must start "
                                 + "with 02, but was: 0100000",
@@ -317,7 +317,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void vatExemptionReasonReturns400() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new VatExemptionReasonRequiredException(
                         "VAT exemption reason required for category E",
                         "E"));
@@ -342,7 +342,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void duplicateSimplifiedNumberReturns409() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new DuplicateSimplifiedNumberException(
                         "Duplicate simplified number: SIMP-DUP",
                         companyId, "SIMP-DUP"));
@@ -367,7 +367,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void missingOriginalDocumentReturns400() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new MissingOriginalDocumentException(
                         "Credit note requires an original document",
                         docId, "ZATCA_SIMPLIFIED"));
@@ -392,7 +392,7 @@ class ZatcaSimplifiedControllerContractTest {
 
     @Test
     void wrongOriginalClassReturns400() throws Exception {
-        when(service.create(any())).thenThrow(
+        when(service.create(any(), any())).thenThrow(
                 new WrongOriginalClassException(
                         "Original must be ZATCA_SIMPLIFIED",
                         "ZATCA_SIMPLIFIED", "ZATCA_STANDARD"));
@@ -420,20 +420,22 @@ class ZatcaSimplifiedControllerContractTest {
     }
 
     @Test
-    void unauthorizedCompanyReturns401() throws Exception {
+    void crossCompanyReadNotBlockedAtController() throws Exception {
+        // The per-company 401 guard on document reads was removed in the company-less
+        // redesign; the controller no longer rejects a company mismatch. Cross-company
+        // access control is enforced in the service layer (see CrossCompanyRejectionIT).
         TenantContext.set(new TenantContext.Holder(
                 UUID.randomUUID(), UUID.randomUUID(), (short) 5,
                 "ZATCA", "TEST", TenantContext.Mode.OPERATIONAL_MODE,
                 true, System.currentTimeMillis(), "jti"));
+        when(service.findById(any())).thenReturn(sampleResponse);
         UUID otherCompanyId = UUID.randomUUID();
 
         mvc.perform(get(
                         "/api/companies/{companyId}"
                                 + "/zatca/simplified/{docId}",
                         otherCompanyId, docId))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code")
-                        .value("UNAUTHORIZED_CONTEXT"));
+                .andExpect(status().isOk());
     }
 
     @Test

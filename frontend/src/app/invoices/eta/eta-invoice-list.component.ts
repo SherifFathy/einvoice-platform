@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -13,13 +13,18 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { EtaInvoiceService, EtaInvoiceListResult } from './services/eta-invoice.service';
 import { SessionContextService } from '../../shared/services/session-context.service';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
+import {
+  BranchLookupService,
+  groupBranchesByCompany,
+} from '../../shared/services/branch-lookup.service';
 import { BulkStatusCheckDialogComponent, BulkStatusDialogData } from '../../documents/shared/bulk-status-check.dialog';
 import { ToastNotificationService } from '../../shared/services/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { BehaviorSubject, switchMap } from 'rxjs';
+import { BehaviorSubject, catchError, of, switchMap, tap } from 'rxjs';
 
 @Component({
   selector: 'app-eta-invoice-list',
@@ -28,7 +33,7 @@ import { BehaviorSubject, switchMap } from 'rxjs';
             MatPaginatorModule, MatButtonModule, MatIconModule, MatChipsModule,
             MatFormFieldModule, MatSelectModule, MatInputModule,
             MatCheckboxModule, MatDialogModule, MatToolbarModule,
-            HasPermissionDirective],
+            MatProgressBarModule, HasPermissionDirective],
   template: `
     <div class="list-container">
       <div class="list-header">
@@ -45,6 +50,20 @@ import { BehaviorSubject, switchMap } from 'rxjs';
             <mat-option value="">All</mat-option>
             @for (c of context()?.companies ?? []; track c.companyId) {
               <mat-option [value]="c.companyId">{{ c.companyNameEn }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branch</mat-label>
+          <mat-select [(ngModel)]="branchFilter"
+                      (selectionChange)="refresh$.next()">
+            <mat-option value="">All branches</mat-option>
+            @for (group of branchesByCompany(); track group.companyId) {
+              <mat-optgroup [label]="group.companyNameEn">
+                @for (branch of group.branches; track branch.id) {
+                  <mat-option [value]="branch.id">{{ branch.nameEn }}</mat-option>
+                }
+              </mat-optgroup>
             }
           </mat-select>
         </mat-form-field>
@@ -70,18 +89,29 @@ import { BehaviorSubject, switchMap } from 'rxjs';
         </mat-form-field>
       </div>
 
-      <mat-toolbar *ngIf="selectedIds.size > 0" class="bulk-toolbar">
-        <span>{{ selectedIds.size }} selected</span>
-        <span class="spacer"></span>
-        <ng-container *appHasPermission="['INVOICE', 'REFRESH']">
-          <button mat-raised-button color="accent" (click)="bulkCheckStatus()">
-            <mat-icon>refresh</mat-icon> Check Status
-          </button>
-        </ng-container>
-        <button mat-button (click)="clearSelection()">Clear</button>
-      </mat-toolbar>
+      @if (loading()) {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <div class="state-banner">Loading invoices…</div>
+      } @else if (error()) {
+        <div class="state-banner error">
+          Could not load invoices. Please try again.
+          <div><button mat-button color="primary" (click)="refresh$.next()">Retry</button></div>
+        </div>
+      } @else if ((invoices()?.items ?? []).length === 0) {
+        <div class="state-banner">No documents match the current filters.</div>
+      } @else {
+        <mat-toolbar *ngIf="selectedIds.size > 0" class="bulk-toolbar">
+          <span>{{ selectedIds.size }} selected</span>
+          <span class="spacer"></span>
+          <ng-container *appHasPermission="['INVOICE', 'REFRESH']">
+            <button mat-raised-button color="accent" (click)="bulkCheckStatus()">
+              <mat-icon>refresh</mat-icon> Check Status
+            </button>
+          </ng-container>
+          <button mat-button (click)="clearSelection()">Clear</button>
+        </mat-toolbar>
 
-      <table mat-table [dataSource]="invoices()?.items ?? []">
+        <table mat-table [dataSource]="invoices()?.items ?? []">
         <ng-container matColumnDef="select">
           <th mat-header-cell *matHeaderCellDef>
             <mat-checkbox (change)="toggleAll($event.checked)"></mat-checkbox>
@@ -93,7 +123,14 @@ import { BehaviorSubject, switchMap } from 'rxjs';
         </ng-container>
         <ng-container matColumnDef="invoiceNumber">
           <th mat-header-cell *matHeaderCellDef>Document Number</th>
-          <td mat-cell *matCellDef="let row">{{ row.invoiceNumber }}</td>
+          <td mat-cell *matCellDef="let row">
+            <ng-container *appHasPermission="['INVOICE', 'VIEW']; else plainInvoiceNumber">
+              <a [routerLink]="['/invoices/eta', row.id]" class="doc-link">
+                {{ row.invoiceNumber }}
+              </a>
+            </ng-container>
+            <ng-template #plainInvoiceNumber>{{ row.invoiceNumber }}</ng-template>
+          </td>
         </ng-container>
         <ng-container matColumnDef="company">
           <th mat-header-cell *matHeaderCellDef>Company</th>
@@ -139,6 +176,7 @@ import { BehaviorSubject, switchMap } from 'rxjs';
       <mat-paginator [length]="invoices()?.totalElements ?? 0"
         [pageSize]="50" [pageIndex]="currentPage"
         (page)="onPage($event)"></mat-paginator>
+      }
     </div>
   `,
   styles: [`
@@ -148,37 +186,55 @@ import { BehaviorSubject, switchMap } from 'rxjs';
     .filters mat-form-field { width: 180px; }
     .bulk-toolbar { margin-bottom: 8px; }
     .spacer { flex: 1 1 auto; }
+    .doc-link { color: #1976d2; font-weight: 500; text-decoration: none; }
+    .doc-link:hover { text-decoration: underline; }
+    .state-banner { padding: 24px; text-align: center; color: #666; }
+    .state-banner.error { color: #c62828; }
   `]
 })
 export class EtaInvoiceListComponent {
   private service = inject(EtaInvoiceService);
   private sessionCtx = inject(SessionContextService);
+  private branchLookup = inject(BranchLookupService);
   private dialog = inject(MatDialog);
   private toast = inject(ToastNotificationService);
   context = toSignal(this.sessionCtx.context$, { initialValue: null });
+  branches = toSignal(this.branchLookup.list(), { initialValue: [] });
   refresh$ = new BehaviorSubject<void>(undefined);
+
+  loading = signal(true);
+  error = signal(false);
 
   columns = ['select', 'invoiceNumber', 'company', 'documentType', 'issueDatetime',
       'totalAmount', 'state', 'actions'];
   currentPage = 0;
   statusFilter = '';
   companyFilter = '';
+  branchFilter = '';
   dateFrom = '';
   dateTo = '';
   selectedIds = new Set<string>();
 
+  private readonly emptyResult: EtaInvoiceListResult = {
+    items: [], page: 0, size: 50, totalElements: 0,
+  };
+
   invoices = toSignal(
-    this.refresh$.pipe(switchMap(() => this.loadInvoices())),
-    { initialValue: { items: [] as EtaInvoiceListResult['items'],
-        page: 0, size: 50, totalElements: 0 } }
+    this.refresh$.pipe(
+      tap(() => { this.loading.set(true); this.error.set(false); }),
+      switchMap(() => this.loadInvoices().pipe(
+        catchError(() => { this.error.set(true); return of(this.emptyResult); }),
+      )),
+      tap(() => this.loading.set(false)),
+    ),
+    { initialValue: this.emptyResult },
   );
 
   private loadInvoices() {
-    const ctx = this.context();
-    const companyId = this.companyFilter || (ctx?.activeCompanyId ?? '');
-    return this.service.list(companyId, {
+    return this.service.list({
       status: this.statusFilter || undefined,
       companyId: this.companyFilter || undefined,
+      branchId: this.branchFilter || undefined,
       dateFrom: this.dateFrom || undefined,
       dateTo: this.dateTo || undefined,
       page: this.currentPage,
@@ -189,6 +245,10 @@ export class EtaInvoiceListComponent {
   companyName(id: string): string {
     const companies = this.context()?.companies ?? [];
     return companies.find(c => c.companyId === id)?.companyNameEn ?? id;
+  }
+
+  branchesByCompany() {
+    return groupBranchesByCompany(this.branches());
   }
 
   onPage(event: PageEvent): void {
@@ -214,9 +274,10 @@ export class EtaInvoiceListComponent {
   }
 
   bulkCheckStatus(): void {
-    const ctx = this.context();
-    const companyId = ctx?.activeCompanyId ?? '';
-    this.service.checkStatus(companyId, Array.from(this.selectedIds)).subscribe({
+    const items = this.invoices()?.items ?? [];
+    const ids = Array.from(this.selectedIds);
+    const companyId = items.find(i => ids.includes(i.id))?.companyId ?? this.companyFilter ?? '';
+    this.service.checkStatus(companyId, ids).subscribe({
       next: resp => {
         this.dialog.open(BulkStatusCheckDialogComponent, {
           width: '700px',

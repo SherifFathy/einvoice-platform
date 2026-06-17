@@ -88,6 +88,7 @@ export class BulkStatusCheckDialogComponent {
   outcomes: BulkStatusDialogOutcome[] = [];
   streaming = false;
   completed = false;
+  totalCount?: number;
   private runId: string | null = null;
   private auth = inject(AuthService);
 
@@ -95,6 +96,7 @@ export class BulkStatusCheckDialogComponent {
     public dialogRef: MatDialogRef<BulkStatusCheckDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: BulkStatusDialogData
   ) {
+    this.totalCount = data.totalCount;
     if (data.streaming && data.fetchResponse) {
       this.streaming = true;
       this.outcomes = data.outcomes ?? [];
