@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   DRAFT: { bg: '#e0e0e0', text: '#616161' },
   CANCELLED: { bg: '#e0e0e0', text: '#9e9e9e' },
   VALIDATED: { bg: '#fff9c4', text: '#f57f17' },

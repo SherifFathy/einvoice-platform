@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { HttpResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,13 +9,12 @@ import { MatTableModule } from '@angular/material/table';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatChipsModule } from '@angular/material/chips';
 import { FormsModule } from '@angular/forms';
 import { ZatcaSimplifiedService, ZatcaSimplifiedDocument, SubmissionAttemptResponse } from './services/zatca-simplified.service';
 import { SessionContextService } from '../shared/services/session-context.service';
 import { HasPermissionDirective } from '../shared/directives/has-permission.directive';
-import { SubmissionHistoryComponent } from '../documents/shared/submission-history.component';
-import { ArtifactDownloadComponent } from '../documents/shared/artifact-download.component';
+import { DetailGridComponent, DetailGridRow } from '../documents/shared/detail-grid.component';
+import { DocumentDetailShellComponent, DocumentDetailTile } from '../documents/shared/document-detail-shell.component';
 import { ToastNotificationService } from '../shared/services/toast.service';
 import { toSignal, toObservable } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, of, switchMap } from 'rxjs';
@@ -74,155 +73,135 @@ export class SimplifiedCancelReasonDialogComponent {
   selector: 'app-zatca-simplified-detail',
   standalone: true,
   imports: [CommonModule, RouterModule, MatButtonModule, MatIconModule,
-            MatCardModule, MatTableModule, MatChipsModule,
-            HasPermissionDirective, MatDialogModule,
-            SubmissionHistoryComponent, ArtifactDownloadComponent],
+            MatCardModule, MatTableModule, HasPermissionDirective,
+            MatDialogModule, DetailGridComponent, DocumentDetailShellComponent],
   template: `
-    <div class="detail-container" *ngIf="document()?.body as doc">
-      <div class="detail-header">
-        <h2>Simplified {{ doc.invoiceNumber }}</h2>
-        <div>
-          <ng-container *appHasPermission="['SIMPLIFIED', 'EDIT']">
-            <button mat-raised-button color="primary"
-                    *ngIf="doc.status === 'DRAFT'"
-                    [routerLink]="['/simplified', doc.id, 'edit']">Edit</button>
-          </ng-container>
-          <ng-container *appHasPermission="['SIMPLIFIED', 'SUBMIT']">
-            <button mat-raised-button color="accent"
-                    *ngIf="doc.status === 'DRAFT'"
-                    (click)="submit()">Submit</button>
-          </ng-container>
-          <ng-container *appHasPermission="['SIMPLIFIED', 'CANCEL']">
-            <button mat-raised-button color="warn"
-                    *ngIf="doc.status === 'ACCEPTED'"
-                    (click)="cancel()">Cancel</button>
-          </ng-container>
-          <ng-container *appHasPermission="['SIMPLIFIED', 'SUBMIT']">
-            <button mat-raised-button color="accent"
-                    *ngIf="doc.status === 'IN_REVIEW'"
-                    (click)="retry()">Retry</button>
-          </ng-container>
-          <ng-container *appHasPermission="['SIMPLIFIED', 'REFRESH']">
-            <button mat-stroked-button
-                    *ngIf="doc.status === 'IN_REVIEW' || doc.status === 'SUBMITTED'"
-                    (click)="checkStatus()">Check Status</button>
-          </ng-container>
-          <ng-container *appHasPermission="['SIMPLIFIED', 'CREATE']">
-            <button mat-raised-button color="warn"
-                    *ngIf="doc.status === 'REJECTED'"
-                    (click)="cloneAsDraft()">Create new draft</button>
-          </ng-container>
+    <app-document-detail-shell
+      *ngIf="document()?.body as doc; else loading"
+      authority="ZATCA"
+      eyebrow="Simplified Invoice"
+      [documentNumber]="doc.invoiceNumber"
+      [status]="doc.status"
+      [secondaryStatus]="doc.reportingStatus"
+      secondaryStatusLabel="Reporting"
+      [subline]="subline(doc)"
+      [backLink]="['/simplified']"
+      backLabel="Simplified invoices"
+      [tiles]="summaryTiles(doc)"
+      [lineCount]="doc.lines.length"
+      [submissions]="submissions()"
+      [artifactTypes]="artifactTypes"
+      [companyId]="doc.companyId"
+      [docId]="doc.id"
+      [getArtifactUrl]="getArtifactUrlFn()">
+      <ng-container actions>
+        <ng-container *appHasPermission="['SIMPLIFIED', 'EDIT']">
+          <button mat-raised-button color="primary"
+                  *ngIf="doc.status === 'DRAFT'"
+                  [routerLink]="['/simplified', doc.id, 'edit']">Edit</button>
+        </ng-container>
+        <ng-container *appHasPermission="['SIMPLIFIED', 'SUBMIT']">
+          <button mat-raised-button color="accent"
+                  *ngIf="doc.status === 'DRAFT'"
+                  (click)="submit()">Submit</button>
+        </ng-container>
+        <ng-container *appHasPermission="['SIMPLIFIED', 'CANCEL']">
+          <button mat-raised-button color="warn"
+                  *ngIf="doc.status === 'ACCEPTED'"
+                  (click)="cancel()">Cancel</button>
+        </ng-container>
+        <ng-container *appHasPermission="['SIMPLIFIED', 'SUBMIT']">
+          <button mat-raised-button color="accent"
+                  *ngIf="doc.status === 'IN_REVIEW'"
+                  (click)="retry()">Retry</button>
+        </ng-container>
+        <ng-container *appHasPermission="['SIMPLIFIED', 'REFRESH']">
+          <button mat-stroked-button
+                  *ngIf="doc.status === 'IN_REVIEW' || doc.status === 'SUBMITTED'"
+                  (click)="checkStatus()">Check Status</button>
+        </ng-container>
+        <ng-container *appHasPermission="['SIMPLIFIED', 'CREATE']">
+          <button mat-raised-button color="warn"
+                  *ngIf="doc.status === 'REJECTED'"
+                  (click)="cloneAsDraft()">Create new draft</button>
+        </ng-container>
+      </ng-container>
+
+      <ng-container tab-overview>
+        <div class="dd-overview-layout">
+          <app-detail-grid [rows]="overviewRows(doc)"></app-detail-grid>
+          <div class="dd-side-stack">
+            <mat-card *ngIf="doc.qrCodeBase64" class="dd-panel">
+              <mat-card-header><mat-card-title>QR Code</mat-card-title></mat-card-header>
+              <mat-card-content>
+                <img class="dd-qr" [src]="'data:image/png;base64,' + doc.qrCodeBase64" alt="QR Code">
+              </mat-card-content>
+            </mat-card>
+            <mat-card *ngIf="doc.invoiceCounterValue != null" class="dd-panel">
+              <mat-card-header><mat-card-title>Chain Snapshot</mat-card-title></mat-card-header>
+              <mat-card-content>
+                <app-detail-grid [rows]="chainRows(doc)"></app-detail-grid>
+              </mat-card-content>
+            </mat-card>
+            <mat-card *ngIf="doc.cryptographicStampValue || doc.signedXmlArtifactId" class="dd-panel">
+              <mat-card-header><mat-card-title>Cryptographic Stamp (BR-KSA-60)</mat-card-title></mat-card-header>
+              <mat-card-content>
+                <app-detail-grid [rows]="stampRows(doc)"></app-detail-grid>
+              </mat-card-content>
+            </mat-card>
+          </div>
         </div>
-      </div>
+      </ng-container>
 
-      <mat-card>
-        <mat-card-content>
-          <p><strong>Status:</strong> <mat-chip>{{ doc.status }}</mat-chip></p>
-          <p><strong>Reporting Status:</strong>
-            <mat-chip *ngIf="doc.reportingStatus" color="accent">{{ doc.reportingStatus }}</mat-chip>
-            <span *ngIf="!doc.reportingStatus">&mdash;</span>
-          </p>
-          <p><strong>Type:</strong> {{ doc.invoiceTypeCode }}</p>
-          <p><strong>Transaction Type:</strong> {{ doc.transactionTypeCode }}</p>
-          <p *ngIf="doc.businessProcessCode"><strong>Business Process:</strong> {{ doc.businessProcessCode }}</p>
-          <p *ngIf="doc.issuanceReason"><strong>Issuance Reason:</strong> {{ doc.issuanceReason }}</p>
-          <p><strong>Issue Date:</strong> {{ doc.issueDate }} {{ doc.issueTime }}</p>
-          <p><strong>Currency:</strong> {{ doc.currency }}</p>
-          <p *ngIf="doc.sellerVatNumber"><strong>Seller VAT Number:</strong> {{ doc.sellerVatNumber }}</p>
-          <p *ngIf="doc.buyerVatNumber"><strong>Buyer VAT Number:</strong> {{ doc.buyerVatNumber }}</p>
-          <p *ngIf="doc.billingReferenceId"><strong>Billing Reference:</strong> {{ doc.billingReferenceId }}</p>
-          <p *ngIf="doc.paymentMeansCode"><strong>Payment Means:</strong> {{ doc.paymentMeansCode }}<span *ngIf="doc.paymentMeansText"> — {{ doc.paymentMeansText }}</span></p>
-          <p><strong>Tax Exclusive:</strong> {{ doc.taxExclusiveAmount }}</p>
-          <p><strong>VAT:</strong> {{ doc.taxAmount }}</p>
-          <p><strong>Tax Inclusive:</strong> {{ doc.taxInclusiveAmount }}</p>
-          <p><strong>Payable:</strong> {{ doc.payableAmount }}</p>
-          <p *ngIf="doc.zatcaUuid"><strong>ZATCA UUID:</strong> {{ doc.zatcaUuid }}</p>
-
-          <div *ngIf="doc.invoiceCounterValue != null" class="chain-snapshot">
-            <h4>Chain Snapshot</h4>
-            <p><strong>Counter:</strong> {{ doc.invoiceCounterValue }}</p>
-            <p><strong>Hash:</strong> <code>{{ doc.invoiceHash }}</code></p>
-            <p><strong>Previous Hash:</strong> <code>{{ doc.previousInvoiceHash }}</code></p>
-          </div>
-
-          <div *ngIf="doc.qrCodeBase64" class="qr-preview">
-            <h4>QR Code</h4>
-            <img [src]="'data:image/png;base64,' + doc.qrCodeBase64" alt="QR Code" width="200" height="200">
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card *ngIf="doc.lines?.length" class="lines-card">
-        <mat-card-header><mat-card-title>Line Items</mat-card-title></mat-card-header>
-        <mat-card-content>
-          <table mat-table [dataSource]="doc.lines">
+      <ng-container tab-lines>
+        <div *ngIf="doc.lines.length; else noLines" class="dd-table-wrap">
+          <table mat-table [dataSource]="doc.lines" class="dd-lines-table">
             <ng-container matColumnDef="code">
               <th mat-header-cell *matHeaderCellDef>Code</th>
               <td mat-cell *matCellDef="let l">{{ l.itemCode }}</td>
+              <td mat-footer-cell *matFooterCellDef></td>
             </ng-container>
             <ng-container matColumnDef="desc">
               <th mat-header-cell *matHeaderCellDef>Description</th>
               <td mat-cell *matCellDef="let l">{{ l.description }}</td>
+              <td mat-footer-cell *matFooterCellDef class="dd-total-label">Totals</td>
             </ng-container>
             <ng-container matColumnDef="qty">
               <th mat-header-cell *matHeaderCellDef>Qty</th>
-              <td mat-cell *matCellDef="let l">{{ l.quantity }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ l.quantity }}</td>
+              <td mat-footer-cell *matFooterCellDef></td>
             </ng-container>
             <ng-container matColumnDef="price">
               <th mat-header-cell *matHeaderCellDef>Unit Price</th>
-              <td mat-cell *matCellDef="let l">{{ l.unitPrice }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ l.unitPrice }}</td>
+              <td mat-footer-cell *matFooterCellDef></td>
             </ng-container>
             <ng-container matColumnDef="net">
               <th mat-header-cell *matHeaderCellDef>Net</th>
-              <td mat-cell *matCellDef="let l">{{ l.netAmount }}</td>
+              <td mat-cell *matCellDef="let l" class="dd-num">{{ l.netAmount }}</td>
+              <td mat-footer-cell *matFooterCellDef class="dd-num dd-total-cell">{{ sumLineNet(doc.lines) }}</td>
             </ng-container>
             <ng-container matColumnDef="vat">
               <th mat-header-cell *matHeaderCellDef>VAT</th>
               <td mat-cell *matCellDef="let l">{{ l.vatCategoryCode }} ({{ l.vatRate }}%) = {{ l.vatAmount }}</td>
+              <td mat-footer-cell *matFooterCellDef class="dd-num dd-total-cell">{{ sumLineVat(doc.lines) }}</td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="lineColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: lineColumns;"></tr>
+            <tr mat-footer-row *matFooterRowDef="lineColumns"></tr>
           </table>
-        </mat-card-content>
-      </mat-card>
+        </div>
+        <ng-template #noLines>
+          <div class="dd-empty-lines">No line items on this simplified invoice.</div>
+        </ng-template>
+      </ng-container>
+    </app-document-detail-shell>
 
-      <mat-card *ngIf="doc.cryptographicStampValue || doc.signedXmlArtifactId" class="stamp-card">
-        <mat-card-header><mat-card-title>Cryptographic Stamp (BR-KSA-60)</mat-card-title></mat-card-header>
-        <mat-card-content>
-          <div *ngIf="doc.cryptographicStampValue">
-            <label>Stamp Value (ECDSA SignatureValue)</label>
-            <textarea readonly class="stamp-value">{{ doc.cryptographicStampValue }}</textarea>
-          </div>
-          <div *ngIf="doc.signedXmlArtifactId" style="margin-top:8px">
-            <label>Signed XML artifact available — use SIGNED_UBL_XML download below.</label>
-          </div>
-          <div *ngIf="doc.signedAt">
-            <label>Signed at</label>
-            <span>{{ doc.signedAt | date:'medium' }}</span>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <app-submission-history [attempts]="submissions()"></app-submission-history>
-
-      <app-artifact-download
-        [artifactTypes]="artifactTypes"
-        [companyId]="document()?.body?.companyId ?? ''"
-        [docId]="document()?.body?.id ?? ''"
-        [getArtifactUrl]="getArtifactUrlFn()">
-      </app-artifact-download>
-    </div>
+    <ng-template #loading>
+      <div class="dd-loading">Loading simplified invoice detail...</div>
+    </ng-template>
   `,
-  styles: [`
-    .detail-container { padding: 16px; }
-    .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .lines-card { margin-top: 16px; }
-    .stamp-card { margin-top: 16px; }
-    .stamp-value { width: 100%; min-height: 60px; font-family: monospace; font-size: 11px; resize: none; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; padding: 8px; }
-    .chain-snapshot { margin-top: 16px; padding: 12px; background: #f5f5f5; border-radius: 4px; }
-    .chain-snapshot code { font-size: 11px; word-break: break-all; }
-    .qr-preview { margin-top: 16px; }
-  `]
+  styleUrls: ['../documents/shared/document-detail-content.scss']
 })
 export class ZatcaSimplifiedDetailComponent {
   private route = inject(ActivatedRoute);
@@ -258,6 +237,71 @@ export class ZatcaSimplifiedDetailComponent {
     const doc = this.document()?.body;
     if (!doc) return () => '';
     return (type: string) => this.service.getArtifactUrl(doc.companyId, doc.id, type);
+  }
+
+  summaryTiles(doc: ZatcaSimplifiedDocument): DocumentDetailTile[] {
+    return [
+      { label: 'Tax Exclusive', value: doc.taxExclusiveAmount },
+      { label: 'VAT', value: doc.taxAmount },
+      { label: 'Tax Inclusive', value: doc.taxInclusiveAmount },
+      { label: 'Payable', value: doc.payableAmount, emphasis: true },
+    ];
+  }
+
+  subline(doc: ZatcaSimplifiedDocument): string {
+    return [[doc.issueDate, doc.issueTime].filter(Boolean).join(' '), doc.currency, 'ZATCA'].filter(Boolean).join(' - ');
+  }
+
+  overviewRows(doc: ZatcaSimplifiedDocument): DetailGridRow[] {
+    return [
+      { label: 'Status', value: doc.status },
+      { label: 'Reporting Status', value: doc.reportingStatus },
+      { label: 'Type', value: doc.invoiceTypeCode },
+      { label: 'Transaction Type', value: doc.transactionTypeCode },
+      { label: 'Business Process', value: doc.businessProcessCode },
+      { label: 'Issuance Reason', value: doc.issuanceReason },
+      { label: 'Issue Date', value: [doc.issueDate, doc.issueTime].filter(Boolean).join(' ') },
+      { label: 'Currency', value: doc.currency },
+      { label: 'Seller VAT Number', value: doc.sellerVatNumber },
+      { label: 'Buyer VAT Number', value: doc.buyerVatNumber },
+      { label: 'Billing Reference', value: doc.billingReferenceId, mono: true },
+      { label: 'Payment Means', value: doc.paymentMeansCode ? `${doc.paymentMeansCode}${doc.paymentMeansText ? ' - ' + doc.paymentMeansText : ''}` : null },
+      { label: 'Tax Exclusive', value: doc.taxExclusiveAmount },
+      { label: 'VAT', value: doc.taxAmount },
+      { label: 'Tax Inclusive', value: doc.taxInclusiveAmount },
+      { label: 'Payable', value: doc.payableAmount },
+      { label: 'ZATCA UUID', value: doc.zatcaUuid, mono: true },
+    ];
+  }
+
+  chainRows(doc: ZatcaSimplifiedDocument): DetailGridRow[] {
+    return [
+      { label: 'Counter', value: doc.invoiceCounterValue },
+      { label: 'Hash', value: doc.invoiceHash, mono: true },
+      { label: 'Previous Hash', value: doc.previousInvoiceHash, mono: true },
+    ];
+  }
+
+  stampRows(doc: ZatcaSimplifiedDocument): DetailGridRow[] {
+    return [
+      { label: 'Stamp Value (ECDSA SignatureValue)', value: doc.cryptographicStampValue, mono: true },
+      { label: 'Signed XML Artifact', value: doc.signedXmlArtifactId ? 'SIGNED_UBL_XML download available below' : null },
+      { label: 'Signed At', value: this.fmtDateTime(doc.signedAt) },
+    ];
+  }
+
+  private fmtDateTime(value: string | null | undefined): string {
+    if (!value) return '';
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : formatDate(parsed, 'medium', 'en-US');
+  }
+
+  sumLineNet(lines: ZatcaSimplifiedDocument['lines']): string {
+    return this.formatAmount((lines ?? []).reduce((sum, line) => sum + Number(line.netAmount ?? 0), 0));
+  }
+
+  sumLineVat(lines: ZatcaSimplifiedDocument['lines']): string {
+    return this.formatAmount((lines ?? []).reduce((sum, line) => sum + Number(line.vatAmount ?? 0), 0));
   }
 
   submit(): void {
@@ -322,5 +366,10 @@ export class ZatcaSimplifiedDetailComponent {
         });
       }
     });
+  }
+
+  private formatAmount(value: unknown): string {
+    const numeric = Number(value ?? 0);
+    return Number.isFinite(numeric) ? numeric.toFixed(2) : String(value ?? '');
   }
 }
